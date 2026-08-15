@@ -48,7 +48,7 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-user-circle'),
             ])
             ->colors([
-                'primary' => Color::Green,
+                'primary' => Color::Red,
             ])
             ->sidebarCollapsibleOnDesktop()
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')

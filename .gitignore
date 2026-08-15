@@ -15,6 +15,10 @@
 /node_modules
 /public/build
 /public/hot
+/storage/framework/views/*.php
+/databasesss/
+/public/applicant-pictures/
+/public/uploads/
 /public/storage
 /storage/*.key
 /storage/pail

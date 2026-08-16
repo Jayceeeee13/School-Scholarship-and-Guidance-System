@@ -30,7 +30,6 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->profile()
             ->brandName('Green Valley College Foundation Inc.')
             ->login(\App\Filament\Pages\Auth\Login::class)
             ->authGuard('web')

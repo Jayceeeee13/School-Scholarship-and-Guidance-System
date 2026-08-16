@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
         'enrolled' => \App\Http\Middleware\EnsureUserIsEnrolled::class,
+        'portal' => \App\Http\Middleware\EnsurePortalAccess::class,
     ]);
 
 	$middleware->trustProxies(at: '*');

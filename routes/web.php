@@ -100,7 +100,7 @@ Route::get('/referral', [ReferralController::class, 'create'])->name('referral')
 // ─────────────────────────────────────────────────────────────
 // Protected Routes — all authenticated users
 // ─────────────────────────────────────────────────────────────
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'portal'])->group(function () {
 
     // Guidance portal
     Route::get('/guidance', function () {
@@ -187,7 +187,7 @@ Route::middleware(['auth'])->group(function () {
 // ─────────────────────────────────────────────────────────────
 // Scholarship Routes — enrolled students only
 // ─────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'enrolled'])->group(function () {
+Route::middleware(['auth', 'enrolled', 'portal'])->group(function () {
     Route::get('/apply/new', [ApplicationController::class, 'create'])->name('application_new.get');
     Route::post('/apply/new', [ApplicationController::class, 'store'])->name('application_new.post');
     Route::get('/application/renewal', [ApplicationController::class, 'renewalForm'])->name('application_renewal');

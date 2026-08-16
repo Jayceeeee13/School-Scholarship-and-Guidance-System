@@ -56,14 +56,25 @@ Route::post('/login', function (Request $request) {
     ]);
 
     if (Auth::attempt($credentials)) {
+        $role = strtolower(Auth::user()->role?->name ?? '');
+
+        // Only students and guests may log in through this portal.
+        // Admin, guidance, and scholarship accounts must use their own panels.
+        if (!in_array($role, ['student', 'guest'])) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'email' => 'This login is for students only. Please use the appropriate portal for your account.',
+            ])->onlyInput('email');
+        }
+
         $request->session()->regenerate();
 
-        $role = Auth::user()->role?->name;
-
-        if (strtolower($role) === 'admin')       return redirect('/admin');
-        if (strtolower($role) === 'guidance')    return redirect('/guidance');
-        if (strtolower($role) === 'scholarship') return redirect('/scholarship');
-        if (strtolower($role) === 'guest')       return redirect()->route('referral');
+        if ($role === 'guest') {
+            return redirect()->route('referral');
+        }
 
         return redirect()->route('gvc');
     }

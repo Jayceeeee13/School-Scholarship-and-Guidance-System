@@ -483,12 +483,12 @@ class ScholarsResource extends Resource
                     ->visible(fn () => ! static::isRestrictedToOwnScholars()),
 
                 Tables\Actions\Action::make('print_institutional')
-                    ->label('Print Institutional')
-                    ->icon('heroicon-o-printer')
-                    ->color('primary')
-                    ->visible(fn () => request()->query('activeTab') === 'institutional' && ! static::isRestrictedToOwnScholars())
-                    ->url(fn () => route('scholars.print.institutional'))
-                    ->openUrlInNewTab(),
+    ->label('Print Institutional')
+    ->icon('heroicon-o-printer')
+    ->color('primary')
+    ->visible(fn ($livewire) => $livewire->activeTab === 'institutional' && ! static::isRestrictedToOwnScholars())
+    ->url(fn () => route('scholars.print.institutional'))
+    ->openUrlInNewTab(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('term_id')

@@ -308,7 +308,7 @@ class CounselingAppointmentsResource extends Resource
                                                                 $component->state($record->logform->appointment->present_address);
                                                             }
                                                         }),
-                                                    Forms\Components\TextInput::make('area_concern')->label('Area of Concern')->placeholder('e.g., Academic, Social')->maxLength(500),
+                                                    Forms\Components\TextInput::make('area_concern')->label('Area of Concern')->placeholder('e.g., Academic, Social')->maxLength(500)->required(),
                                                 ]),
                                                 Forms\Components\RichEditor::make('concern')->label('Observation')->placeholder('Describe observation...')->columnSpanFull()->toolbarButtons(['bold', 'italic', 'bulletList', 'orderedList'])->disableToolbarButtons(['attachFiles']),
                                                 Forms\Components\RichEditor::make('intervention')->label('Intervention')->placeholder('Action taken...')->columnSpanFull()->toolbarButtons(['bold', 'italic', 'bulletList', 'orderedList'])->disableToolbarButtons(['attachFiles']),

@@ -117,26 +117,37 @@ class ReferralsResource extends Resource
                                     ->label('Session Logforms')
                                     ->schema([
                                         Forms\Components\Grid::make(3)
-                                            ->schema([
-                                                Forms\Components\TextInput::make('name')
-                                                    ->label('Full Name')
-                                                    ->required()
-                                                    ->maxLength(500)
-                                                    ->disabled()
-                                                    ->dehydrated()
-                                                    ->default(fn (Get $get) => $get('../../name'))
-                                                    ->columnSpan(2),
-                                            ]),
+    ->schema([
+        Forms\Components\TextInput::make('name')
+            ->label('Full Name')
+            ->required()
+            ->maxLength(500)
+            ->disabled()
+            ->dehydrated()
+            ->default(fn (Get $get) => $get('../../name'))
+            ->afterStateHydrated(function ($component, $state, $record) {
+                if (!empty($state)) return;
+                if ($record && $record->referral) {
+                    $component->state($record->referral->name);
+                }
+            })
+            ->columnSpan(2),
+    ]),
 
-                                        Forms\Components\Grid::make(3)
-                                            ->schema([
-                                                Forms\Components\TextInput::make('course_and_year')
-                                                    ->label('Course & Year')
-                                                    ->maxLength(500)
-                                                    ->disabled()
-                                                    ->dehydrated()
-                                                    ->default(fn (Get $get) => $get('../../course_and_year')),
-
+Forms\Components\Grid::make(3)
+    ->schema([
+        Forms\Components\TextInput::make('course_and_year')
+            ->label('Course & Year')
+            ->maxLength(500)
+            ->disabled()
+            ->dehydrated()
+            ->default(fn (Get $get) => $get('../../course_and_year'))
+            ->afterStateHydrated(function ($component, $state, $record) {
+                if (!empty($state)) return;
+                if ($record && $record->referral) {
+                    $component->state($record->referral->course_and_year);
+                }
+            }),
                                                 Forms\Components\TextInput::make('contact_no')
                                                     ->label('Contact')
                                                     ->tel()
@@ -164,22 +175,34 @@ class ReferralsResource extends Resource
                                             ->label('Anecdotal Records')
                                             ->schema([
                                                 Forms\Components\Grid::make(4)
-                                                    ->schema([
-                                                        Forms\Components\TextInput::make('name')
-                                                            ->label('Name')
-                                                            ->required()
-                                                            ->maxLength(500)
-                                                            ->disabled()
-                                                            ->dehydrated()
-                                                            ->default(fn (Get $get) => $get('../../../../name'))
-                                                            ->columnSpan(2),
+    ->schema([
+        Forms\Components\TextInput::make('name')
+            ->label('Name')
+            ->required()
+            ->maxLength(500)
+            ->disabled()
+            ->dehydrated()
+            ->default(fn (Get $get) => $get('../../../../name'))
+            ->afterStateHydrated(function ($component, $state, $record) {
+                if (!empty($state)) return;
+                if ($record && $record->logform && $record->logform->referral) {
+                    $component->state($record->logform->referral->name);
+                }
+            })
+            ->columnSpan(2),
 
-                                                        Forms\Components\TextInput::make('course_and_year')
-                                                            ->label('Course')
-                                                            ->maxLength(500)
-                                                            ->disabled()
-                                                            ->dehydrated()
-                                                            ->default(fn (Get $get) => $get('../../../../course_and_year')),
+        Forms\Components\TextInput::make('course_and_year')
+            ->label('Course')
+            ->maxLength(500)
+            ->disabled()
+            ->dehydrated()
+            ->default(fn (Get $get) => $get('../../../../course_and_year'))
+            ->afterStateHydrated(function ($component, $state, $record) {
+                if (!empty($state)) return;
+                if ($record && $record->logform && $record->logform->referral) {
+                    $component->state($record->logform->referral->course_and_year);
+                }
+            }),
 
                                                         Forms\Components\TextInput::make('contact_no')
                                                             ->label('Contact')

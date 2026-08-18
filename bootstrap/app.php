@@ -24,4 +24,10 @@ return Application::configure(basePath: dirname(__DIR__))
         return redirect()->route('login')
             ->with('error', 'Your session expired. Please log in again.');
     });
+
+    $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException $e, \Illuminate\Http\Request $request) {
+        if ($request->is('logout') || $request->is('*/logout')) {
+            return redirect('/')->with('info', 'You have been redirected to the homepage.');
+        }
+    });
 })->create();

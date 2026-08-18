@@ -18,4 +18,15 @@ class Login extends BaseLogin
         return parent::getPasswordFormComponent()
             ->extraInputAttributes(['autocomplete' => 'new-password']);
     }
+
+    public function getSubheading(): string|\Illuminate\Contracts\Support\Htmlable|null
+    {
+        return new \Illuminate\Support\HtmlString(
+            '<div class="text-center mt-4">
+                <a href="' . url('/') . '" class="text-sm font-medium text-primary-600 hover:text-primary-500 underline">
+                    ← Back to Portal
+                </a>
+            </div>'
+        );
+    }
 }

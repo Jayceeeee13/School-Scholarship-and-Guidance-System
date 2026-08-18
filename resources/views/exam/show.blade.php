@@ -375,11 +375,21 @@
     </div>
 </div>
 
+@php
+    // Shuffle the questions WITHIN each category — category order itself is untouched.
+    // Runs fresh on every page load, so each student gets a different question order per category.
+    $shuffledCategories = collect($categories)->map(function ($cat) {
+        $cat = (array) $cat;
+        $cat['questions'] = collect($cat['questions'])->shuffle()->values()->all();
+        return $cat;
+    })->values()->all();
+@endphp
+
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <script>
 function examApp() {
     return {
-        categories: @json($categories),
+        categories: @json($shuffledCategories),
         answers: {},
         timeLeft: {{ $exam->duration_minutes * 60 }},
         showSubmitModal: false,

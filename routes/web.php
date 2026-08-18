@@ -98,7 +98,7 @@ Route::post('/register', [RegisterController::class, 'store'])->name('register.p
 Route::get('/referral', [ReferralController::class, 'create'])->name('referral');
 
 // ─────────────────────────────────────────────────────────────
-// Protected Routes — all authenticated users
+// Protected Routes — students & guests only (portal)
 // ─────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'portal'])->group(function () {
 
@@ -151,19 +151,6 @@ Route::middleware(['auth', 'portal'])->group(function () {
     Route::post('/exam/{exam}/violation', [ExamController::class, 'recordViolation'])->name('exam.violation');
     Route::get('/exam/result/{result}',   [ExamController::class, 'result'])->name('exam.result');
 
-    // Print
-    Route::get('/counseling-logforms/print', [CounselingLogformsPrintController::class, 'print'])
-        ->name('counseling-logforms.print');
-
-    Route::get('/reports/print', ReportsPrintController::class)
-        ->name('reports.print');
-
-    Route::get('/scholars/print/institutional', [App\Http\Controllers\ScholarsController::class, 'printInstitutional'])
-        ->name('scholars.print.institutional');
-
-    Route::get('/exam-attempts/{examAttempt}/print', [ExamResultSlipController::class, 'print'])
-        ->name('exam-attempts.print');
-
     // Notifications
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])
         ->name('notifications.readAll');
@@ -182,6 +169,27 @@ Route::middleware(['auth', 'portal'])->group(function () {
             return back()->with('success', 'Response recorded.');
         }
     )->name('referral.invitation.respond');
+});
+
+// ─────────────────────────────────────────────────────────────
+// Shared authenticated routes — accessible by ALL roles
+// (admin, guidance, scholarship, department head, student, guest).
+// Mainly print/report links opened from Filament tables in a new tab —
+// these must NOT be behind the student-only 'portal' middleware,
+// otherwise staff get logged out when they click "Print".
+// ─────────────────────────────────────────────────────────────
+Route::middleware(['auth'])->group(function () {
+    Route::get('/counseling-logforms/print', [CounselingLogformsPrintController::class, 'print'])
+        ->name('counseling-logforms.print');
+
+    Route::get('/reports/print', ReportsPrintController::class)
+        ->name('reports.print');
+
+    Route::get('/scholars/print/institutional', [App\Http\Controllers\ScholarsController::class, 'printInstitutional'])
+        ->name('scholars.print.institutional');
+
+    Route::get('/exam-attempts/{examAttempt}/print', [ExamResultSlipController::class, 'print'])
+        ->name('exam-attempts.print');
 });
 
 // ─────────────────────────────────────────────────────────────

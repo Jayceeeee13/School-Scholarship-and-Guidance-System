@@ -50,6 +50,13 @@
             </span>
         </a>
         <nav class="flex items-center gap-2 sm:gap-3">
+            <a href="{{ url('/') }}"
+               class="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-4 py-1.5 text-xs sm:text-sm font-semibold text-white transition">
+                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                </svg>
+                Back
+            </a>
             <a href="{{ route('register') }}"
                class="inline-flex items-center rounded-full bg-emerald-400 px-4 py-1.5 text-xs sm:text-sm font-semibold text-emerald-950 shadow-btn-glow hover:bg-emerald-300 transition">
                 Register

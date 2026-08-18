@@ -368,21 +368,39 @@ TextInput::make('age')
                             ->placeholder('Enter interview notes, observations, and remarks here...')
                             ->helperText('Document important points from the interview session')
                             ->columnSpanFull(),
-                        
-                        TextInput::make('benefit')
-                            ->label('Scholarship Benefit (Exam Score %)')
-                            ->numeric()
-                            ->readOnly()
-                            ->suffix('%')
-                            ->helperText(function ($state) {
-                                if (is_null($state)) {
-                                    return 'Not set. This is filled automatically once the applicant\'s benefit is determined.';
-                                }
 
-                                $discount = \App\Models\ExamAttempt::resolveDiscount((float) $state);
+                        Forms\Components\Placeholder::make('benefit_display')
+                            ->label('Scholarship Benefit')
+                            ->content(function ($record) {
+                                $discount = \App\Models\ExamAttempt::resolveDiscount((int) $record->benefit);
 
-                                return "Resolved discount: {$discount['label']}";
+                                $colorClasses = match ($discount['color']) {
+                                    'success' => 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-400',
+                                    'info'    => 'bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-400',
+                                    'warning' => 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400',
+                                    'danger'  => 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400',
+                                    default   => 'bg-gray-100 text-gray-800 dark:bg-gray-500/20 dark:text-gray-400',
+                                };
+
+                                return new \Illuminate\Support\HtmlString(
+                                    '<span class="inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium ' . $colorClasses . '">'
+                                    . e($discount['label']) .
+                                    '</span>'
+                                );
                             })
+                            ->visible(fn ($record) => $record && ! is_null($record->benefit))
+                            ->columnSpanFull(),
+
+                        Forms\Components\TextInput::make('benefit')
+                            ->label('Scholarship Benefit')
+                            ->numeric()
+                            ->rule('in:100,85,75,50,25,10,0')
+                            ->validationMessages([
+                                'in' => 'Enter one of the valid discount values: 100, 85, 75, 50, 25, 10, or 0.',
+                            ])
+                            ->placeholder('e.g. 100, 85, 75, 50, 25, 10, or 0')
+                            ->helperText('No benefit set yet — normally filled automatically from the applicant\'s exam score. Enter one of: 100 (100% + Misc.), 85 (100% Tuition), 75, 50, 25, 10, or 0 (No Discount).')
+                            ->visible(fn ($record) => ! $record || is_null($record->benefit))
                             ->columnSpanFull(),
                     ])
                     ->columns(1)

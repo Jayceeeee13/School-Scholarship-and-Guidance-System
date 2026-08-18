@@ -370,14 +370,37 @@ TextInput::make('age')
                             ->columnSpanFull(),
                         
                         TextInput::make('benefit')
-                            ->label('Scholarship Benefit')
-                            ->numeric()
-                            ->prefix('₱')
-                            ->placeholder('0.00')
-                            ->helperText('Enter the scholarship amount or benefit value')
-                            ->maxValue(999999999)
-                            ->step(0.01)
-                            ->columnSpanFull(),
+    ->label('Scholarship Benefit (Exam Score %)')
+    ->numeric()
+    ->readOnly()
+    ->suffix('%')
+    ->helperText(function ($record) {
+        if (! $record) {
+            return 'Will be auto-filled from the applicant\'s exam attempt once available.';
+        }
+
+        $attempt = $record->latestExamAttempt;
+
+        if (! $attempt) {
+            return 'No exam attempt found for this applicant.';
+        }
+
+        $discount = \App\Models\ExamAttempt::resolveDiscount((float) $attempt->percentage);
+
+        return "Resolved discount: {$discount['label']}";
+    })
+    ->afterStateHydrated(function ($component, $record) {
+        if (! $record) {
+            return;
+        }
+
+        $attempt = $record->latestExamAttempt;
+
+        if ($attempt) {
+            $component->state($attempt->percentage);
+        }
+    })
+    ->columnSpanFull(),
                     ])
                     ->columns(1)
                     ->collapsible()

@@ -45,16 +45,6 @@ class AdminPanelProvider extends PanelProvider
                     ->label('Profile')
                     ->url(fn () => '/admin/profile')
                     ->icon('heroicon-o-user-circle'),
-                    'logout' => MenuItem::make()
-        ->label('Sign out')
-        ->icon('heroicon-o-arrow-left-on-rectangle')
-        ->action(function () {
-            // Handled entirely on the frontend via the confirm() dialog below;
-            // this action only runs if the user clicks "OK".
-        })
-        ->extraAttributes([
-            'onclick' => "if(!confirm('Are you sure you want to sign out?')) { event.stopImmediatePropagation(); event.preventDefault(); }",
-        ]),
             ])
             ->colors([
                 'primary' => Color::Green,
@@ -357,7 +347,21 @@ class AdminPanelProvider extends PanelProvider
 
         [x-cloak] { display: none !important; }
 
-        </style>' : ''
+        </style>
+        <script>
+        document.addEventListener("click", function (e) {
+            var logoutTrigger = e.target.closest(
+                \'a[href*="/logout"], form[action*="logout"] button[type="submit"], [wire\\\\:click*="logout"]\'
+            );
+
+            if (logoutTrigger) {
+                if (!confirm("Are you sure you want to sign out?")) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                }
+            }
+        }, true);
+        </script>' : ''
     );
 
     FilamentView::registerRenderHook(

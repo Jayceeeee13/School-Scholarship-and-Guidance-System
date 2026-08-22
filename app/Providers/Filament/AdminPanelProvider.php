@@ -101,11 +101,17 @@ class AdminPanelProvider extends PanelProvider
            SIDEBAR WIDTH
            ======================================== */
         aside.fi-sidebar {
-            width: 18rem !important; /* default is usually 16rem (256px) — adjust as needed */
+            width: 18rem !important;
         }
 
-        .fi-main-ctn {
-            margin-inline-start: 18rem !important; /* must match the sidebar width above */
+        .fi-main-ctn,
+        .fi-topbar,
+        main.fi-main {
+            margin-inline-start: 18rem !important;
+        }
+
+        .fi-topbar nav {
+            margin-inline-start: 0 !important;
         }
 
         nav.fi-sidebar-nav {

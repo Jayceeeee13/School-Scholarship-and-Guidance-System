@@ -45,6 +45,16 @@ class AdminPanelProvider extends PanelProvider
                     ->label('Profile')
                     ->url(fn () => '/admin/profile')
                     ->icon('heroicon-o-user-circle'),
+                    'logout' => MenuItem::make()
+        ->label('Sign out')
+        ->icon('heroicon-o-arrow-left-on-rectangle')
+        ->action(function () {
+            // Handled entirely on the frontend via the confirm() dialog below;
+            // this action only runs if the user clicks "OK".
+        })
+        ->extraAttributes([
+            'onclick' => "if(!confirm('Are you sure you want to sign out?')) { event.stopImmediatePropagation(); event.preventDefault(); }",
+        ]),
             ])
             ->colors([
                 'primary' => Color::Green,

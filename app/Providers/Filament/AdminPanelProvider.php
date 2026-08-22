@@ -97,6 +97,17 @@ class AdminPanelProvider extends PanelProvider
             background-color: #059669 !important;
         }
 
+        /* ========================================
+           SIDEBAR WIDTH
+           ======================================== */
+        aside.fi-sidebar {
+            width: 18rem !important; /* default is usually 16rem (256px) — adjust as needed */
+        }
+
+        .fi-main-ctn {
+            margin-inline-start: 18rem !important; /* must match the sidebar width above */
+        }
+
         nav.fi-sidebar-nav {
             background-color: transparent !important;
         }

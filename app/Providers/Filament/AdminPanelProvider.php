@@ -347,20 +347,166 @@ class AdminPanelProvider extends PanelProvider
 
         [x-cloak] { display: none !important; }
 
-        </style>
-        <script>
-        document.addEventListener("click", function (e) {
-            var logoutTrigger = e.target.closest(
-                \'a[href*="/logout"], form[action*="logout"] button[type="submit"], [wire\\\\:click*="logout"]\'
-            );
+        /* ========================================
+           CUSTOM SIGN OUT CONFIRMATION MODAL
+           ======================================== */
+        #signout-confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(4, 47, 30, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
 
-            if (logoutTrigger) {
-                if (!confirm("Are you sure you want to sign out?")) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                }
+        #signout-confirm-overlay.active {
+            display: flex;
+        }
+
+        #signout-confirm-box {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 360px;
+            padding: 1.75rem;
+            text-align: center;
+            font-family: inherit;
+            animation: signout-pop 0.15s ease-out;
+        }
+
+        @keyframes signout-pop {
+            from { opacity: 0; transform: scale(0.95); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+
+        #signout-confirm-box .icon-wrap {
+            width: 56px;
+            height: 56px;
+            border-radius: 9999px;
+            background: #d1fae5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem auto;
+        }
+
+        #signout-confirm-box .icon-wrap svg {
+            width: 28px;
+            height: 28px;
+            color: #059669;
+        }
+
+        #signout-confirm-box h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 0.4rem;
+        }
+
+        #signout-confirm-box p {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+        }
+
+        #signout-confirm-box .btn-row {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        #signout-confirm-box button {
+            flex: 1;
+            padding: 0.6rem 1rem;
+            border-radius: 0.65rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background 0.15s ease;
+        }
+
+        #signout-cancel-btn {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        #signout-cancel-btn:hover {
+            background: #e5e7eb;
+        }
+
+        #signout-ok-btn {
+            background: #059669;
+            color: white;
+        }
+        #signout-ok-btn:hover {
+            background: #047857;
+        }
+
+        </style>
+
+        <div id="signout-confirm-overlay">
+            <div id="signout-confirm-box">
+                <div class="icon-wrap">
+                    <svg fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l3 3m0 0l-3 3m3-3H2.25" />
+                    </svg>
+                </div>
+                <h3>Sign out?</h3>
+                <p>You will be logged out of your admin session.</p>
+                <div class="btn-row">
+                    <button id="signout-cancel-btn" type="button">Cancel</button>
+                    <button id="signout-ok-btn" type="button">Sign out</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        (function () {
+            let pendingLogoutTrigger = null;
+
+            function findLogoutTrigger(el) {
+                return el.closest(\'a[href*="/logout"], form[action*="logout"] button[type="submit"], [wire\\\\:click*="logout"]\');
             }
-        }, true);
+
+            document.addEventListener("click", function (e) {
+                const trigger = findLogoutTrigger(e.target);
+                if (!trigger) return;
+
+                // Already confirmed via our modal — let it through
+                if (trigger.dataset.signoutConfirmed === "true") {
+                    delete trigger.dataset.signoutConfirmed;
+                    return;
+                }
+
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                pendingLogoutTrigger = trigger;
+                document.getElementById("signout-confirm-overlay").classList.add("active");
+            }, true);
+
+            document.getElementById("signout-cancel-btn").addEventListener("click", function () {
+                pendingLogoutTrigger = null;
+                document.getElementById("signout-confirm-overlay").classList.remove("active");
+            });
+
+            document.getElementById("signout-confirm-overlay").addEventListener("click", function (e) {
+                if (e.target === this) {
+                    pendingLogoutTrigger = null;
+                    this.classList.remove("active");
+                }
+            });
+
+            document.getElementById("signout-ok-btn").addEventListener("click", function () {
+                document.getElementById("signout-confirm-overlay").classList.remove("active");
+                if (pendingLogoutTrigger) {
+                    pendingLogoutTrigger.dataset.signoutConfirmed = "true";
+                    pendingLogoutTrigger.click();
+                    pendingLogoutTrigger = null;
+                }
+            });
+        })();
         </script>' : ''
     );
 

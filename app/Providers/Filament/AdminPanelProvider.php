@@ -97,23 +97,6 @@ class AdminPanelProvider extends PanelProvider
             background-color: #059669 !important;
         }
 
-        /* ========================================
-           SIDEBAR WIDTH
-           ======================================== */
-        aside.fi-sidebar {
-            width: 18rem !important;
-        }
-
-        .fi-main-ctn,
-        .fi-topbar,
-        main.fi-main {
-            margin-inline-start: 18rem !important;
-        }
-
-        .fi-topbar nav {
-            margin-inline-start: 0 !important;
-        }
-
         nav.fi-sidebar-nav {
             background-color: transparent !important;
         }

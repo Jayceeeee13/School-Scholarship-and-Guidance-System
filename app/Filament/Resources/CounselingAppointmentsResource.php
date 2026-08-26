@@ -148,18 +148,44 @@ class CounselingAppointmentsResource extends Resource
                                                             ->when($currentRecordId, fn ($q) => $q->where('id', '!=', $currentRecordId))
                                                             ->pluck('time_slot_id')->toArray();
 
-                                                        return $timeSlots->mapWithKeys(fn ($s) => [
-                                                            $s->id => $s->name . (in_array($s->id, $reserved) ? ' 🔴 Reserved' : ' ✅ Available'),
-                                                        ])->toArray();
+                                                        $isToday = \Carbon\Carbon::parse($selectedDate)->isToday();
+
+                                                        return $timeSlots->mapWithKeys(function ($s) use ($reserved, $isToday) {
+                                                            $label = $s->name;
+
+                                                            if (in_array($s->id, $reserved)) {
+                                                                $label .= ' 🔴 Reserved';
+                                                            } elseif ($isToday && self::isTimeSlotPast($s->name)) {
+                                                                $label .= ' ⏰ Past';
+                                                            } else {
+                                                                $label .= ' ✅ Available';
+                                                            }
+
+                                                            return [$s->id => $label];
+                                                        })->toArray();
                                                     })
                                                     ->disableOptionWhen(function ($value, callable $get) {
                                                         $selectedDate = $get('counseling_date');
                                                         if (!$selectedDate) return false;
-                                                        return \App\Models\CounselingAppointments::query()
+
+                                                        // Disable if reserved by another appointment
+                                                        $isReserved = \App\Models\CounselingAppointments::query()
                                                             ->whereDate('counseling_date', $selectedDate)
                                                             ->where('time_slot_id', $value)
                                                             ->when($get('id'), fn ($q) => $q->where('id', '!=', $get('id')))
                                                             ->exists();
+
+                                                        if ($isReserved) return true;
+
+                                                        // Disable if the slot's start time has already passed today
+                                                        if (\Carbon\Carbon::parse($selectedDate)->isToday()) {
+                                                            $slot = \App\Models\CounselingTimeSlot::find($value);
+                                                            if ($slot && self::isTimeSlotPast($slot->name)) {
+                                                                return true;
+                                                            }
+                                                        }
+
+                                                        return false;
                                                     })
                                                     ->required()->searchable()->preload()->live()
                                                     ->placeholder(fn (callable $get) => $get('counseling_date') ? 'Choose an available time slot' : 'Select a date first')
@@ -472,6 +498,34 @@ class CounselingAppointmentsResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->badge(),
             ]);
+    }
+
+    /**
+     * Extracts the start time from a slot name like "9:00 am - 10:00 am"
+     * or "11:00 am - 12:00 nn" and checks if that time has already passed today.
+     */
+    protected static function isTimeSlotPast(string $slotName): bool
+    {
+        // Grab the first time pattern before the dash, e.g. "9:00 am"
+        if (!preg_match('/^\s*(\d{1,2}:\d{2})\s*(am|pm|nn)/i', $slotName, $matches)) {
+            return false; // couldn't parse — don't block it
+        }
+
+        $time   = $matches[1];               // e.g. "9:00"
+        $period = strtolower($matches[2]);   // e.g. "am", "pm", or "nn"
+
+        // "nn" means noon, treat it as pm (12:00 nn = 12:00 pm)
+        $normalizedPeriod = $period === 'nn' ? 'pm' : $period;
+
+        try {
+            $startTime    = \Carbon\Carbon::createFromFormat('g:i A', $time . ' ' . strtoupper($normalizedPeriod));
+            $today        = \Carbon\Carbon::today();
+            $slotDateTime = $today->copy()->setTimeFromTimeString($startTime->format('H:i:s'));
+
+            return $slotDateTime->isPast();
+        } catch (\Exception $e) {
+            return false; // parsing failed — don't block it
+        }
     }
 
     public static function getRelations(): array

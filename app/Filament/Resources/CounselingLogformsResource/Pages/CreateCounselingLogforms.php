@@ -9,4 +9,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateCounselingLogforms extends CreateRecord
 {
     protected static string $resource = CounselingLogformsResource::class;
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

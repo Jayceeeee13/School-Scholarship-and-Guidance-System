@@ -9,4 +9,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateSupportNeeded extends CreateRecord
 {
     protected static string $resource = SupportNeededResource::class;
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

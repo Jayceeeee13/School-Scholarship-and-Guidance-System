@@ -9,4 +9,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateGender extends CreateRecord
 {
     protected static string $resource = GenderResource::class;
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

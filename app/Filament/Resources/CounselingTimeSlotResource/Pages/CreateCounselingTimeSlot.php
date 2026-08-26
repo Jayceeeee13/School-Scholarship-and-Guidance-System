@@ -9,4 +9,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateCounselingTimeSlot extends CreateRecord
 {
     protected static string $resource = CounselingTimeSlotResource::class;
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

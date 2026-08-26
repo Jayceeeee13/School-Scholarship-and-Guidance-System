@@ -22,4 +22,9 @@ class CreateApplicant extends CreateRecord
         return parent::getCreateAnotherFormAction()
             ->label('Add & Add Another');
     }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

@@ -9,4 +9,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateExamCategory extends CreateRecord
 {
     protected static string $resource = ExamCategoryResource::class;
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

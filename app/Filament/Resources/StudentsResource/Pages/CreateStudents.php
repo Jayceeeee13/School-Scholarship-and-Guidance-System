@@ -9,4 +9,9 @@ use Filament\Resources\Pages\CreateRecord;
 class CreateStudents extends CreateRecord
 {
             protected static string $resource = StudentsResource::class;
+
+            protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
 }

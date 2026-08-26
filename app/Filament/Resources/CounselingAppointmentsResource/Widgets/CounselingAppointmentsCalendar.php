@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\CounselingAppointmentsResource\Widgets;
 
 use Saade\FilamentFullCalendar\Widgets\FullCalendarWidget;
+use App\Filament\Resources\CounselingAppointmentsResource;
 use App\Models\CounselingAppointments;
 use App\Models\InactiveDate;
 use Carbon\Carbon;
@@ -80,9 +81,9 @@ class CounselingAppointmentsCalendar extends FullCalendarWidget
             return;
         }
 
-        // Adjust this to whatever behavior you want on click
-        // e.g. redirect to appointment detail page, open a modal, etc.
-        $this->redirect('/admin-calendar/appointment/' . $id);
+        $this->redirect(
+            CounselingAppointmentsResource::getUrl('edit', ['record' => $id])
+        );
     }
 
     public function config(): array

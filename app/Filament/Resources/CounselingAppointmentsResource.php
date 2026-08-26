@@ -156,7 +156,7 @@ class CounselingAppointmentsResource extends Resource
                                                             if (in_array($s->id, $reserved)) {
                                                                 $label .= ' 🔴 Reserved';
                                                             } elseif ($isToday && self::isTimeSlotPast($s->name)) {
-                                                                $label .= ' ⏰ Past';
+                                                                $label .= '';
                                                             } else {
                                                                 $label .= ' ✅ Available';
                                                             }

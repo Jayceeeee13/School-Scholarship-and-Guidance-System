@@ -71,6 +71,20 @@ class CounselingAppointmentsCalendar extends FullCalendarWidget
         $this->redirect('/admin-calendar/date/' . $date);
     }
 
+    public function onEventClick(array $event): void
+    {
+        $id = $event['id'] ?? null;
+
+        // Ignore clicks on inactive-date background blocks
+        if (!$id || str_starts_with((string) $id, 'inactive-')) {
+            return;
+        }
+
+        // Adjust this to whatever behavior you want on click
+        // e.g. redirect to appointment detail page, open a modal, etc.
+        $this->redirect('/admin-calendar/appointment/' . $id);
+    }
+
     public function config(): array
     {
         return [

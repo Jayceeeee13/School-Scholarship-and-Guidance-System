@@ -161,7 +161,8 @@ protected static ?string $navigationIcon = 'heroicon-s-user-circle';
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('created_at', 'desc');
     }
 
     public static function getRelations(): array

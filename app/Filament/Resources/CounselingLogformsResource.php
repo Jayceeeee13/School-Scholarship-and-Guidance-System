@@ -327,7 +327,8 @@ class CounselingLogformsResource extends Resource
                     ])
                     ->visible(fn ($operation) => in_array($operation, ['edit', 'create']))
                     ->collapsible(),
-            ]);
+            ])
+            ->defaultSort('created_at', 'desc');
     }
 
     public static function table(Table $table): Table

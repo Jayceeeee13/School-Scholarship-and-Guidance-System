@@ -136,7 +136,7 @@ class CounselingAppointments extends Model
                 return true;
             }
 
-            return now()->lt($this->approved_at->copy()->addMinutes(5));
+            return now()->lt($this->approved_at->copy()->addHours(3));
         }
 
         return false;

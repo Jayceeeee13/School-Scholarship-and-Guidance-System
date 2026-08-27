@@ -494,7 +494,7 @@
                                 <template x-for="slot in slots" :key="slot.id">
                                     <option
                                         :value="slot.id"
-                                        :disabled="slot.reserved"
+                                        :disabled="slot.reserved || slot.past"
                                         x-text="slot.label"
                                         :selected="slot.id == {{ old('time_slot_id', 'null') }}"
                                     ></option>
@@ -616,6 +616,39 @@
     // ── Shared selected date (bridges calendar → time slot picker) ───
     let sharedDate = null;
 
+    // ── Helper: parse "9:00 am - 10:00 am" / "11:00 am - 12:00 nn" ───
+    // and check if the slot's start time has already passed (for today only)
+    function isSlotPast(slotName, selectedDateISO) {
+        const todayISO = (() => {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        })();
+
+        if (selectedDateISO !== todayISO) return false; // only relevant for today
+
+        const match = slotName.match(/^\s*(\d{1,2}):(\d{2})\s*(am|pm|nn)/i);
+        if (!match) return false;
+
+        let [, hourStr, minStr, period] = match;
+        let hour = parseInt(hourStr, 10);
+        const minute = parseInt(minStr, 10);
+        period = period.toLowerCase();
+
+        // "nn" means noon — treat like pm
+        const normalizedPeriod = period === 'nn' ? 'pm' : period;
+
+        if (normalizedPeriod === 'pm' && hour !== 12) hour += 12;
+        if (normalizedPeriod === 'am' && hour === 12) hour = 0;
+
+        const slotTime = new Date();
+        slotTime.setHours(hour, minute, 0, 0);
+
+        return new Date() > slotTime;
+    }
+
     // ── Calendar Picker ──────────────────────────────────────────────
     function calendarPicker() {
         const today = new Date();
@@ -722,16 +755,16 @@
                 if (!this.selectedDate) return 'Please select a date first to see time slot availability.';
                 if (this.loading)       return 'Loading availability…';
                 const total    = this.slots.length;
-                const reserved = this.slots.filter(s => s.reserved).length;
-                const available = total - reserved;
-                if (available === 0) return '🔴 All time slots are reserved for this date. Please choose another date.';
-                return `✅ ${available} of ${total} slots available | 🔴 Reserved slots are disabled`;
+                const unavailable = this.slots.filter(s => s.reserved || s.past).length;
+                const available = total - unavailable;
+                if (available === 0) return '🔴 No time slots available for this date. Please choose another date.';
+                return `✅ ${available} of ${total} slots available`;
             },
 
             get slotHintClass() {
                 if (!this.selectedDate) return 'field-hint';
-                const allReserved = this.slots.length > 0 && this.slots.every(s => s.reserved);
-                return allReserved ? 'field-hint hint-danger' : 'field-hint';
+                const noneAvailable = this.slots.length > 0 && this.slots.every(s => s.reserved || s.past);
+                return noneAvailable ? 'field-hint hint-danger' : 'field-hint';
             },
 
             init() {
@@ -758,28 +791,38 @@
                 })
                 .then(r => r.json())
                 .then(data => {
-                    this.slots = data.map(s => ({
-                        id:       s.id,
-                        name:     s.name,
-                        reserved: s.reserved,
-                        label:    s.name + (s.reserved ? ' 🔴 Reserved' : ' ✅ Available'),
-                    }));
+                    this.slots = data.map(s => {
+                        const past = isSlotPast(s.name, date);
+                        let label = s.name;
+                        if (s.reserved)      label += ' 🔴 Reserved';
+                        else if (past)       label += ' ⏰ Past';
+                        else                 label += ' ✅ Available';
+
+                        return {
+                            id:       s.id,
+                            name:     s.name,
+                            reserved: s.reserved,
+                            past:     past,
+                            label:    label,
+                        };
+                    });
                     this.loading = false;
                 })
                 .catch(() => {
-                    // Fallback: show all slots as available if fetch fails
-                    this.slots = ALL_SLOTS.map(s => ({
-                        id: s.id, name: s.name, reserved: false,
-                        label: s.name + ' ✅ Available',
-                    }));
+                    // Fallback: show all slots, still applying past-time logic
+                    this.slots = ALL_SLOTS.map(s => {
+                        const past = isSlotPast(s.name, date);
+                        let label = s.name + (past ? ' ⏰ Past' : ' ✅ Available');
+                        return { id: s.id, name: s.name, reserved: false, past: past, label: label };
+                    });
                     this.loading = false;
                 });
             },
 
             onSlotChange(e) {
-                // Reset if user picks reserved (shouldn't happen but safety net)
+                // Reset if user picks reserved or past slot (safety net)
                 const slot = this.slots.find(s => s.id == e.target.value);
-                if (slot && slot.reserved) e.target.value = '';
+                if (slot && (slot.reserved || slot.past)) e.target.value = '';
             },
         };
     }

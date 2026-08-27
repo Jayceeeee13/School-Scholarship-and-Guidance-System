@@ -300,7 +300,7 @@
                         {{ ucfirst($appt->status) }}
                     </span>
 
-                    @if(in_array($appt->status, ['pending', 'approved']))
+                    @if($appt->canBeCancelled())
                     <button
                         type="button"
                         onclick="document.getElementById('cancel-modal-{{ $appt->id }}').classList.remove('hidden')"
@@ -348,6 +348,10 @@
                             </div>
                         </div>
                     </div>
+                    @elseif($appt->status === 'approved')
+                    <span class="text-xs text-slate-400 italic flex-shrink-0">
+                        Cancellation window expired
+                    </span>
                     @endif
 
                 </div>

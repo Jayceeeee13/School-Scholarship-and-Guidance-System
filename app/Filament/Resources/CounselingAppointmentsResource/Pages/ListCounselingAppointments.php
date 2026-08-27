@@ -180,7 +180,10 @@ class ListCounselingAppointments extends ListRecords
                         ->modalSubmitActionLabel('Yes, Approve')
                         ->visible(fn ($record): bool => !in_array($record->status, ['approved', 'cancelled']))
                         ->action(function ($record) {
-                            $record->update(['status' => 'approved']);
+                            $record->update([
+                                'status' => 'approved',
+                                'approved_at' => now(),
+                            ]);
                             $record->notifyStudent('approved');
 
                             $this->logCustomActivity(
@@ -254,6 +257,7 @@ class ListCounselingAppointments extends ListRecords
                                 'counseling_date' => $data['counseling_date'],
                                 'time_slot_id'     => $data['time_slot_id'],
                                 'status'           => 'pending',
+                                'approved_at'      => null,
                             ]);
 
                             $record->notifyStudent('rescheduled');

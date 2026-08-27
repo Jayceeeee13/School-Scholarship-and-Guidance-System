@@ -29,11 +29,13 @@ class CounselingAppointments extends Model
         'support_needed_id',
         'concern',
         'status',
+        'approved_at',
         'archived_at',
     ];
 
     protected $casts = [
         'counseling_date' => 'date',
+        'approved_at'      => 'datetime',
         'archived_at'      => 'datetime',
     ];
 
@@ -113,6 +115,31 @@ class CounselingAppointments extends Model
     public function getFullNameAttribute(): string
     {
         return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
+    }
+
+    /**
+     * Whether this appointment can still be cancelled right now.
+     *
+     * - Pending appointments can always be cancelled.
+     * - Approved appointments can only be cancelled within 5 hours of
+     *   approval. If approved_at wasn't set (older records before this
+     *   feature existed), we allow cancellation as a safe fallback.
+     */
+    public function canBeCancelled(): bool
+    {
+        if ($this->status === 'pending') {
+            return true;
+        }
+
+        if ($this->status === 'approved') {
+            if (! $this->approved_at) {
+                return true;
+            }
+
+            return now()->lt($this->approved_at->copy()->addHours(5));
+        }
+
+        return false;
     }
 
     /**

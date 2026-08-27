@@ -795,7 +795,7 @@
                         const past = isSlotPast(s.name, date);
                         let label = s.name;
                         if (s.reserved)      label += ' 🔴 Reserved';
-                        else if (past)       label += ' ⏰ Past';
+                        else if (past)       label += '';
                         else                 label += ' ✅ Available';
 
                         return {

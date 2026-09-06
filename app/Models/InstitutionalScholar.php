@@ -6,9 +6,11 @@ use App\Traits\LogsAllActivity;
 use App\Traits\HasScholarProfile;
 use Illuminate\Database\Eloquent\Model;
 
-class Scholars extends Model
+class InstitutionalScholar extends Model
 {
     use LogsAllActivity, HasScholarProfile;
+
+    protected $table = 'institutional_scholars';
 
     // Scholarship types allowed to submit accomplishment reports
     public const ACCOMPLISHMENT_ELIGIBLE_TYPES = [

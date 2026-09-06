@@ -5,11 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class AccomplishmentReport extends Model
 {
     protected $fillable = [
         'scholar_id',
+        'scholar_type',
         'term_id',
         'status',
         'remarks',
@@ -20,9 +22,9 @@ class AccomplishmentReport extends Model
         'submitted_at' => 'datetime',
     ];
 
-    public function scholar(): BelongsTo
+    public function scholar(): MorphTo
     {
-        return $this->belongsTo(Scholars::class, 'scholar_id');
+        return $this->morphTo();
     }
 
     public function term(): BelongsTo

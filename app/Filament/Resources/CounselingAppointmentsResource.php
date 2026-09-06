@@ -137,7 +137,10 @@ class CounselingAppointmentsResource extends Resource
                                                     ->options(function (callable $get) {
                                                         $selectedDate    = $get('counseling_date');
                                                         $currentRecordId = $get('id');
-                                                        $timeSlots       = \App\Models\CounselingTimeSlot::where('is_active', true)->orderBy('name')->get();
+                                                        $timeSlots       = \App\Models\CounselingTimeSlot::where('is_active', true)
+                                                            ->get()
+                                                            ->sortBy(fn ($s) => self::getSlotStartMinutes($s->name))
+                                                            ->values();
 
                                                         if (!$selectedDate) {
                                                             return $timeSlots->mapWithKeys(fn ($s) => [$s->id => $s->name . ' ✅ Available'])->toArray();
@@ -156,7 +159,7 @@ class CounselingAppointmentsResource extends Resource
                                                             if (in_array($s->id, $reserved)) {
                                                                 $label .= ' 🔴 Reserved';
                                                             } elseif ($isToday && self::isTimeSlotPast($s->name)) {
-                                                                $label .= '';
+                                                                $label .= ' ⏰ Past';
                                                             } else {
                                                                 $label .= ' ✅ Available';
                                                             }
@@ -526,6 +529,29 @@ class CounselingAppointmentsResource extends Resource
         } catch (\Exception $e) {
             return false; // parsing failed — don't block it
         }
+    }
+
+    /**
+     * Converts a slot name like "9:00am-10:00am" or "11:00am-12:00nn"
+     * into total minutes since midnight, for chronological sorting.
+     */
+    protected static function getSlotStartMinutes(string $slotName): int
+    {
+        if (!preg_match('/^\s*(\d{1,2}):(\d{2})\s*(am|pm|nn)/i', $slotName, $matches)) {
+            return 0; // unparseable — push to the front, harmless
+        }
+
+        $hour   = (int) $matches[1];
+        $minute = (int) $matches[2];
+        $period = strtolower($matches[3]);
+
+        // "nn" means noon, treat it as pm
+        $normalizedPeriod = $period === 'nn' ? 'pm' : $period;
+
+        if ($normalizedPeriod === 'pm' && $hour !== 12) $hour += 12;
+        if ($normalizedPeriod === 'am' && $hour === 12) $hour = 0;
+
+        return ($hour * 60) + $minute;
     }
 
     public static function getRelations(): array

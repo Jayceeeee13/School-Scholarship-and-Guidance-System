@@ -48,6 +48,29 @@ class Scholars extends Model
         'revoked_at' => 'datetime',
     ];
 
+    // ── NEW: auto-link a newly created scholar to a matching login ─────
+    // account, if one already exists and no user_id was explicitly set
+    // at creation time. Mirrors the same idea used in App\Models\Students,
+    // adapted for Scholars. This only fires on CREATE, so it does not
+    // retroactively fix scholars already sitting in the table with a
+    // NULL user_id — those need a one-time manual UPDATE.
+    protected static function booted(): void
+    {
+        static::created(function (Scholars $scholar) {
+            if ($scholar->user_id) {
+                return; // already linked explicitly at creation
+            }
+
+            $user = User::whereRaw('LOWER(last_name) = ?', [strtolower($scholar->last_name)])
+                ->whereDate('birthdate', $scholar->birthdate)
+                ->first();
+
+            if ($user) {
+                $scholar->update(['user_id' => $user->id]);
+            }
+        });
+    }
+
     public function term(): BelongsTo
     {
         return $this->belongsTo(\App\Models\Term::class);

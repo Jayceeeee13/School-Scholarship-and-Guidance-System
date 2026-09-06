@@ -434,8 +434,8 @@ TextInput::make('mothers_lastname')
 
                             @unlink($fullPath);
 
-                            $failures = $import->failures();
-                            $errors   = $import->errors();
+                            $failures   = $import->failures();
+                            $errors     = $import->errors();
                             $duplicates = $import->duplicateRows ?? [];
 
                             if ($failures->count() > 0 || $errors->count() > 0) {
@@ -459,15 +459,20 @@ TextInput::make('mothers_lastname')
                                     ->send();
                             } elseif (count($duplicates) > 0) {
                                 $dupLines = array_map(
-                                    fn ($d) => ($d['student_id'] ? "ID {$d['student_id']}" : 'No ID') . " — {$d['name']} ({$d['reason']})",
+                                    fn ($d) => "• {$d['name']}" . ($d['student_id'] ? " (Student ID: {$d['student_id']})" : ' (no Student ID provided)'),
                                     array_slice($duplicates, 0, 5)
                                 );
-                                $more = count($duplicates) > 5 ? (' …and ' . (count($duplicates) - 5) . ' more.') : '';
+                                $more = count($duplicates) > 5
+                                    ? "\n…and " . (count($duplicates) - 5) . ' additional record(s).'
+                                    : '';
 
                                 Notification::make()
-                                    ->title(count($duplicates) . ' duplicate(s) skipped')
+                                    ->title('Import Completed with Duplicates Skipped')
                                     ->warning()
-                                    ->body(implode("\n", $dupLines) . $more)
+                                    ->body(
+                                        count($duplicates) . ' record(s) were not imported because they already exist for the selected term:' .
+                                        "\n\n" . implode("\n", $dupLines) . $more
+                                    )
                                     ->persistent()
                                     ->send();
                             } else {

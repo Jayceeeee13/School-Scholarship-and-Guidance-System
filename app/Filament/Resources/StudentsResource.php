@@ -436,6 +436,7 @@ TextInput::make('mothers_lastname')
 
                             $failures = $import->failures();
                             $errors   = $import->errors();
+                            $duplicates = $import->duplicateRows ?? [];
 
                             if ($failures->count() > 0 || $errors->count() > 0) {
                                 $lines = [];
@@ -454,6 +455,19 @@ TextInput::make('mothers_lastname')
                                     ->title("{$total} row(s) skipped")
                                     ->warning()
                                     ->body($preview . $more)
+                                    ->persistent()
+                                    ->send();
+                            } elseif (count($duplicates) > 0) {
+                                $dupLines = array_map(
+                                    fn ($d) => ($d['student_id'] ? "ID {$d['student_id']}" : 'No ID') . " — {$d['name']} ({$d['reason']})",
+                                    array_slice($duplicates, 0, 5)
+                                );
+                                $more = count($duplicates) > 5 ? (' …and ' . (count($duplicates) - 5) . ' more.') : '';
+
+                                Notification::make()
+                                    ->title(count($duplicates) . ' duplicate(s) skipped')
+                                    ->warning()
+                                    ->body(implode("\n", $dupLines) . $more)
                                     ->persistent()
                                     ->send();
                             } else {

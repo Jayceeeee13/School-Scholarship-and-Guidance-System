@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Exports\ScholarsExport;
 use App\Imports\ScholarsImport;
 use App\Filament\Resources\ScholarsResource\Pages;
+use App\Models\InstitutionalScholar;
 use App\Models\Scholars;
 use App\Models\Term;
 use App\Models\TypeOfScholarship;
@@ -43,318 +44,339 @@ class ScholarsResource extends Resource
             && ! auth()->user()->hasAnyRole(['admin', 'scholarship']);
     }
 
+    /**
+     * Shared form schema — used by this resource's own Create/Edit pages
+     * (bound to Scholars) AND by the custom Institutional Scholar modal
+     * forms in ListScholars (bound to InstitutionalScholar). Keeping this
+     * as one method means both models always stay in sync field-for-field.
+     */
+    public static function scholarFormSchema(): array
+    {
+        return [
+            Section::make('Scholar Information')
+                ->schema([
+                    Grid::make(2)
+                        ->schema([
+                            Forms\Components\TextInput::make('student_id')
+                                ->label('Student ID')
+                                ->numeric()
+                                ->unique(ignoreRecord: true)
+                                ->placeholder('Optional - can be assigned later')
+                                ->helperText('Leave empty to assign later'),
+
+                            Forms\Components\Select::make('status')
+                                ->label('Status')
+                                ->options([
+                                    'active'       => 'Active',
+                                    'inactive'     => 'Inactive',
+                                    'graduated'    => 'Graduated',
+                                    'discontinued' => 'Discontinued',
+                                    'revoked'      => 'Revoked',
+                                ])
+                                ->default('active')
+                                ->required()
+                                ->native(false),
+                        ]),
+
+                    Forms\Components\Select::make('term_id')
+                        ->label('Term')
+                        ->options(function () {
+                            return Term::orderByDesc('is_active')
+                                ->orderByDesc('id')
+                                ->get()
+                                ->mapWithKeys(fn ($term) => [
+                                    $term->id => $term->school_year . ' — ' . $term->semester
+                                        . ($term->is_active ? ' (Active)' : ''),
+                                ]);
+                        })
+                        ->required()
+                        ->native(false)
+                        ->searchable()
+                        ->helperText('Select the school term for this scholar'),
+                ])
+                ->collapsible(),
+
+            Section::make('Personal Information')
+                ->schema([
+                    Grid::make(4)
+                        ->schema([
+                            Forms\Components\TextInput::make('first_name')
+                                ->label('First Name')
+                                ->required()
+                                ->maxLength(200),
+
+                            Forms\Components\TextInput::make('middle_name')
+                                ->label('Middle Name')
+                                ->required()
+                                ->maxLength(200),
+
+                            Forms\Components\TextInput::make('last_name')
+                                ->label('Last Name')
+                                ->required()
+                                ->maxLength(200),
+
+                            Forms\Components\TextInput::make('extension_name')
+                                ->label('Extension')
+                                ->placeholder('Jr., Sr., III')
+                                ->maxLength(200),
+                        ]),
+
+                    Grid::make(2)
+                        ->schema([
+                            Forms\Components\Select::make('sex')
+                                ->label('Sex')
+                                ->options([
+                                    'Male'   => 'Male',
+                                    'Female' => 'Female',
+                                ])
+                                ->required()
+                                ->native(false),
+
+                            Forms\Components\DatePicker::make('birthdate')
+                                ->label('Birthdate')
+                                ->required()
+                                ->native(false)
+                                ->maxDate(now()),
+                        ]),
+                ])
+                ->collapsible(),
+
+            Section::make('Academic Information')
+                ->schema([
+                    Grid::make(2)
+                        ->schema([
+                            Forms\Components\TextInput::make('program')
+                                ->label('Program')
+                                ->required()
+                                ->maxLength(200)
+                                ->placeholder('e.g., BSIT, BSCS, BSBA'),
+
+                            Forms\Components\Select::make('year_level')
+                                ->label('Year Level')
+                                ->options([
+                                    '1' => '1st Year',
+                                    '2' => '2nd Year',
+                                    '3' => '3rd Year',
+                                    '4' => '4th Year',
+                                    '5' => '5th Year',
+                                ])
+                                ->required()
+                                ->native(false)
+                                ->searchable(),
+                        ]),
+                ])
+                ->collapsible(),
+
+            Section::make('Scholarship Details')
+                ->schema([
+                    Grid::make(3)
+                        ->schema([
+                            Forms\Components\TextInput::make('type_of_scholarship')
+                                ->label('Type of Scholarship')
+                                ->required()
+                                ->maxLength(255),
+
+                            Forms\Components\TextInput::make('batch_no')
+                                ->label('Batch Number')
+                                ->numeric()
+                                ->placeholder('Optional'),
+
+                            Forms\Components\TextInput::make('ip_group')
+                                ->label('IP Group')
+                                ->maxLength(255),
+
+                            Forms\Components\TextInput::make('pwd')
+                                ->label('PWD')
+                                ->maxLength(200),
+
+                            Forms\Components\TextInput::make('benefit')
+                                ->label('Scholarship Benefit')
+                                ->numeric()
+                                ->prefix('₱')
+                                ->placeholder('0.00'),
+                        ]),
+                ])
+                ->collapsible(),
+        ];
+    }
+
     public static function form(Form $form): Form
     {
-        return $form
-            ->schema([
-                Section::make('Scholar Information')
-                    ->schema([
-                        Grid::make(2)
-                            ->schema([
-                                Forms\Components\TextInput::make('student_id')
-                                    ->label('Student ID')
-                                    ->numeric()
-                                    ->unique(ignoreRecord: true)
-                                    ->placeholder('Optional - can be assigned later')
-                                    ->helperText('Leave empty to assign later'),
+        return $form->schema(static::scholarFormSchema());
+    }
 
-                                Forms\Components\Select::make('status')
-                                    ->label('Status')
-                                    ->options([
-                                        'active'       => 'Active',
-                                        'inactive'     => 'Inactive',
-                                        'graduated'    => 'Graduated',
-                                        'discontinued' => 'Discontinued',
-                                        'revoked'      => 'Revoked',
-                                    ])
-                                    ->default('active')
-                                    ->required()
-                                    ->native(false),
-                            ]),
+    /**
+     * Shared table columns — reused by this resource's default table()
+     * (Scholars model) and by ListScholars' custom institutional table
+     * (InstitutionalScholar model). None of these closures type-hint the
+     * model class, so they work unmodified against either record type.
+     */
+    public static function scholarTableColumns(): array
+    {
+        return [
+            Tables\Columns\TextColumn::make('student_id')
+                ->label('Student ID')
+                ->searchable()
+                ->sortable()
+                ->formatStateUsing(fn ($state) => $state ?? 'Not Assigned')
+                ->badge()
+                ->color(fn ($state) => $state ? 'primary' : 'gray'),
 
-                        Forms\Components\Select::make('term_id')
-                            ->label('Term')
-                            ->options(function () {
-                                return Term::orderByDesc('is_active')
-                                    ->orderByDesc('id')
-                                    ->get()
-                                    ->mapWithKeys(fn ($term) => [
-                                        $term->id => $term->school_year . ' — ' . $term->semester
-                                            . ($term->is_active ? ' (Active)' : ''),
-                                    ]);
-                            })
-                            ->required()
-                            ->native(false)
-                            ->searchable()
-                            ->helperText('Select the school term for this scholar'),
-                    ])
-                    ->collapsible(),
+            Tables\Columns\TextColumn::make('first_name')
+                ->label('First Name')
+                ->searchable()
+                ->sortable(),
 
-                Section::make('Personal Information')
-                    ->schema([
-                        Grid::make(4)
-                            ->schema([
-                                Forms\Components\TextInput::make('first_name')
-                                    ->label('First Name')
-                                    ->required()
-                                    ->maxLength(200),
+            Tables\Columns\TextColumn::make('middle_name')
+                ->label('Middle Name')
+                ->searchable()
+                ->toggleable(isToggledHiddenByDefault: true),
 
-                                Forms\Components\TextInput::make('middle_name')
-                                    ->label('Middle Name')
-                                    ->required()
-                                    ->maxLength(200),
+            Tables\Columns\TextColumn::make('last_name')
+                ->label('Last Name')
+                ->searchable()
+                ->sortable(),
 
-                                Forms\Components\TextInput::make('last_name')
-                                    ->label('Last Name')
-                                    ->required()
-                                    ->maxLength(200),
+            Tables\Columns\TextColumn::make('extension_name')
+                ->label('Ext.')
+                ->searchable()
+                ->toggleable(isToggledHiddenByDefault: true),
 
-                                Forms\Components\TextInput::make('extension_name')
-                                    ->label('Extension')
-                                    ->placeholder('Jr., Sr., III')
-                                    ->maxLength(200),
-                            ]),
+            Tables\Columns\TextColumn::make('sex')
+                ->label('Sex')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    'Male'   => 'info',
+                    'Female' => 'danger',
+                    default  => 'gray',
+                })
+                ->toggleable(),
 
-                        Grid::make(2)
-                            ->schema([
-                                Forms\Components\Select::make('sex')
-                                    ->label('Sex')
-                                    ->options([
-                                        'Male'   => 'Male',
-                                        'Female' => 'Female',
-                                    ])
-                                    ->required()
-                                    ->native(false),
+            Tables\Columns\TextColumn::make('birthdate')
+                ->label('Birthdate')
+                ->date('Y-m-d')
+                ->toggleable(),
 
-                                Forms\Components\DatePicker::make('birthdate')
-                                    ->label('Birthdate')
-                                    ->required()
-                                    ->native(false)
-                                    ->maxDate(now()),
-                            ]),
-                    ])
-                    ->collapsible(),
+            Tables\Columns\TextColumn::make('program')
+                ->label('Program')
+                ->searchable()
+                ->sortable()
+                ->badge()
+                ->color('info'),
 
-                Section::make('Academic Information')
-                    ->schema([
-                        Grid::make(2)
-                            ->schema([
-                                Forms\Components\TextInput::make('program')
-                                    ->label('Program')
-                                    ->required()
-                                    ->maxLength(200)
-                                    ->placeholder('e.g., BSIT, BSCS, BSBA'),
+            Tables\Columns\TextColumn::make('year_level')
+                ->label('Year')
+                ->formatStateUsing(fn ($state) => match ((string) $state) {
+                    '1'     => '1st Year',
+                    '2'     => '2nd Year',
+                    '3'     => '3rd Year',
+                    '4'     => '4th Year',
+                    '5'     => '5th Year',
+                    default => $state,
+                })
+                ->badge()
+                ->color('primary'),
 
-                                Forms\Components\Select::make('year_level')
-                                    ->label('Year Level')
-                                    ->options([
-                                        '1' => '1st Year',
-                                        '2' => '2nd Year',
-                                        '3' => '3rd Year',
-                                        '4' => '4th Year',
-                                        '5' => '5th Year',
-                                    ])
-                                    ->required()
-                                    ->native(false)
-                                    ->searchable(),
-                            ]),
-                    ])
-                    ->collapsible(),
+            Tables\Columns\TextColumn::make('type_of_scholarship')
+                ->label('Scholarship')
+                ->searchable()
+                ->sortable()
+                ->badge()
+                ->color('success')
+                ->wrap(),
 
-                Section::make('Scholarship Details')
-                    ->schema([
-                        Grid::make(3)
-                            ->schema([
-                                Forms\Components\TextInput::make('type_of_scholarship')
-                                    ->label('Type of Scholarship')
-                                    ->required()
-                                    ->maxLength(255),
+            Tables\Columns\TextColumn::make('batch_no')
+                ->label('Batch No')
+                ->sortable()
+                ->formatStateUsing(fn ($state) => $state ?? 'Not Set')
+                ->badge()
+                ->color(fn ($state) => $state ? 'warning' : 'gray'),
 
-                                Forms\Components\TextInput::make('batch_no')
-                                    ->label('Batch Number')
-                                    ->numeric()
-                                    ->placeholder('Optional'),
+            Tables\Columns\TextColumn::make('ip_group')
+                ->label('IP Group')
+                ->searchable()
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true)
+                ->placeholder('—'),
 
-                                Forms\Components\TextInput::make('ip_group')
-                                    ->label('IP Group')
-                                    ->maxLength(255),
+            Tables\Columns\TextColumn::make('pwd')
+                ->label('PWD')
+                ->badge()
+                ->color(fn ($state): string => match ($state) {
+                    'Yes'   => 'warning',
+                    'No'    => 'gray',
+                    default => 'gray',
+                })
+                ->toggleable(isToggledHiddenByDefault: true),
 
-                                Forms\Components\TextInput::make('pwd')
-                                    ->label('PWD')
-                                    ->maxLength(200),
+            Tables\Columns\TextColumn::make('benefit')
+                ->label('Benefit')
+                ->sortable()
+                ->formatStateUsing(function ($state): string {
+                    if (is_null($state)) return 'Not set';
+                    return \App\Models\ExamAttempt::resolveDiscount((int) $state)['label'];
+                })
+                ->badge()
+                ->color(function ($state): string {
+                    if (is_null($state)) return 'gray';
+                    return \App\Models\ExamAttempt::resolveDiscount((int) $state)['color'];
+                })
+                ->toggleable(),
 
-                                Forms\Components\TextInput::make('benefit')
-                                    ->label('Scholarship Benefit')
-                                    ->numeric()
-                                    ->prefix('₱')
-                                    ->placeholder('0.00'),
-                            ]),
-                    ])
-                    ->collapsible(),
-            ]);
+            Tables\Columns\TextColumn::make('status')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    'active'       => 'success',
+                    'inactive'     => 'warning',
+                    'graduated'    => 'info',
+                    'discontinued' => 'danger',
+                    'revoked'      => 'danger',
+                    default        => 'gray',
+                })
+                ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                ->sortable(),
+
+            Tables\Columns\TextColumn::make('departmentHead.name')
+                ->label('Department Head')
+                ->placeholder('— Not Assigned —')
+                ->toggleable(isToggledHiddenByDefault: true),
+
+            Tables\Columns\TextColumn::make('revocation_reason')
+                ->label('Reason for Discontinuance')
+                ->limit(40)
+                ->tooltip(fn ($state) => $state)
+                ->toggleable(isToggledHiddenByDefault: true)
+                ->placeholder('—'),
+
+            Tables\Columns\TextColumn::make('revoked_at')
+                ->label('Revoked On')
+                ->dateTime('M d, Y')
+                ->toggleable(isToggledHiddenByDefault: true)
+                ->placeholder('—'),
+
+            Tables\Columns\TextColumn::make('term.school_year')
+                ->label('Term')
+                ->formatStateUsing(function ($state, $record) {
+                    if (! $record->term) return '—';
+                    return $record->term->school_year . ' ' . $record->term->semester;
+                })
+                ->badge()
+                ->color('gray')
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
+
+            Tables\Columns\TextColumn::make('created_at')
+                ->label('Created')
+                ->dateTime('M d, Y')
+                ->sortable()
+                ->toggleable(isToggledHiddenByDefault: true),
+        ];
     }
 
     public static function table(Table $table): Table
     {
         return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('student_id')
-                    ->label('Student ID')
-                    ->searchable()
-                    ->sortable()
-                    ->formatStateUsing(fn ($state) => $state ?? 'Not Assigned')
-                    ->badge()
-                    ->color(fn ($state) => $state ? 'primary' : 'gray'),
-
-                Tables\Columns\TextColumn::make('first_name')
-                    ->label('First Name')
-                    ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('middle_name')
-                    ->label('Middle Name')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('last_name')
-                    ->label('Last Name')
-                    ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('extension_name')
-                    ->label('Ext.')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('sex')
-                    ->label('Sex')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'Male'   => 'info',
-                        'Female' => 'danger',
-                        default  => 'gray',
-                    })
-                    ->toggleable(),
-
-                Tables\Columns\TextColumn::make('birthdate')
-                    ->label('Birthdate')
-                    ->date('Y-m-d')
-                    ->toggleable(),
-
-                Tables\Columns\TextColumn::make('program')
-                    ->label('Program')
-                    ->searchable()
-                    ->sortable()
-                    ->badge()
-                    ->color('info'),
-
-                Tables\Columns\TextColumn::make('year_level')
-                    ->label('Year')
-                    ->formatStateUsing(fn ($state) => match ((string) $state) {
-                        '1'     => '1st Year',
-                        '2'     => '2nd Year',
-                        '3'     => '3rd Year',
-                        '4'     => '4th Year',
-                        '5'     => '5th Year',
-                        default => $state,
-                    })
-                    ->badge()
-                    ->color('primary'),
-
-                Tables\Columns\TextColumn::make('type_of_scholarship')
-                    ->label('Scholarship')
-                    ->searchable()
-                    ->sortable()
-                    ->badge()
-                    ->color('success')
-                    ->wrap(),
-
-                Tables\Columns\TextColumn::make('batch_no')
-                    ->label('Batch No')
-                    ->sortable()
-                    ->formatStateUsing(fn ($state) => $state ?? 'Not Set')
-                    ->badge()
-                    ->color(fn ($state) => $state ? 'warning' : 'gray'),
-
-                Tables\Columns\TextColumn::make('ip_group')
-                    ->label('IP Group')
-                    ->searchable()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->placeholder('—'),
-
-                Tables\Columns\TextColumn::make('pwd')
-                    ->label('PWD')
-                    ->badge()
-                    ->color(fn ($state): string => match ($state) {
-                        'Yes'   => 'warning',
-                        'No'    => 'gray',
-                        default => 'gray',
-                    })
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('benefit')
-                    ->label('Benefit')
-                    ->sortable()
-                    ->formatStateUsing(function ($state): string {
-                        if (is_null($state)) return 'Not set';
-                        return \App\Models\ExamAttempt::resolveDiscount((int) $state)['label'];
-                    })
-                    ->badge()
-                    ->color(function ($state): string {
-                        if (is_null($state)) return 'gray';
-                        return \App\Models\ExamAttempt::resolveDiscount((int) $state)['color'];
-                    })
-                    ->toggleable(),
-
-                Tables\Columns\TextColumn::make('status')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'active'       => 'success',
-                        'inactive'     => 'warning',
-                        'graduated'    => 'info',
-                        'discontinued' => 'danger',
-                        'revoked'      => 'danger',
-                        default        => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('departmentHead.name')
-                    ->label('Department Head')
-                    ->placeholder('— Not Assigned —')
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('revocation_reason')
-                    ->label('Reason for Discontinuance')
-                    ->limit(40)
-                    ->tooltip(fn ($state) => $state)
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->placeholder('—'),
-
-                Tables\Columns\TextColumn::make('revoked_at')
-                    ->label('Revoked On')
-                    ->dateTime('M d, Y')
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->placeholder('—'),
-
-                Tables\Columns\TextColumn::make('term.school_year')
-                    ->label('Term')
-                    ->formatStateUsing(function ($state, $record) {
-                        if (! $record->term) return '—';
-                        return $record->term->school_year . ' ' . $record->term->semester;
-                    })
-                    ->badge()
-                    ->color('gray')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Created')
-                    ->dateTime('M d, Y')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
+            ->columns(static::scholarTableColumns())
             ->headerActions([
                 Tables\Actions\Action::make('view_accomplishment_reports')
                     ->label('View Accomplishment Reports')
@@ -509,14 +531,6 @@ class ScholarsResource extends Resource
                         );
                     })
                     ->visible(fn () => ! static::isRestrictedToOwnScholars()),
-
-                Tables\Actions\Action::make('print_institutional')
-    ->label('Print Institutional')
-    ->icon('heroicon-o-printer')
-    ->color('primary')
-    ->visible(fn ($livewire) => $livewire->activeTab === 'institutional' && ! static::isRestrictedToOwnScholars())
-    ->url(fn () => route('scholars.print.institutional'))
-    ->openUrlInNewTab(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('term_id')
@@ -767,18 +781,16 @@ class ScholarsResource extends Resource
             $query->where('department_head_id', auth()->id());
         }
 
-        if (request()->query('activeTab') === 'institutional') {
-            $institutionalTypes = \App\Models\TypeOfScholarship::pluck('name')->toArray();
-            $query->whereIn('type_of_scholarship', $institutionalTypes);
-        }
+        // NOTE: Institutional scholars now live in their own table
+        // (institutional_scholars / InstitutionalScholar model), so no
+        // type-based filtering is needed here anymore — the `scholars`
+        // table naturally only contains non-institutional records.
 
         return $query;
     }
 
     public static function getTabs(): array
     {
-        $institutionalTypes = \App\Models\TypeOfScholarship::pluck('name')->toArray();
-
         return [
             'all' => Tab::make('All Scholars')
                 ->icon('heroicon-m-academic-cap')
@@ -786,14 +798,7 @@ class ScholarsResource extends Resource
 
             'institutional' => Tab::make('Institutional Scholars')
                 ->icon('heroicon-m-building-library')
-                ->modifyQueryUsing(fn (Builder $query) => $query
-                    ->whereIn('type_of_scholarship', $institutionalTypes)
-                    ->where('status', '!=', 'revoked'))
-                ->badge(
-                    Scholars::whereIn('type_of_scholarship', $institutionalTypes)
-                        ->where('status', '!=', 'revoked')
-                        ->count()
-                )
+                ->badge(InstitutionalScholar::where('status', '!=', 'revoked')->count())
                 ->badgeColor('success'),
 
             'revoked' => Tab::make('Revoked Scholars')
@@ -820,9 +825,12 @@ class ScholarsResource extends Resource
     }
 
     public static function getNavigationBadge(): ?string
-{
-    return static::getModel()::where('status', '!=', 'revoked')->count();
-}
+    {
+        $scholarsCount     = Scholars::where('status', '!=', 'revoked')->count();
+        $institutionalCount = InstitutionalScholar::where('status', '!=', 'revoked')->count();
+
+        return (string) ($scholarsCount + $institutionalCount);
+    }
 
     public static function getNavigationBadgeColor(): ?string
     {

@@ -86,7 +86,7 @@ class CounselingAppointmentsCalendar extends FullCalendarWidget
         );
     }
 
-    public function config(): array
+    public function config(): array     
     {
         return [
             'headerToolbar' => [

@@ -25,6 +25,11 @@ class StudentsImport implements ToModel, WithStartRow, WithValidation, SkipsOnEr
     protected ?object $allPrograms = null;
     protected ?object $allGenders  = null;
 
+    // ── Duplicate tracking ──────────────────────────────────────────────
+    protected array $seenStudentIds = [];
+    protected array $seenNameKeys   = [];
+    public array $duplicateRows     = []; // collected for a post-import summary
+
     public function __construct(int $termId)
     {
         $this->termId = $termId;
@@ -41,8 +46,55 @@ class StudentsImport implements ToModel, WithStartRow, WithValidation, SkipsOnEr
             return null;
         }
 
+        $str = fn($v) => ($v !== null && trim((string) $v) !== '') ? trim((string) $v) : null;
+
+        $studentId = $str($row[1]);
+        $lastName  = $str($row[2]);
+        $firstName = $str($row[3]);
+        $birthRaw  = $row[7] ?? null;
+
+        // ── Duplicate check 1: student_id already in DB or already seen in this file ──
+        if ($studentId) {
+            $existsInDb = Students::where('student_id', $studentId)
+                ->where('term_id', $this->termId)
+                ->exists();
+
+            if ($existsInDb || isset($this->seenStudentIds[$studentId])) {
+                $this->duplicateRows[] = [
+                    'reason'      => 'Duplicate Student ID',
+                    'student_id'  => $studentId,
+                    'name'        => trim("{$firstName} {$lastName}"),
+                ];
+                return null; // skip this row entirely
+            }
+
+            $this->seenStudentIds[$studentId] = true;
+        }
+
+        // ── Duplicate check 2: fallback for rows with no student_id — match on
+        //    name + birthdate combo (covers manually-typed sheets without IDs) ──
+        if (! $studentId && $lastName && $firstName && $birthRaw) {
+            $nameKey = strtolower($lastName . '|' . $firstName . '|' . $birthRaw);
+
+            $existsInDb = Students::where('term_id', $this->termId)
+                ->where('last_name', $lastName)
+                ->where('first_name', $firstName)
+                ->exists();
+
+            if ($existsInDb || isset($this->seenNameKeys[$nameKey])) {
+                $this->duplicateRows[] = [
+                    'reason'     => 'Duplicate Name + Birthdate (no Student ID given)',
+                    'student_id' => null,
+                    'name'       => trim("{$firstName} {$lastName}"),
+                ];
+                return null;
+            }
+
+            $this->seenNameKeys[$nameKey] = true;
+        }
+
         // ── Birthdate ──────────────────────────────────────────────────
-        $birthdate = $row[7] ?? null;
+        $birthdate = $birthRaw;
         if (is_numeric($birthdate) && $birthdate > 0) {
             try {
                 $birthdate = Carbon::instance(
@@ -121,20 +173,17 @@ class StudentsImport implements ToModel, WithStartRow, WithValidation, SkipsOnEr
             $yearLevel = $m[1] ?? $yearLevel;
         }
 
-        // ── Nullable string helper ─────────────────────────────────────
-        $str = fn($v) => ($v !== null && trim((string) $v) !== '') ? trim((string) $v) : null;
-
         return new Students([
-            'student_id'          => $str($row[1]),
-            'last_name'           => $str($row[2]),
-            'first_name'          => $str($row[3]),
+            'student_id'          => $studentId,
+            'last_name'           => $lastName,
+            'first_name'          => $firstName,
             'extension_name'      => $str($row[4]),
             'middle_name'         => $str($row[5]),
             'gender_id'           => $genderId,
             'birth_date'          => $birthdate,
             'program_id'          => $programId,
             'year_level'          => $yearLevel ?: null,
-            'term_id'             => $this->termId,   // ← assigned from import form
+            'term_id'             => $this->termId,
             'fathers_lastname'    => $str($row[10]),
             'fathers_firstname'   => $str($row[11]),
             'fathers_middlename'  => $str($row[12]),

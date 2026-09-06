@@ -543,7 +543,6 @@ TextInput::make('mothers_lastname')
                                 'students-selected-' . now()->format('Y-m-d') . '.xlsx'
                             );
                         }),
-                    Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

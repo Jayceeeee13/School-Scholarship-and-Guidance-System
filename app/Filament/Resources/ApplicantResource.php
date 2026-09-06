@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ApplicantResource\Pages;
 use App\Filament\Resources\ApplicantResource\RelationManagers;
 use App\Models\Applicant;
+use App\Models\InstitutionalScholar;
 use App\Traits\LogsCustomActivity;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -545,7 +546,7 @@ TextInput::make('age')
     ->color('success')
     ->requiresConfirmation()
     ->modalHeading('Approve Application')
-    ->modalDescription('Are you sure you want to approve this application? This will create a scholar record.')
+    ->modalDescription('Are you sure you want to approve this application? This will create an institutional scholar record.')
     ->modalSubmitActionLabel('Yes, Approve')
     ->action(function (Applicant $record) {
         // ── Guard: already approved ──────────────────────────────────────
@@ -589,8 +590,8 @@ TextInput::make('age')
                 // ── 3. Resolve active term ───────────────────────────────
                 $activeTerm = \App\Models\Term::where('is_active', true)->first();
 
-                // ── 4. Guard: prevent duplicate scholar records ──────────
-                $alreadyScholar = \App\Models\Scholars::where(function ($q) use ($studentId, $record) {
+                // ── 4. Guard: prevent duplicate institutional scholar records ──
+                $alreadyScholar = InstitutionalScholar::where(function ($q) use ($studentId, $record) {
                         if ($studentId) {
                             $q->where('student_id', $studentId);
                         } else {
@@ -605,7 +606,7 @@ TextInput::make('age')
                 if ($alreadyScholar) {
                     // Roll back the status update too by throwing inside the transaction
                     throw new \RuntimeException(
-                        "{$record->first_name} {$record->last_name} is already a scholar for this term."
+                        "{$record->first_name} {$record->last_name} is already an institutional scholar for this term."
                     );
                 }
 
@@ -614,8 +615,8 @@ TextInput::make('age')
                     ? ($activeTerm->batch_no ?? $activeTerm->id)
                     : null;
 
-                // ── 6. Create scholar record ─────────────────────────────
-                \App\Models\Scholars::create([
+                // ── 6. Create institutional scholar record ────────────────
+                InstitutionalScholar::create([
                     'student_id'          => $studentId,
                     'first_name'          => $record->first_name,
                     'middle_name'         => $record->middle_name,
@@ -631,7 +632,7 @@ TextInput::make('age')
                     'term_id'             => $activeTerm?->id,
                     'batch_no'            => $batchNo,
                     // ip_group / pwd — populate from applicant if your form collects them,
-                    // otherwise leave null and fill later in the Scholar resource.
+                    // otherwise leave null and fill later in the resource.
                     'ip_group'            => $record->ip_group   ?? null,
                     'pwd'                 => $record->pwd        ?? null,
                 ]);
@@ -655,7 +656,7 @@ TextInput::make('age')
                 Notification::make()
                     ->title('Application Approved')
                     ->success()
-                    ->body("{$record->first_name} {$record->last_name} is now a scholar{$studentLabel}{$termLabel}.")
+                    ->body("{$record->first_name} {$record->last_name} is now an institutional scholar{$studentLabel}{$termLabel}.")
                     ->send();
             });
 
@@ -669,7 +670,7 @@ TextInput::make('age')
 
         } catch (\Throwable $e) {
             // Unexpected DB/system errors
-            \Illuminate\Support\Facades\Log::error('Scholar approval failed', [
+            \Illuminate\Support\Facades\Log::error('Institutional scholar approval failed', [
                 'applicant_id' => $record->id,
                 'error'        => $e->getMessage(),
             ]);
@@ -764,7 +765,7 @@ TextInput::make('age')
     ->color('success')
     ->requiresConfirmation()
     ->modalHeading('Approve Selected Applications')
-    ->modalDescription('This will approve selected applications and create scholar records.')
+    ->modalDescription('This will approve selected applications and create institutional scholar records.')
     ->action(function ($records) {
         $approved = 0;
         $skippedNoSlots = 0;
@@ -793,7 +794,7 @@ TextInput::make('age')
             $sex             = $record->gender ? $record->gender->name : '';
             $scholarshipType = $scholarshipTypeModel ? $scholarshipTypeModel->name : '';
 
-            \App\Models\Scholars::create([
+            InstitutionalScholar::create([
                 'student_id'         => $studentId,
                 'first_name'         => $record->first_name,
                 'middle_name'        => $record->middle_name,
@@ -820,7 +821,7 @@ TextInput::make('age')
             $approved++;
         });
 
-        $body = "{$approved} applications approved and scholar records created.";
+        $body = "{$approved} applications approved and institutional scholar records created.";
 
         if ($skippedNoSlots > 0) {
             $body .= " {$skippedNoSlots} skipped due to no remaining slots.";

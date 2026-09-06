@@ -19,6 +19,11 @@ class ScholarsImport implements ToModel, WithStartRow, WithValidation, SkipsOnEr
 
     protected int $termId;
     protected int $skippedDuplicates = 0;
+    public array $duplicateRows = [];
+
+    // Track names already processed within this same file, so duplicates
+    // inside one sheet are caught too, not just duplicates against the DB.
+    protected array $seenNameKeys = [];
 
     public function __construct(int $termId)
     {
@@ -41,17 +46,31 @@ class ScholarsImport implements ToModel, WithStartRow, WithValidation, SkipsOnEr
             return null;
         }
 
-        // Skip duplicate: same first+last+middle name already exists in this term
-        $exists = Scholars::where('term_id', $this->termId)
-            ->where('first_name', $row[3] ?? null)
-            ->where('last_name',  $row[2] ?? null)
-            ->where('middle_name', $row[5] ?? null)
+        $lastName   = $row[2] ?? null;
+        $firstName  = $row[3] ?? null;
+        $middleName = $row[5] ?? null;
+        $studentId  = $this->nullIfBlank($row[1] ?? null);
+
+        $nameKey = strtolower(trim("{$lastName}|{$firstName}|{$middleName}"));
+
+        // Skip duplicate: same first+last+middle name already exists in this term,
+        // or already appeared earlier in this same import file.
+        $existsInDb = Scholars::where('term_id', $this->termId)
+            ->where('first_name', $firstName)
+            ->where('last_name',  $lastName)
+            ->where('middle_name', $middleName)
             ->exists();
 
-        if ($exists) {
+        if ($existsInDb || isset($this->seenNameKeys[$nameKey])) {
             $this->skippedDuplicates++;
+            $this->duplicateRows[] = [
+                'student_id' => $studentId,
+                'name'       => trim("{$firstName} {$middleName} {$lastName}"),
+            ];
             return null;
         }
+
+        $this->seenNameKeys[$nameKey] = true;
 
         // Handle birthdate
         $birthdate = $row[7] ?? null;
@@ -82,11 +101,11 @@ class ScholarsImport implements ToModel, WithStartRow, WithValidation, SkipsOnEr
 
         return new Scholars([
             'term_id'             => $this->termId,
-            'student_id'          => $this->nullIfBlank($row[1]  ?? null),
-            'last_name'           => $row[2]  ?? null,
-            'first_name'          => $row[3]  ?? null,
+            'student_id'          => $studentId,
+            'last_name'           => $lastName,
+            'first_name'          => $firstName,
             'extension_name'      => $this->nullIfBlank($row[4]  ?? null),
-            'middle_name'         => $row[5]  ?? null,
+            'middle_name'         => $middleName,
             'sex'                 => trim($row[6] ?? ''),
             'birthdate'           => $birthdate,
             'program'             => $row[8]  ?? null,

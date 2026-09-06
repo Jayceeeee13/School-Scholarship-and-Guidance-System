@@ -443,22 +443,50 @@ class ScholarsResource extends Resource
 
                             @unlink($fullPath);
 
-                            $failures   = $import->failures()->count();
-                            $duplicates = $import->getSkippedDuplicates();
-                            $term       = Term::find($data['term_id']);
-                            $termLabel  = $term
+                            $failures      = $import->failures()->count();
+                            $duplicateRows = $import->duplicateRows;
+                            $duplicates    = count($duplicateRows);
+                            $term          = Term::find($data['term_id']);
+                            $termLabel     = $term
                                 ? $term->school_year . ' — ' . $term->semester
-                                : 'selected term';
+                                : 'the selected term';
 
-                            $body = "Scholars imported into: {$termLabel}.";
-                            if ($duplicates > 0) $body .= " {$duplicates} duplicate(s) skipped.";
-                            if ($failures > 0)   $body .= " {$failures} row(s) failed validation.";
+                            if ($duplicates > 0) {
+                                $dupLines = array_map(
+                                    fn ($d) => "• {$d['name']}" . ($d['student_id'] ? " (Student ID: {$d['student_id']})" : ' (no Student ID provided)'),
+                                    array_slice($duplicateRows, 0, 5)
+                                );
+                                $more = $duplicates > 5
+                                    ? "\n…and " . ($duplicates - 5) . ' additional record(s).'
+                                    : '';
 
-                            Notification::make()
-                                ->title($failures > 0 || $duplicates > 0 ? 'Import Completed with Notices' : 'Import Successful')
-                                ->color($failures > 0 ? 'warning' : 'success')
-                                ->body($body)
-                                ->send();
+                                $body = "{$duplicates} record(s) were not imported because they already exist for {$termLabel}:" .
+                                    "\n\n" . implode("\n", $dupLines) . $more;
+
+                                if ($failures > 0) {
+                                    $body .= "\n\nAdditionally, {$failures} row(s) failed validation and were skipped.";
+                                }
+
+                                Notification::make()
+                                    ->title('Import Completed with Duplicates Skipped')
+                                    ->warning()
+                                    ->body($body)
+                                    ->persistent()
+                                    ->send();
+                            } elseif ($failures > 0) {
+                                Notification::make()
+                                    ->title('Import Completed with Notices')
+                                    ->warning()
+                                    ->body("Scholars imported into {$termLabel}. {$failures} row(s) failed validation and were skipped.")
+                                    ->persistent()
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->title('Import Successful')
+                                    ->success()
+                                    ->body("All scholars imported successfully into {$termLabel}.")
+                                    ->send();
+                            }
 
                         } catch (\Exception $e) {
                             Notification::make()

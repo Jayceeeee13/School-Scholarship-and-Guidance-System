@@ -5,7 +5,6 @@ namespace App\Filament\Resources\ScholarsResource\Pages;
 use App\Filament\Resources\ScholarsResource;
 use App\Models\DailyTimeRecord;
 use App\Models\Department;
-use App\Models\InstitutionalScholar;
 use App\Models\Scholars;
 use App\Models\Term;
 use App\Models\TypeOfScholarship;
@@ -73,11 +72,11 @@ class ListScholars extends ListRecords
                 ->modalSubmitActionLabel('Save Scholar')
                 ->form(ScholarsResource::scholarFormSchema())
                 ->action(function (array $data): void {
-                    $record = InstitutionalScholar::create($data);
+                    $record = Scholars::create($data);
 
                     $this->logCustomActivity(
                         $record,
-                        'institutional_scholars',
+                        'scholars',
                         'created',
                         "Added institutional scholar {$record->first_name} {$record->last_name}"
                     );
@@ -301,10 +300,6 @@ class ListScholars extends ListRecords
 
     public function table(Table $table): Table
     {
-        if ($this->activeTab === 'institutional') {
-            return $this->institutionalTable($table);
-        }
-
         if ($this->activeTab === 'dtr') {
             return $table
                 ->query(function () {
@@ -739,169 +734,10 @@ class ListScholars extends ListRecords
                 ->defaultSort('date', 'desc');
         }
 
+        // "all" and "institutional" tabs both use the standard Scholars
+        // table/actions — ScholarsResource::getEloquentQuery() already
+        // narrows the query correctly based on request()->query('activeTab').
         return ScholarsResource::table($table);
-    }
-
-    /**
-     * Builds the Institutional Scholars tab, bound to the separate
-     * InstitutionalScholar model/table. View & Edit are custom modal
-     * actions (not the generic ViewAction/EditAction) because those
-     * default to routing through this resource's Scholars-bound
-     * Create/Edit pages, which would fail to find an InstitutionalScholar
-     * record by ID.
-     */
-    protected function institutionalTable(Table $table): Table
-    {
-        return $table
-            ->query(fn () => InstitutionalScholar::query()->where('status', '!=', 'revoked'))
-            ->columns(ScholarsResource::scholarTableColumns())
-            ->filters([
-                Tables\Filters\SelectFilter::make('term_id')
-                    ->label('School Year & Semester')
-                    ->options(function () {
-                        return Term::orderByDesc('is_active')
-                            ->orderByDesc('id')
-                            ->get()
-                            ->mapWithKeys(fn ($term) => [
-                                $term->id => $term->school_year . ' — ' . $term->semester,
-                            ]);
-                    })
-                    ->searchable()
-                    ->placeholder('All Terms'),
-
-                Tables\Filters\SelectFilter::make('status')
-                    ->label('Status')
-                    ->options([
-                        'active'       => 'Active',
-                        'inactive'     => 'Inactive',
-                        'graduated'    => 'Graduated',
-                        'discontinued' => 'Discontinued',
-                    ])
-                    ->multiple()
-                    ->placeholder('All Statuses'),
-
-                Tables\Filters\SelectFilter::make('type_of_scholarship')
-                    ->label('Type of Scholarship')
-                    ->options(function () {
-                        return InstitutionalScholar::query()
-                            ->distinct()
-                            ->whereNotNull('type_of_scholarship')
-                            ->pluck('type_of_scholarship', 'type_of_scholarship')
-                            ->sort();
-                    })
-                    ->multiple()
-                    ->searchable()
-                    ->placeholder('All Scholarships'),
-
-                Tables\Filters\SelectFilter::make('year_level')
-                    ->label('Year Level')
-                    ->options([
-                        '1' => '1st Year',
-                        '2' => '2nd Year',
-                        '3' => '3rd Year',
-                        '4' => '4th Year',
-                        '5' => '5th Year',
-                    ])
-                    ->multiple()
-                    ->placeholder('All Years'),
-            ])
-            ->filtersLayout(Tables\Enums\FiltersLayout::AboveContent)
-            ->filtersFormColumns(4)
-            ->filtersTriggerAction(fn (Tables\Actions\Action $action) => $action->hidden())
-            ->actions([
-                Tables\Actions\ActionGroup::make([
-                    Tables\Actions\Action::make('view')
-                        ->label('View')
-                        ->icon('heroicon-o-eye')
-                        ->color('gray')
-                        ->modalHeading('Scholar Details')
-                        ->modalSubmitAction(false)
-                        ->modalCancelActionLabel('Close')
-                        ->infolist([
-                            \Filament\Infolists\Components\Section::make('Scholar Information')
-                                ->schema([
-                                    \Filament\Infolists\Components\TextEntry::make('full_name')
-                                        ->label('Name'),
-                                    \Filament\Infolists\Components\TextEntry::make('student_id')
-                                        ->label('Student ID')
-                                        ->placeholder('Not Assigned'),
-                                    \Filament\Infolists\Components\TextEntry::make('program')
-                                        ->label('Program'),
-                                    \Filament\Infolists\Components\TextEntry::make('type_of_scholarship')
-                                        ->label('Type of Scholarship'),
-                                    \Filament\Infolists\Components\TextEntry::make('status')
-                                        ->badge(),
-                                ])
-                                ->columns(2),
-                        ]),
-
-                    Tables\Actions\Action::make('edit')
-                        ->label('Edit')
-                        ->icon('heroicon-o-pencil-square')
-                        ->color('warning')
-                        ->modalHeading('Edit Institutional Scholar')
-                        ->modalWidth('4xl')
-                        ->modalSubmitActionLabel('Save Changes')
-                        ->form(ScholarsResource::scholarFormSchema())
-                        ->fillForm(fn (InstitutionalScholar $record): array => $record->toArray())
-                        ->action(function (InstitutionalScholar $record, array $data): void {
-                            $record->update($data);
-
-                            $this->logCustomActivity(
-                                $record,
-                                'institutional_scholars',
-                                'updated',
-                                "Updated institutional scholar {$record->first_name} {$record->last_name}"
-                            );
-
-                            Notification::make()
-                                ->title('Institutional Scholar Updated')
-                                ->success()
-                                ->send();
-                        })
-                        ->visible(fn () => auth()->user()->hasAnyRole(['admin', 'scholarship'])),
-
-                    Tables\Actions\Action::make('revoke')
-                        ->label('Revoke Scholarship')
-                        ->icon('heroicon-o-no-symbol')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->modalHeading('Revoke Scholarship')
-                        ->modalDescription('This will mark the scholar as revoked.')
-                        ->modalSubmitActionLabel('Yes, Revoke')
-                        ->form([
-                            Forms\Components\Textarea::make('revocation_reason')
-                                ->label('Reason for Discontinuance')
-                                ->required()
-                                ->rows(3),
-                        ])
-                        ->action(function (InstitutionalScholar $record, array $data): void {
-                            $record->update([
-                                'status'            => 'revoked',
-                                'revocation_reason' => $data['revocation_reason'],
-                                'revoked_at'        => now(),
-                            ]);
-
-                            $scholarshipType = TypeOfScholarship::where('name', $record->type_of_scholarship)->first();
-                            $scholarshipType?->increment('slots');
-
-                            Notification::make()
-                                ->title('Scholarship Revoked')
-                                ->danger()
-                                ->send();
-                        })
-                        ->visible(fn (InstitutionalScholar $record): bool => $record->status !== 'revoked' && auth()->user()->hasAnyRole(['admin', 'scholarship'])),
-
-                    Tables\Actions\DeleteAction::make()
-                        ->visible(fn () => auth()->user()->hasRole('admin')),
-                ])
-                ->label('Actions')
-                ->icon('heroicon-m-ellipsis-vertical')
-                ->size('sm')
-                ->color('gray')
-                ->button(),
-            ])
-            ->defaultSort('created_at', 'desc');
     }
 
     protected static function formatPunch(?string $time, ?string $location): ?string

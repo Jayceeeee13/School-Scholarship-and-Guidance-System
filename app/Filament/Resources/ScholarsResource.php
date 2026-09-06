@@ -5,7 +5,6 @@ namespace App\Filament\Resources;
 use App\Exports\ScholarsExport;
 use App\Imports\ScholarsImport;
 use App\Filament\Resources\ScholarsResource\Pages;
-use App\Models\InstitutionalScholar;
 use App\Models\Scholars;
 use App\Models\Term;
 use App\Models\TypeOfScholarship;
@@ -45,10 +44,18 @@ class ScholarsResource extends Resource
     }
 
     /**
-     * Shared form schema — used by this resource's own Create/Edit pages
-     * (bound to Scholars) AND by the custom Institutional Scholar modal
-     * forms in ListScholars (bound to InstitutionalScholar). Keeping this
-     * as one method means both models always stay in sync field-for-field.
+     * Names of TypeOfScholarship records — a scholar's type_of_scholarship
+     * matching one of these makes them "institutional" for tab/filter
+     * purposes. There is no separate institutional table; these are just
+     * Scholars rows, tagged by their scholarship type name.
+     */
+    protected static function institutionalTypeNames(): array
+    {
+        return TypeOfScholarship::pluck('name')->toArray();
+    }
+
+    /**
+     * Shared form schema — used by this resource's own Create/Edit pages.
      */
     public static function scholarFormSchema(): array
     {
@@ -174,7 +181,8 @@ class ScholarsResource extends Resource
                             Forms\Components\TextInput::make('type_of_scholarship')
                                 ->label('Type of Scholarship')
                                 ->required()
-                                ->maxLength(255),
+                                ->maxLength(255)
+                                ->helperText('To appear under "Institutional Scholars", this must match a name from Type of Scholarship exactly.'),
 
                             Forms\Components\TextInput::make('batch_no')
                                 ->label('Batch Number')
@@ -206,10 +214,7 @@ class ScholarsResource extends Resource
     }
 
     /**
-     * Shared table columns — reused by this resource's default table()
-     * (Scholars model) and by ListScholars' custom institutional table
-     * (InstitutionalScholar model). None of these closures type-hint the
-     * model class, so they work unmodified against either record type.
+     * Shared table columns.
      */
     public static function scholarTableColumns(): array
     {
@@ -781,16 +786,20 @@ class ScholarsResource extends Resource
             $query->where('department_head_id', auth()->id());
         }
 
-        // NOTE: Institutional scholars now live in their own table
-        // (institutional_scholars / InstitutionalScholar model), so no
-        // type-based filtering is needed here anymore — the `scholars`
-        // table naturally only contains non-institutional records.
+        // Institutional scholars are NOT a separate table — they're plain
+        // Scholars rows whose type_of_scholarship matches one of the
+        // names defined in TypeOfScholarship.
+        if (request()->query('activeTab') === 'institutional') {
+            $query->whereIn('type_of_scholarship', static::institutionalTypeNames());
+        }
 
         return $query;
     }
 
     public static function getTabs(): array
     {
+        $institutionalTypes = static::institutionalTypeNames();
+
         return [
             'all' => Tab::make('All Scholars')
                 ->icon('heroicon-m-academic-cap')
@@ -798,7 +807,14 @@ class ScholarsResource extends Resource
 
             'institutional' => Tab::make('Institutional Scholars')
                 ->icon('heroicon-m-building-library')
-                ->badge(InstitutionalScholar::where('status', '!=', 'revoked')->count())
+                ->modifyQueryUsing(fn (Builder $query) => $query
+                    ->whereIn('type_of_scholarship', $institutionalTypes)
+                    ->where('status', '!=', 'revoked'))
+                ->badge(
+                    Scholars::whereIn('type_of_scholarship', $institutionalTypes)
+                        ->where('status', '!=', 'revoked')
+                        ->count()
+                )
                 ->badgeColor('success'),
 
             'revoked' => Tab::make('Revoked Scholars')
@@ -826,10 +842,7 @@ class ScholarsResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        $scholarsCount     = Scholars::where('status', '!=', 'revoked')->count();
-        $institutionalCount = InstitutionalScholar::where('status', '!=', 'revoked')->count();
-
-        return (string) ($scholarsCount + $institutionalCount);
+        return (string) Scholars::where('status', '!=', 'revoked')->count();
     }
 
     public static function getNavigationBadgeColor(): ?string

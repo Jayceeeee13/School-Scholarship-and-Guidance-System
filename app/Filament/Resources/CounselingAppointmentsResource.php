@@ -599,16 +599,22 @@ class CounselingAppointmentsResource extends Resource
                                     ->schema([
                                         \Filament\Infolists\Components\TextEntry::make('endorsement.to_where')
                                             ->label('Endorsed To')
-                                            ->default('—'),
+                                            ->placeholder('—'),
 
+                                        // FIX: was ->default('—'), which fed the literal
+                                        // string '—' into ->date()'s Carbon parser and
+                                        // crashed with "Could not parse '—'" whenever an
+                                        // appointment had no endorsement. ->placeholder()
+                                        // shows the same dash but skips date parsing when
+                                        // the underlying value is empty.
                                         \Filament\Infolists\Components\TextEntry::make('endorsement.date')
                                             ->label('Date')
                                             ->date('M d, Y')
-                                            ->default('—'),
+                                            ->placeholder('—'),
 
                                         \Filament\Infolists\Components\TextEntry::make('endorsement.issue')
                                             ->label('Issue')
-                                            ->default('—')
+                                            ->placeholder('—')
                                             ->columnSpanFull(),
 
                                         \Filament\Infolists\Components\TextEntry::make('endorsed_by')

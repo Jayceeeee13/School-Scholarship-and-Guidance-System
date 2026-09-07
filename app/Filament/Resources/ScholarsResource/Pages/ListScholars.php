@@ -308,11 +308,34 @@ class ListScholars extends ListRecords
         // Queries the SEPARATE institutional_scholars table directly
         // (via InstitutionalScholar model), not the `scholars` table.
         // This is where approved Applicant records land — see
-        // ApplicantResource's `approve` action.
+        // ApplicantResource's `approve` action — and where matching
+        // Scholars rows get mirrored to (see Scholars::mirrorToInstitutional
+        // / syncAllToInstitutional).
         if ($this->activeTab === 'institutional') {
             return $table
                 ->query(InstitutionalScholar::query()->where('status', '!=', 'revoked'))
                 ->headerActions([
+                    Tables\Actions\Action::make('sync_institutional')
+                        ->label('Sync from Scholars')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('gray')
+                        ->requiresConfirmation()
+                        ->modalHeading('Sync Institutional Scholars')
+                        ->modalDescription('Scans every scholar and mirrors anyone whose Type of Scholarship matches a registered Type of Scholarship into this list. Safe to run anytime — existing entries are updated, not duplicated.')
+                        ->modalSubmitActionLabel('Run Sync')
+                        ->visible(fn () => auth()->user()->hasAnyRole(['admin', 'scholarship']))
+                        ->action(function (): void {
+                            $count = Scholars::syncAllToInstitutional();
+
+                            Notification::make()
+                                ->title('Sync Complete')
+                                ->success()
+                                ->body("{$count} scholar(s) synced into Institutional Scholars.")
+                                ->send();
+
+                            $this->resetTable();
+                        }),
+
                     Tables\Actions\Action::make('view_accomplishment_reports_institutional')
                         ->label('View Accomplishment Reports')
                         ->icon('heroicon-o-document-check')

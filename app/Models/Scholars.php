@@ -77,44 +77,96 @@ class Scholars extends Model
         // type_of_scholarship matching a registered TypeOfScholarship
         // name, mirror it into the institutional_scholars table so the
         // "Institutional Scholars" tab (which reads institutional_scholars
-        // exclusively) stays complete. Matched by name + birthdate so
-        // repeated saves update the same mirrored row instead of
-        // duplicating it.
+        // exclusively) stays complete.
+        //
+        // NOTE: this event only fires for saves that go through Eloquent.
+        // It will NOT retroactively cover scholars that already existed
+        // before this logic was added, and it will NOT fire for bulk
+        // operations that bypass Eloquent events (e.g. an Excel import
+        // using batch inserts). Use syncAllToInstitutional() below to
+        // catch both of those cases on demand.
         static::saved(function (Scholars $scholar) {
-            $institutionalTypes = \App\Models\TypeOfScholarship::pluck('name')->toArray();
-
-            $isInstitutional = collect($institutionalTypes)->contains(
-                fn ($name) => strcasecmp(trim($scholar->type_of_scholarship ?? ''), trim($name)) === 0
-            );
-
-            if (! $isInstitutional) {
-                return;
-            }
-
-            \App\Models\InstitutionalScholar::updateOrCreate(
-                [
-                    'first_name' => $scholar->first_name,
-                    'last_name'  => $scholar->last_name,
-                    'birthdate'  => $scholar->birthdate,
-                ],
-                [
-                    'student_id'          => $scholar->student_id,
-                    'user_id'             => $scholar->user_id,
-                    'middle_name'         => $scholar->middle_name,
-                    'extension_name'      => $scholar->extension_name,
-                    'sex'                 => $scholar->sex,
-                    'program'             => $scholar->program,
-                    'year_level'          => $scholar->year_level,
-                    'type_of_scholarship' => $scholar->type_of_scholarship,
-                    'batch_no'            => $scholar->batch_no,
-                    'ip_group'            => $scholar->ip_group,
-                    'pwd'                 => $scholar->pwd,
-                    'benefit'             => $scholar->benefit,
-                    'status'              => $scholar->status,
-                    'term_id'             => $scholar->term_id,
-                ]
-            );
+            static::mirrorToInstitutional($scholar);
         });
+    }
+
+    /**
+     * True if the given scholarship type string matches a registered
+     * TypeOfScholarship name (case-insensitive, whitespace-tolerant).
+     */
+    public static function isInstitutionalType(?string $type): bool
+    {
+        $type = trim($type ?? '');
+
+        if ($type === '') {
+            return false;
+        }
+
+        return TypeOfScholarship::query()
+            ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($type)])
+            ->exists();
+    }
+
+    /**
+     * Mirrors a single Scholars record into institutional_scholars if its
+     * type_of_scholarship matches a registered TypeOfScholarship name.
+     * Matched by name + birthdate so repeated calls update the same
+     * mirrored row instead of duplicating it. Returns the mirrored record,
+     * or null if this scholar isn't an institutional type.
+     */
+    public static function mirrorToInstitutional(Scholars $scholar): ?InstitutionalScholar
+    {
+        if (! static::isInstitutionalType($scholar->type_of_scholarship)) {
+            return null;
+        }
+
+        return InstitutionalScholar::updateOrCreate(
+            [
+                'first_name' => $scholar->first_name,
+                'last_name'  => $scholar->last_name,
+                'birthdate'  => $scholar->birthdate,
+            ],
+            [
+                'student_id'          => $scholar->student_id,
+                'user_id'             => $scholar->user_id,
+                'middle_name'         => $scholar->middle_name,
+                'extension_name'      => $scholar->extension_name,
+                'sex'                 => $scholar->sex,
+                'program'             => $scholar->program,
+                'year_level'          => $scholar->year_level,
+                'type_of_scholarship' => $scholar->type_of_scholarship,
+                'batch_no'            => $scholar->batch_no,
+                'ip_group'            => $scholar->ip_group,
+                'pwd'                 => $scholar->pwd,
+                'benefit'             => $scholar->benefit,
+                'status'              => $scholar->status,
+                'term_id'             => $scholar->term_id,
+            ]
+        );
+    }
+
+    /**
+     * Repeatable backfill: scans every non-revoked scholar and mirrors
+     * any whose type_of_scholarship matches a registered TypeOfScholarship
+     * name into institutional_scholars. Safe to run anytime — existing
+     * mirrored rows are updated, not duplicated. This is what actually
+     * catches scholars that pre-date the sync logic, or that were
+     * inserted via bulk import without triggering Eloquent events.
+     * Returns the number of scholars synced.
+     */
+    public static function syncAllToInstitutional(): int
+    {
+        $count = 0;
+
+        static::notRevoked()->chunk(200, function ($scholars) use (&$count) {
+            foreach ($scholars as $scholar) {
+                if (static::mirrorToInstitutional($scholar)) {
+                    $count++;
+                }
+            }
+        });
+
+        return $count;
     }
 
     // ── departmentHead(), dailyTimeRecords(), term(), user(),

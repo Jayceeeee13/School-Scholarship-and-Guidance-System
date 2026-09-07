@@ -474,16 +474,18 @@ class ListScholars extends ListRecords
                 ])
                 ->columns(ScholarsResource::scholarTableColumns())
                 ->filters([
-                    Tables\Filters\SelectFilter::make('type_of_scholarship')
-                        ->label('Type of Scholarship')
-                        ->options(fn () => InstitutionalScholar::query()
-                            ->distinct()
-                            ->whereNotNull('type_of_scholarship')
-                            ->pluck('type_of_scholarship', 'type_of_scholarship')
-                            ->sort())
-                        ->multiple()
+                    Tables\Filters\SelectFilter::make('term_id')
+                        ->label('School Year & Semester')
+                        ->options(function () {
+                            return Term::orderByDesc('is_active')
+                                ->orderByDesc('id')
+                                ->get()
+                                ->mapWithKeys(fn ($term) => [
+                                    $term->id => $term->school_year . ' — ' . $term->semester,
+                                ]);
+                        })
                         ->searchable()
-                        ->placeholder('All Scholarships'),
+                        ->placeholder('All Terms'),
 
                     Tables\Filters\SelectFilter::make('status')
                         ->label('Status')
@@ -495,7 +497,55 @@ class ListScholars extends ListRecords
                         ])
                         ->multiple()
                         ->placeholder('All Statuses'),
+
+                    Tables\Filters\SelectFilter::make('type_of_scholarship')
+                        ->label('Type of Scholarship')
+                        ->options(fn () => InstitutionalScholar::query()
+                            ->distinct()
+                            ->whereNotNull('type_of_scholarship')
+                            ->pluck('type_of_scholarship', 'type_of_scholarship')
+                            ->sort())
+                        ->multiple()
+                        ->searchable()
+                        ->placeholder('All Scholarships'),
+
+                    Tables\Filters\SelectFilter::make('sex')
+                        ->label('Sex')
+                        ->options([
+                            'Male'   => 'Male',
+                            'Female' => 'Female',
+                        ])
+                        ->placeholder('All'),
+
+                    Tables\Filters\SelectFilter::make('year_level')
+                        ->label('Year Level')
+                        ->options([
+                            '1' => '1st Year',
+                            '2' => '2nd Year',
+                            '3' => '3rd Year',
+                            '4' => '4th Year',
+                            '5' => '5th Year',
+                        ])
+                        ->multiple()
+                        ->placeholder('All Years'),
+
+                    Tables\Filters\SelectFilter::make('batch_no')
+                        ->label('Batch')
+                        ->options(function () {
+                            return InstitutionalScholar::query()
+                                ->distinct()
+                                ->whereNotNull('batch_no')
+                                ->pluck('batch_no', 'batch_no')
+                                ->sort()
+                                ->reverse();
+                        })
+                        ->placeholder('All Batches'),
                 ])
+                ->filtersLayout(\Filament\Tables\Enums\FiltersLayout::AboveContent)
+                ->filtersFormColumns(6)
+                ->filtersTriggerAction(
+                    fn (Tables\Actions\Action $action) => $action->hidden(),
+                )
                 ->actions([
                     Tables\Actions\ActionGroup::make([
                         Tables\Actions\ViewAction::make()

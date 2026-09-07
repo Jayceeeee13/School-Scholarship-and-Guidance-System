@@ -312,6 +312,166 @@ class ListScholars extends ListRecords
         if ($this->activeTab === 'institutional') {
             return $table
                 ->query(InstitutionalScholar::query()->where('status', '!=', 'revoked'))
+                ->headerActions([
+                    Tables\Actions\Action::make('view_accomplishment_reports_institutional')
+                        ->label('View Accomplishment Reports')
+                        ->icon('heroicon-o-document-check')
+                        ->color('gray')
+                        ->url(fn () => ScholarsResource::getUrl('accomplishment-reports')),
+
+                    Tables\Actions\Action::make('export_institutional')
+                        ->label('Export Excel')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('success')
+                        ->action(function () {
+                            return \Maatwebsite\Excel\Facades\Excel::download(
+                                new \App\Exports\InstitutionalScholarsExport(),
+                                'institutional-scholars-' . now()->format('Y-m-d') . '.xlsx'
+                            );
+                        }),
+
+                    Tables\Actions\Action::make('import_institutional')
+                        ->label('Import Excel')
+                        ->icon('heroicon-o-arrow-up-tray')
+                        ->color('info')
+                        ->form([
+                            Forms\Components\Select::make('term_id')
+                                ->label('Import into Term')
+                                ->options(function () {
+                                    return Term::orderByDesc('is_active')
+                                        ->orderByDesc('id')
+                                        ->get()
+                                        ->mapWithKeys(fn ($term) => [
+                                            $term->id => $term->school_year . ' — ' . $term->semester
+                                                . ($term->is_active ? ' (Active)' : ''),
+                                        ]);
+                                })
+                                ->required()
+                                ->native(false)
+                                ->searchable()
+                                ->helperText('Institutional scholars will be tagged to this term. Duplicates in the same term will be skipped.'),
+
+                            Forms\Components\FileUpload::make('file')
+                                ->label('Excel File (.xlsx)')
+                                ->acceptedFileTypes([
+                                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                    'application/vnd.ms-excel',
+                                ])
+                                ->maxSize(10240)
+                                ->required()
+                                ->helperText('Columns: SEQ, STUDENT ID, LAST NAME, GIVEN NAME, EXT. NAME, MIDDLE NAME, SEX, BIRTHDATE, PROGRAM, YEAR LEVEL, TYPE OF SCHOLARSHIP, BATCH NO., IP GROUP, PWD, BENEFIT, STATUS'),
+                        ])
+                        ->action(function (array $data) {
+                            try {
+                                $filePath = $data['file'];
+
+                                if (is_array($filePath)) {
+                                    $filePath = reset($filePath);
+                                }
+
+                                $possiblePaths = [
+                                    storage_path('app/public/' . $filePath),
+                                    storage_path('app/' . $filePath),
+                                    storage_path('app/livewire-tmp/' . $filePath),
+                                    storage_path('app/livewire-tmp/' . basename($filePath)),
+                                ];
+
+                                $fullPath = null;
+                                foreach ($possiblePaths as $path) {
+                                    if (file_exists($path)) {
+                                        $fullPath = $path;
+                                        break;
+                                    }
+                                }
+
+                                if (! $fullPath) {
+                                    Notification::make()
+                                        ->title('File Not Found')
+                                        ->danger()
+                                        ->body('Could not locate the uploaded file. Please try again.')
+                                        ->send();
+                                    return;
+                                }
+
+                                $import = new \App\Imports\InstitutionalScholarsImport((int) $data['term_id']);
+                                \Maatwebsite\Excel\Facades\Excel::import($import, $fullPath);
+
+                                @unlink($fullPath);
+
+                                $failures      = $import->failures()->count();
+                                $duplicateRows = $import->duplicateRows;
+                                $duplicates    = count($duplicateRows);
+                                $term          = Term::find($data['term_id']);
+                                $termLabel     = $term
+                                    ? $term->school_year . ' — ' . $term->semester
+                                    : 'the selected term';
+
+                                if ($duplicates > 0) {
+                                    $dupLines = array_map(
+                                        fn ($d) => "• {$d['name']}" . ($d['student_id'] ? " (Student ID: {$d['student_id']})" : ' (no Student ID provided)'),
+                                        array_slice($duplicateRows, 0, 5)
+                                    );
+                                    $more = $duplicates > 5
+                                        ? "\n…and " . ($duplicates - 5) . ' additional record(s).'
+                                        : '';
+
+                                    $body = "{$duplicates} record(s) were not imported because they already exist for {$termLabel}:" .
+                                        "\n\n" . implode("\n", $dupLines) . $more;
+
+                                    if ($failures > 0) {
+                                        $body .= "\n\nAdditionally, {$failures} row(s) failed validation and were skipped.";
+                                    }
+
+                                    Notification::make()
+                                        ->title('Import Completed with Duplicates Skipped')
+                                        ->warning()
+                                        ->body($body)
+                                        ->persistent()
+                                        ->send();
+                                } elseif ($failures > 0) {
+                                    Notification::make()
+                                        ->title('Import Completed with Notices')
+                                        ->warning()
+                                        ->body("Institutional scholars imported into {$termLabel}. {$failures} row(s) failed validation and were skipped.")
+                                        ->persistent()
+                                        ->send();
+                                } else {
+                                    Notification::make()
+                                        ->title('Import Successful')
+                                        ->success()
+                                        ->body("All institutional scholars imported successfully into {$termLabel}.")
+                                        ->send();
+                                }
+
+                            } catch (\Exception $e) {
+                                Notification::make()
+                                    ->title('Import Failed')
+                                    ->danger()
+                                    ->body('Error: ' . $e->getMessage())
+                                    ->send();
+                            }
+                        }),
+
+                    Tables\Actions\Action::make('download_template_institutional')
+                        ->label('Download Template')
+                        ->icon('heroicon-o-document-arrow-down')
+                        ->color('gray')
+                        ->action(function () {
+                            // Same column structure as Scholars, so the
+                            // existing template export is reused as-is.
+                            return \Maatwebsite\Excel\Facades\Excel::download(
+                                new \App\Exports\ScholarsTemplateExport(),
+                                'institutional-scholars-import-template.xlsx'
+                            );
+                        }),
+
+                    Tables\Actions\Action::make('print_institutional')
+                        ->label('Print Institutional')
+                        ->icon('heroicon-o-printer')
+                        ->color('primary')
+                        ->url(fn () => route('scholars.print.institutional'))
+                        ->openUrlInNewTab(),
+                ])
                 ->columns(ScholarsResource::scholarTableColumns())
                 ->filters([
                     Tables\Filters\SelectFilter::make('type_of_scholarship')

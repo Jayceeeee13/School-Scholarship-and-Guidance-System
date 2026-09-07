@@ -7,6 +7,7 @@ use App\Models\CounselingAppointments;
 use App\Models\Endorsement;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Infolists\Infolist;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -476,6 +477,152 @@ class CounselingAppointmentsResource extends Resource
                     ->contained(false),
             ])
             ->columns(1);
+    }
+
+    /**
+     * Canonical infolist for a single student's guidance history. Used by
+     * both the dedicated View page (Pages\ViewCounselingAppointments) and
+     * the "View" table action's modal in Pages\ListCounselingAppointments,
+     * so the two stay in sync instead of drifting apart.
+     */
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                \Filament\Infolists\Components\Section::make('Student Information')
+                    ->icon('heroicon-o-user')
+                    ->columns(2)
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('full_name')
+                            ->label('Name')
+                            ->getStateUsing(fn ($record) => $record->full_name),
+
+                        \Filament\Infolists\Components\TextEntry::make('course_and_year')
+                            ->label('Course & Year'),
+                    ]),
+
+                \Filament\Infolists\Components\Section::make('Guidance Records History')
+                    ->description('Every counseling appointment, session record, and endorsement for this student — across all their visits, not just this one.')
+                    ->icon('heroicon-o-clock')
+                    ->schema([
+                        \Filament\Infolists\Components\RepeatableEntry::make('guidance_history')
+                            ->label('')
+                            ->getStateUsing(function ($record) {
+                                $query = CounselingAppointments::query()
+                                    ->whereNull('archived_at')
+                                    ->with([
+                                        'logforms.anecdotals.personnel',
+                                        'endorsement.personnel',
+                                        'modeOfCounseling',
+                                        'supportNeeded',
+                                    ]);
+
+                                // Prefer matching by student_id (reliable FK link);
+                                // fall back to name matching for older appointments
+                                // that predate the student_id column being populated.
+                                if ($record->student_id) {
+                                    $query->where('student_id', $record->student_id);
+                                } else {
+                                    $query->where('first_name', $record->first_name)
+                                          ->where('last_name', $record->last_name);
+                                }
+
+                                return $query->orderByDesc('counseling_date')->get();
+                            })
+                            ->schema([
+                                \Filament\Infolists\Components\Grid::make(4)
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('counseling_date')
+                                            ->label('Date')
+                                            ->date('M d, Y'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('modeOfCounseling.name')
+                                            ->label('Mode')
+                                            ->placeholder('—'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('supportNeeded.name')
+                                            ->label('Support Needed')
+                                            ->placeholder('—'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('status')
+                                            ->badge()
+                                            ->color(fn (string $state): string => match ($state) {
+                                                'approved' => 'success',
+                                                'rejected' => 'danger',
+                                                default    => 'warning',
+                                            }),
+                                    ]),
+
+                                \Filament\Infolists\Components\TextEntry::make('concern')
+                                    ->label('Concern')
+                                    ->placeholder('—')
+                                    ->columnSpanFull(),
+
+                                \Filament\Infolists\Components\RepeatableEntry::make('logforms')
+                                    ->label('Session Records')
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('concern')
+                                            ->label('Session Concern')
+                                            ->placeholder('—'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('remarks')
+                                            ->label('Remarks')
+                                            ->placeholder('—'),
+
+                                        \Filament\Infolists\Components\RepeatableEntry::make('anecdotals')
+                                            ->label('Anecdotal Records')
+                                            ->schema([
+                                                \Filament\Infolists\Components\TextEntry::make('area_concern')
+                                                    ->label('Area of Concern'),
+
+                                                \Filament\Infolists\Components\TextEntry::make('concern')
+                                                    ->label('Observation')
+                                                    ->html(),
+
+                                                \Filament\Infolists\Components\TextEntry::make('intervention')
+                                                    ->label('Intervention')
+                                                    ->html(),
+
+                                                \Filament\Infolists\Components\TextEntry::make('interviewed_by')
+                                                    ->label('Interviewed By')
+                                                    ->getStateUsing(fn ($record) => $record->personnel
+                                                        ? trim("{$record->personnel->first_name} {$record->personnel->last_name}")
+                                                        : '—'),
+                                            ])
+                                            ->columns(2)
+                                            ->visible(fn ($record) => $record->anecdotals->isNotEmpty()),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn ($record) => $record->logforms->isNotEmpty()),
+
+                                \Filament\Infolists\Components\Section::make('Endorsement')
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('endorsement.to_where')
+                                            ->label('Endorsed To')
+                                            ->default('—'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('endorsement.date')
+                                            ->label('Date')
+                                            ->date('M d, Y')
+                                            ->default('—'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('endorsement.issue')
+                                            ->label('Issue')
+                                            ->default('—')
+                                            ->columnSpanFull(),
+
+                                        \Filament\Infolists\Components\TextEntry::make('endorsed_by')
+                                            ->label('Endorsed By')
+                                            ->getStateUsing(fn ($record) => $record->endorsement?->personnel
+                                                ? trim("{$record->endorsement->personnel->first_name} {$record->endorsement->personnel->last_name}")
+                                                : '—'),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn ($record) => $record->endorsement !== null),
+                            ])
+                            ->columnSpanFull(),
+                    ]),
+            ]);
     }
 
     /**

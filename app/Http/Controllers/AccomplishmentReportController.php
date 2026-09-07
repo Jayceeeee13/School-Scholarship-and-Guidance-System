@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AccomplishmentReport;
 use App\Models\AccomplishmentReportActivity;
+use App\Models\InstitutionalScholar;
 use App\Models\Scholars;
 use App\Models\Term;
 use Illuminate\Http\Request;
@@ -12,10 +12,20 @@ use Illuminate\Support\Facades\DB;
 
 class AccomplishmentReportController extends Controller
 {
+    /**
+     * Resolve whichever scholar profile (Scholars or InstitutionalScholar)
+     * belongs to the given portal user. Checks Scholars first, then
+     * InstitutionalScholar, since a user should only ever match one.
+     */
+    protected function resolveScholar($user): Scholars|InstitutionalScholar|null
+    {
+        return Scholars::forUser($user) ?? InstitutionalScholar::forUser($user);
+    }
+
     public function index()
     {
         $user    = Auth::user();
-        $scholar = Scholars::forUser($user);
+        $scholar = $this->resolveScholar($user);
 
         $isEligible = $scholar && $scholar->isEligibleForAccomplishmentReports();
 
@@ -23,8 +33,8 @@ class AccomplishmentReportController extends Controller
         $existingReport = null;
 
         if ($isEligible && $activeTerm) {
-            $existingReport = AccomplishmentReport::with('activities')
-                ->where('scholar_id', $scholar->id)
+            $existingReport = $scholar->accomplishmentReports()
+                ->with('activities')
                 ->where('term_id', $activeTerm->id)
                 ->first();
         }
@@ -45,7 +55,7 @@ class AccomplishmentReportController extends Controller
     public function store(Request $request)
     {
         $user    = Auth::user();
-        $scholar = Scholars::forUser($user);
+        $scholar = $this->resolveScholar($user);
 
         abort_unless($scholar && $scholar->isEligibleForAccomplishmentReports(), 403,
             'You are not eligible to submit accomplishment reports.');
@@ -68,8 +78,11 @@ class AccomplishmentReportController extends Controller
         abort_if($rows->isEmpty(), 422, 'Please fill in at least one activity row.');
 
         DB::transaction(function () use ($scholar, $activeTerm, $rows) {
-            $report = AccomplishmentReport::updateOrCreate(
-                ['scholar_id' => $scholar->id, 'term_id' => $activeTerm->id],
+            // updateOrCreate on a MorphMany relation automatically sets
+            // scholar_type + scholar_id correctly for whichever model
+            // $scholar actually is (Scholars or InstitutionalScholar).
+            $report = $scholar->accomplishmentReports()->updateOrCreate(
+                ['term_id' => $activeTerm->id],
                 ['status' => 'pending', 'submitted_at' => now(), 'remarks' => null]
             );
 

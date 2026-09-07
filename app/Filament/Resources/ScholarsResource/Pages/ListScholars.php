@@ -5,6 +5,7 @@ namespace App\Filament\Resources\ScholarsResource\Pages;
 use App\Filament\Resources\ScholarsResource;
 use App\Models\DailyTimeRecord;
 use App\Models\Department;
+use App\Models\InstitutionalScholar;
 use App\Models\Scholars;
 use App\Models\Term;
 use App\Models\TypeOfScholarship;
@@ -72,11 +73,14 @@ class ListScholars extends ListRecords
                 ->modalSubmitActionLabel('Save Scholar')
                 ->form(ScholarsResource::scholarFormSchema())
                 ->action(function (array $data): void {
-                    $record = Scholars::create($data);
+                    // NOTE: writes to InstitutionalScholar, not Scholars —
+                    // this tab shows institutional_scholars table rows,
+                    // so records added here must land in the same table.
+                    $record = InstitutionalScholar::create($data);
 
                     $this->logCustomActivity(
                         $record,
-                        'scholars',
+                        'institutional_scholars',
                         'created',
                         "Added institutional scholar {$record->first_name} {$record->last_name}"
                     );
@@ -300,6 +304,100 @@ class ListScholars extends ListRecords
 
     public function table(Table $table): Table
     {
+        // ── Institutional Scholars tab ──────────────────────────────────
+        // Queries the SEPARATE institutional_scholars table directly
+        // (via InstitutionalScholar model), not the `scholars` table.
+        // This is where approved Applicant records land — see
+        // ApplicantResource's `approve` action.
+        if ($this->activeTab === 'institutional') {
+            return $table
+                ->query(InstitutionalScholar::query()->where('status', '!=', 'revoked'))
+                ->columns(ScholarsResource::scholarTableColumns())
+                ->filters([
+                    Tables\Filters\SelectFilter::make('type_of_scholarship')
+                        ->label('Type of Scholarship')
+                        ->options(fn () => InstitutionalScholar::query()
+                            ->distinct()
+                            ->whereNotNull('type_of_scholarship')
+                            ->pluck('type_of_scholarship', 'type_of_scholarship')
+                            ->sort())
+                        ->multiple()
+                        ->searchable()
+                        ->placeholder('All Scholarships'),
+
+                    Tables\Filters\SelectFilter::make('status')
+                        ->label('Status')
+                        ->options([
+                            'active'       => 'Active',
+                            'inactive'     => 'Inactive',
+                            'graduated'    => 'Graduated',
+                            'discontinued' => 'Discontinued',
+                        ])
+                        ->multiple()
+                        ->placeholder('All Statuses'),
+                ])
+                ->actions([
+                    Tables\Actions\ActionGroup::make([
+                        Tables\Actions\ViewAction::make()
+                            ->form(ScholarsResource::scholarFormSchema())
+                            ->infolist([
+                                \Filament\Infolists\Components\Section::make('Scholar Information')
+                                    ->icon('heroicon-o-user')
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('full_name')
+                                            ->label('Name'),
+                                        \Filament\Infolists\Components\TextEntry::make('program')
+                                            ->label('Program'),
+                                        \Filament\Infolists\Components\TextEntry::make('type_of_scholarship')
+                                            ->label('Scholarship Type'),
+                                        \Filament\Infolists\Components\TextEntry::make('status')
+                                            ->badge(),
+                                    ])
+                                    ->columns(2),
+
+                                \Filament\Infolists\Components\Section::make('Accomplishment Reports')
+                                    ->icon('heroicon-o-document-check')
+                                    ->description('Activity logs submitted by this scholar, one report per term.')
+                                    ->schema([
+                                        \Filament\Infolists\Components\RepeatableEntry::make('accomplishmentReports')
+                                            ->label('')
+                                            ->schema([
+                                                \Filament\Infolists\Components\TextEntry::make('term.school_year')
+                                                    ->label('Term')
+                                                    ->formatStateUsing(fn ($state, $record) => $record->term
+                                                        ? "{$record->term->school_year} — {$record->term->semester}"
+                                                        : '—'),
+                                                \Filament\Infolists\Components\TextEntry::make('status')
+                                                    ->badge()
+                                                    ->color(fn (string $state): string => match ($state) {
+                                                        'pending'  => 'warning',
+                                                        'approved' => 'success',
+                                                        'rejected' => 'danger',
+                                                        default    => 'gray',
+                                                    }),
+                                                \Filament\Infolists\Components\TextEntry::make('activities')
+                                                    ->label('Activities')
+                                                    ->formatStateUsing(fn ($state, $record) => $record->activities->count() . ' activity/activities logged'),
+                                            ])
+                                            ->columns(3),
+                                    ])
+                                    ->visible(fn ($record) => $record->isEligibleForAccomplishmentReports()),
+                            ]),
+
+                        Tables\Actions\EditAction::make()
+                            ->form(ScholarsResource::scholarFormSchema()),
+
+                        Tables\Actions\DeleteAction::make(),
+                    ])
+                    ->label('Actions')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('gray')
+                    ->button(),
+                ])
+                ->defaultSort('created_at', 'desc');
+        }
+
         if ($this->activeTab === 'dtr') {
             return $table
                 ->query(function () {
@@ -734,9 +832,8 @@ class ListScholars extends ListRecords
                 ->defaultSort('date', 'desc');
         }
 
-        // "all" and "institutional" tabs both use the standard Scholars
-        // table/actions — ScholarsResource::getEloquentQuery() already
-        // narrows the query correctly based on request()->query('activeTab').
+        // "all" and "revoked" tabs both use the standard Scholars
+        // table/actions.
         return ScholarsResource::table($table);
     }
 

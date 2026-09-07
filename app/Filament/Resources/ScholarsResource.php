@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Exports\ScholarsExport;
 use App\Imports\ScholarsImport;
 use App\Filament\Resources\ScholarsResource\Pages;
+use App\Models\InstitutionalScholar;
 use App\Models\Scholars;
 use App\Models\Term;
 use App\Models\TypeOfScholarship;
@@ -44,10 +45,12 @@ class ScholarsResource extends Resource
     }
 
     /**
-     * Names of TypeOfScholarship records — a scholar's type_of_scholarship
-     * matching one of these makes them "institutional" for tab/filter
-     * purposes. There is no separate institutional table; these are just
-     * Scholars rows, tagged by their scholarship type name.
+     * Names of TypeOfScholarship records — used only for reference/filter
+     * options now. NOTE: "Institutional Scholars" as a tab no longer
+     * filters the `scholars` table by these names — institutional
+     * scholars live in their own `institutional_scholars` table
+     * (see ListScholars::table()), populated when an Applicant is
+     * approved in ApplicantResource.
      */
     protected static function institutionalTypeNames(): array
     {
@@ -55,7 +58,9 @@ class ScholarsResource extends Resource
     }
 
     /**
-     * Shared form schema — used by this resource's own Create/Edit pages.
+     * Shared form schema — used by this resource's own Create/Edit pages,
+     * and reused for the Institutional Scholars inline modal form since
+     * there is no separate InstitutionalScholarResource.
      */
     public static function scholarFormSchema(): array
     {
@@ -214,7 +219,9 @@ class ScholarsResource extends Resource
     }
 
     /**
-     * Shared table columns.
+     * Shared table columns — used both for the "all"/"revoked" tabs
+     * (Scholars model) and the "institutional" tab (InstitutionalScholar
+     * model), since both share the same field names via HasScholarProfile.
      */
     public static function scholarTableColumns(): array
     {
@@ -786,20 +793,17 @@ class ScholarsResource extends Resource
             $query->where('department_head_id', auth()->id());
         }
 
-        // Institutional scholars are NOT a separate table — they're plain
-        // Scholars rows whose type_of_scholarship matches one of the
-        // names defined in TypeOfScholarship.
-        if (request()->query('activeTab') === 'institutional') {
-            $query->whereIn('type_of_scholarship', static::institutionalTypeNames());
-        }
+        // NOTE: the old "institutional" tab filter that narrowed this
+        // Scholars query by type_of_scholarship has been removed.
+        // Institutional Scholars are a fully separate table/model now
+        // (InstitutionalScholar) — see ListScholars::table() for the
+        // dedicated query branch.
 
         return $query;
     }
 
     public static function getTabs(): array
     {
-        $institutionalTypes = static::institutionalTypeNames();
-
         return [
             'all' => Tab::make('All Scholars')
                 ->icon('heroicon-m-academic-cap')
@@ -807,14 +811,7 @@ class ScholarsResource extends Resource
 
             'institutional' => Tab::make('Institutional Scholars')
                 ->icon('heroicon-m-building-library')
-                ->modifyQueryUsing(fn (Builder $query) => $query
-                    ->whereIn('type_of_scholarship', $institutionalTypes)
-                    ->where('status', '!=', 'revoked'))
-                ->badge(
-                    Scholars::whereIn('type_of_scholarship', $institutionalTypes)
-                        ->where('status', '!=', 'revoked')
-                        ->count()
-                )
+                ->badge(InstitutionalScholar::where('status', '!=', 'revoked')->count())
                 ->badgeColor('success'),
 
             'revoked' => Tab::make('Revoked Scholars')

@@ -22,6 +22,10 @@ class AccomplishmentReport extends Model
         'submitted_at' => 'datetime',
     ];
 
+    /**
+     * Polymorphic — resolves to either App\Models\Scholars or
+     * App\Models\InstitutionalScholar depending on scholar_type.
+     */
     public function scholar(): MorphTo
     {
         return $this->morphTo();

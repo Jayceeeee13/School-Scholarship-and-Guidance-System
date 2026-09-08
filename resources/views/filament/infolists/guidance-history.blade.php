@@ -81,9 +81,9 @@
                             default => 'warning',
                         };
                         $statusColors = [
-                            'success' => ['bg' => 'bg-success-500', 'ring' => 'ring-success-500/20', 'chip' => 'bg-success-50 dark:bg-success-500/10 text-success-700 dark:text-success-400 border-success-200 dark:border-success-500/20'],
-                            'danger'  => ['bg' => 'bg-danger-500',  'ring' => 'ring-danger-500/20',  'chip' => 'bg-danger-50 dark:bg-danger-500/10 text-danger-700 dark:text-danger-400 border-danger-200 dark:border-danger-500/20'],
-                            'warning' => ['bg' => 'bg-warning-500', 'ring' => 'ring-warning-500/20', 'chip' => 'bg-warning-50 dark:bg-warning-500/10 text-warning-700 dark:text-warning-400 border-warning-200 dark:border-warning-500/20'],
+                            'success' => ['bg' => 'bg-success-500', 'chip' => 'bg-success-50 dark:bg-success-500/10 text-success-700 dark:text-success-400 border-success-200 dark:border-success-500/20'],
+                            'danger'  => ['bg' => 'bg-danger-500',  'chip' => 'bg-danger-50 dark:bg-danger-500/10 text-danger-700 dark:text-danger-400 border-danger-200 dark:border-danger-500/20'],
+                            'warning' => ['bg' => 'bg-warning-500', 'chip' => 'bg-warning-50 dark:bg-warning-500/10 text-warning-700 dark:text-warning-400 border-warning-200 dark:border-warning-500/20'],
                         ][$statusColor];
                         $isFollowUp = $appt->isFollowUp();
                         $hasSessions = $appt->logforms->isNotEmpty();
@@ -93,7 +93,7 @@
 
                     <div class="relative pl-12" x-data="{ open: {{ $isLatest ? 'true' : 'false' }} }">
                         {{-- timeline dot --}}
-                        <div class="absolute left-0 top-3 flex items-center justify-center w-10 h-10 rounded-full {{ $statusColors['bg'] }}/10 ring-4 {{ $statusColors['ring'] }} z-10">
+                        <div class="absolute left-0 top-3 flex items-center justify-center w-10 h-10 rounded-full {{ $statusColors['bg'] }}/10 border-2 {{ $statusColors['bg'] }} border-opacity-30 z-10">
                             <div class="w-2.5 h-2.5 rounded-full {{ $statusColors['bg'] }}"></div>
                         </div>
 

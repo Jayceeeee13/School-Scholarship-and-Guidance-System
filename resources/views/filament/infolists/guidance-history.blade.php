@@ -9,47 +9,47 @@
 <div class="space-y-6">
 
     {{-- ── Stat cards ─────────────────────────────────────────── --}}
-    <div class="flex flex-col gap-3">
-        <div class="group rounded-2xl border border-primary-100 dark:border-primary-500/20 bg-gradient-to-br from-primary-50 to-white dark:from-primary-500/10 dark:to-transparent p-4 transition-all hover:shadow-md">
-            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-primary-100 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 transition-transform group-hover:scale-110">
-                <x-heroicon-o-rectangle-stack class="w-5 h-5" />
+    <div class="grid grid-cols-4 gap-2">
+        <div class="group rounded-xl border border-primary-100 dark:border-primary-500/20 bg-gradient-to-br from-primary-50 to-white dark:from-primary-500/10 dark:to-transparent p-2.5 transition-all hover:shadow-md">
+            <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400 transition-transform group-hover:scale-110">
+                <x-heroicon-o-rectangle-stack class="w-4 h-4" />
             </div>
-            <p class="mt-3 text-2xl font-extrabold text-gray-900 dark:text-white leading-none">{{ $total }}</p>
-            <p class="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Total Sessions</p>
+            <p class="mt-2 text-lg font-extrabold text-gray-900 dark:text-white leading-none">{{ $total }}</p>
+            <p class="mt-1 text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide leading-tight">Total Sessions</p>
         </div>
 
-        <div class="group rounded-2xl border border-info-100 dark:border-info-500/20 bg-gradient-to-br from-info-50 to-white dark:from-info-500/10 dark:to-transparent p-4 transition-all hover:shadow-md">
-            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-info-100 dark:bg-info-500/20 text-info-600 dark:text-info-400 transition-transform group-hover:scale-110">
-                <x-heroicon-o-arrow-path-rounded-square class="w-5 h-5" />
+        <div class="group rounded-xl border border-info-100 dark:border-info-500/20 bg-gradient-to-br from-info-50 to-white dark:from-info-500/10 dark:to-transparent p-2.5 transition-all hover:shadow-md">
+            <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-info-100 dark:bg-info-500/20 text-info-600 dark:text-info-400 transition-transform group-hover:scale-110">
+                <x-heroicon-o-arrow-path-rounded-square class="w-4 h-4" />
             </div>
-            <p class="mt-3 text-2xl font-extrabold text-gray-900 dark:text-white leading-none">{{ $followups }}</p>
-            <p class="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Follow-ups</p>
+            <p class="mt-2 text-lg font-extrabold text-gray-900 dark:text-white leading-none">{{ $followups }}</p>
+            <p class="mt-1 text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide leading-tight">Follow-ups</p>
         </div>
 
-        <div class="group rounded-2xl border border-warning-100 dark:border-warning-500/20 bg-gradient-to-br from-warning-50 to-white dark:from-warning-500/10 dark:to-transparent p-4 transition-all hover:shadow-md">
+        <div class="group rounded-xl border border-warning-100 dark:border-warning-500/20 bg-gradient-to-br from-warning-50 to-white dark:from-warning-500/10 dark:to-transparent p-2.5 transition-all hover:shadow-md">
             <div class="flex items-center justify-between">
-                <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-warning-100 dark:bg-warning-500/20 text-warning-600 dark:text-warning-400 transition-transform group-hover:scale-110">
-                    <x-heroicon-o-clock class="w-5 h-5" />
+                <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-warning-100 dark:bg-warning-500/20 text-warning-600 dark:text-warning-400 transition-transform group-hover:scale-110">
+                    <x-heroicon-o-clock class="w-4 h-4" />
                 </div>
                 @if ($pending > 0)
-                    <span class="flex h-2 w-2 relative">
+                    <span class="flex h-1.5 w-1.5 relative">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-warning-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-warning-500"></span>
+                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-warning-500"></span>
                     </span>
                 @endif
             </div>
-            <p class="mt-3 text-2xl font-extrabold text-gray-900 dark:text-white leading-none">{{ $pending }}</p>
-            <p class="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Pending</p>
+            <p class="mt-2 text-lg font-extrabold text-gray-900 dark:text-white leading-none">{{ $pending }}</p>
+            <p class="mt-1 text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide leading-tight">Pending</p>
         </div>
 
-        <div class="group rounded-2xl border border-success-100 dark:border-success-500/20 bg-gradient-to-br from-success-50 to-white dark:from-success-500/10 dark:to-transparent p-4 transition-all hover:shadow-md">
-            <div class="flex items-center justify-center w-9 h-9 rounded-xl bg-success-100 dark:bg-success-500/20 text-success-600 dark:text-success-400 transition-transform group-hover:scale-110">
-                <x-heroicon-o-calendar class="w-5 h-5" />
+        <div class="group rounded-xl border border-success-100 dark:border-success-500/20 bg-gradient-to-br from-success-50 to-white dark:from-success-500/10 dark:to-transparent p-2.5 transition-all hover:shadow-md">
+            <div class="flex items-center justify-center w-7 h-7 rounded-lg bg-success-100 dark:bg-success-500/20 text-success-600 dark:text-success-400 transition-transform group-hover:scale-110">
+                <x-heroicon-o-calendar class="w-4 h-4" />
             </div>
-            <p class="mt-3 text-2xl font-extrabold text-gray-900 dark:text-white leading-none">
+            <p class="mt-2 text-sm font-extrabold text-gray-900 dark:text-white leading-tight">
                 {{ $latest?->counseling_date ? \Carbon\Carbon::parse($latest->counseling_date)->format('M d, Y') : '—' }}
             </p>
-            <p class="mt-1 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Latest Visit</p>
+            <p class="mt-1 text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide leading-tight">Latest Visit</p>
         </div>
     </div>
 

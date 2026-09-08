@@ -91,13 +91,13 @@
                         $isLatest = $loop->first;
                     @endphp
 
-                    <div class="relative pl-12" x-data="{ open: {{ $isLatest ? 'true' : 'false' }} }">
+                    <div class="flex gap-3 items-start" x-data="{ open: {{ $isLatest ? 'true' : 'false' }} }">
                         {{-- timeline dot --}}
-                        <div class="absolute left-0 top-3 flex items-center justify-center w-10 h-10 rounded-full {{ $statusColors['bg'] }}/10 border-2 {{ $statusColors['bg'] }} border-opacity-30 z-10">
+                        <div class="flex-shrink-0 mt-3 flex items-center justify-center w-10 h-10 rounded-full {{ $statusColors['bg'] }}/10 border-2 {{ $statusColors['bg'] }} border-opacity-30 z-10">
                             <div class="w-2.5 h-2.5 rounded-full {{ $statusColors['bg'] }}"></div>
                         </div>
 
-                        <div class="rounded-2xl border {{ $isFollowUp ? 'border-l-4 border-l-info-400 border-y-gray-100 border-r-gray-100 dark:border-y-white/10 dark:border-r-white/10' : 'border-l-4 border-l-gray-300 dark:border-l-gray-600 border-y-gray-100 border-r-gray-100 dark:border-y-white/10 dark:border-r-white/10' }} bg-white dark:bg-white/5 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+                        <div class="flex-1 min-w-0 rounded-2xl border {{ $isFollowUp ? 'border-l-4 border-l-info-400 border-y-gray-100 border-r-gray-100 dark:border-y-white/10 dark:border-r-white/10' : 'border-l-4 border-l-gray-300 dark:border-l-gray-600 border-y-gray-100 border-r-gray-100 dark:border-y-white/10 dark:border-r-white/10' }} bg-white dark:bg-white/5 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
 
                             {{-- header (clickable to expand) --}}
                             <button

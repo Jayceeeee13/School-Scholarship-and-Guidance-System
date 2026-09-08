@@ -27,23 +27,14 @@ class CounselingLogforms extends Model
         'archived_at' => 'datetime',
     ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | Model Events
-    |--------------------------------------------------------------------------
-    |
-    | Whenever a counseling logform is saved, automatically mark the
-    | related appointment as completed.
-    |
-    */
     protected static function booted(): void
     {
         static::saved(function (CounselingLogforms $logform) {
 
-            // Only appointments can become completed.
-            // Walk-in counseling records do not have an appointment.
-            if ($logform->type !== 'walk_in' && $logform->counseling_appointments_id) {
-
+            if (
+                $logform->type !== 'walk_in' &&
+                $logform->counseling_appointments_id
+            ) {
                 $appointment = $logform->appointment;
 
                 if ($appointment && $appointment->status !== 'completed') {
@@ -52,14 +43,21 @@ class CounselingLogforms extends Model
                     ]);
                 }
             }
+
+            if (
+                $logform->referral_id &&
+                $logform->type !== 'walk_in'
+            ) {
+                $referral = $logform->referral;
+
+                if ($referral && $referral->status === 'approved') {
+                    $referral->update([
+                        'status' => 'completed',
+                    ]);
+                }
+            }
         });
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Relationships
-    |--------------------------------------------------------------------------
-    */
 
     public function appointment(): BelongsTo
     {
@@ -100,12 +98,6 @@ class CounselingLogforms extends Model
             'counseling_logforms_id'
         );
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Helpers
-    |--------------------------------------------------------------------------
-    */
 
     public function isWalkIn(): bool
     {

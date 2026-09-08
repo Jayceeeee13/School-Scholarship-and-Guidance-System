@@ -27,30 +27,85 @@ class CounselingLogforms extends Model
         'archived_at' => 'datetime',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | Model Events
+    |--------------------------------------------------------------------------
+    |
+    | Whenever a counseling logform is saved, automatically mark the
+    | related appointment as completed.
+    |
+    */
+    protected static function booted(): void
+    {
+        static::saved(function (CounselingLogforms $logform) {
+
+            // Only appointments can become completed.
+            // Walk-in counseling records do not have an appointment.
+            if ($logform->type !== 'walk_in' && $logform->counseling_appointments_id) {
+
+                $appointment = $logform->appointment;
+
+                if ($appointment && $appointment->status !== 'completed') {
+                    $appointment->update([
+                        'status' => 'completed',
+                    ]);
+                }
+            }
+        });
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
+
     public function appointment(): BelongsTo
     {
-        return $this->belongsTo(CounselingAppointments::class, 'counseling_appointments_id');
+        return $this->belongsTo(
+            CounselingAppointments::class,
+            'counseling_appointments_id'
+        );
     }
 
     public function referral(): BelongsTo
     {
-        return $this->belongsTo(Referrals::class, 'referral_id');
+        return $this->belongsTo(
+            Referrals::class,
+            'referral_id'
+        );
     }
 
     public function walkInStudent(): BelongsTo
     {
-        return $this->belongsTo(Students::class, 'walkin_student_id');
+        return $this->belongsTo(
+            Students::class,
+            'walkin_student_id'
+        );
     }
 
     public function supportNeeded(): BelongsTo
     {
-        return $this->belongsTo(SupportNeeded::class, 'support_needed_id');
+        return $this->belongsTo(
+            SupportNeeded::class,
+            'support_needed_id'
+        );
     }
 
     public function anecdotals(): HasMany
     {
-        return $this->hasMany(Anecdotals::class, 'counseling_logforms_id');
+        return $this->hasMany(
+            Anecdotals::class,
+            'counseling_logforms_id'
+        );
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Helpers
+    |--------------------------------------------------------------------------
+    */
 
     public function isWalkIn(): bool
     {
@@ -61,21 +116,34 @@ class CounselingLogforms extends Model
     {
         if ($this->isWalkIn()) {
             return $this->walkInStudent
-                ? trim("{$this->walkInStudent->first_name} {$this->walkInStudent->middle_name} {$this->walkInStudent->last_name}")
+                ? trim(
+                    "{$this->walkInStudent->first_name} " .
+                    "{$this->walkInStudent->middle_name} " .
+                    "{$this->walkInStudent->last_name}"
+                )
                 : '—';
         }
 
         return $this->appointment
-            ? trim("{$this->appointment->first_name} {$this->appointment->middle_name} {$this->appointment->last_name}")
+            ? trim(
+                "{$this->appointment->first_name} " .
+                "{$this->appointment->middle_name} " .
+                "{$this->appointment->last_name}"
+            )
             : '—';
     }
 
     public function getDisplayCourseAttribute(): string
     {
         if ($this->isWalkIn()) {
-            if (! $this->walkInStudent) return '—';
+
+            if (! $this->walkInStudent) {
+                return '—';
+            }
+
             $program = $this->walkInStudent->program?->name ?? '';
-            $year    = $this->walkInStudent->year_level ?? '';
+            $year = $this->walkInStudent->year_level ?? '';
+
             return trim("{$program} {$year}") ?: '—';
         }
 

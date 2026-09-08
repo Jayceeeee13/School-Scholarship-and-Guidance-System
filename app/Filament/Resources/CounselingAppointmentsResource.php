@@ -486,264 +486,33 @@ class CounselingAppointmentsResource extends Resource
      * so the two stay in sync instead of drifting apart.
      */
     public static function infolist(Infolist $infolist): Infolist
-    {
-        return $infolist
-            ->schema([
-                // ── Student profile header ───────────────────────────────
-                \Filament\Infolists\Components\Section::make('Student Information')
-                    ->icon('heroicon-o-user-circle')
-                    ->iconColor('primary')
-                    ->extraAttributes([
-                        'class' => 'rounded-2xl bg-gradient-to-br from-primary-50 to-white dark:from-primary-500/10 dark:to-transparent border border-primary-100 dark:border-primary-500/20',
-                    ])
-                    ->columns(2)
-                    ->schema([
-                        \Filament\Infolists\Components\TextEntry::make('full_name')
-                            ->label('Student Name')
-                            ->getStateUsing(fn ($record) => $record->full_name)
-                            ->size('xl')
-                            ->weight('bold')
-                            ->icon('heroicon-o-identification')
-                            ->iconColor('primary'),
+{
+    return $infolist
+        ->schema([
+            \Filament\Infolists\Components\Section::make('Student Information')
+                ->icon('heroicon-o-user-circle')
+                ->iconColor('primary')
+                ->columns(2)
+                ->schema([
+                    \Filament\Infolists\Components\TextEntry::make('full_name')
+                        ->label('Student Name')
+                        ->getStateUsing(fn ($record) => $record->full_name)
+                        ->size('lg')
+                        ->weight('bold'),
 
-                        \Filament\Infolists\Components\TextEntry::make('course_and_year')
-                            ->label('Program')
-                            ->badge()
-                            ->color('primary')
-                            ->icon('heroicon-o-academic-cap')
-                            ->size('md'),
-                    ]),
+                    \Filament\Infolists\Components\TextEntry::make('course_and_year')
+                        ->label('Program')
+                        ->badge()
+                        ->color('primary'),
+                ]),
 
-                // ── History container ────────────────────────────────────
-                \Filament\Infolists\Components\Section::make('Guidance Records History')
-                    ->description('Every counseling appointment, follow-up, session record, and endorsement for this student.')
-                    ->icon('heroicon-o-clock')
-                    ->iconColor('gray')
-                    ->extraAttributes(['class' => 'rounded-2xl'])
-                    ->schema([
-                        // ── Stat cards ────────────────────────────────
-                        \Filament\Infolists\Components\Grid::make(4)
-                            ->schema([
-                                \Filament\Infolists\Components\TextEntry::make('stat_total')
-                                    ->label('Total Sessions')
-                                    ->getStateUsing(fn ($record) => self::resolveGuidanceHistory($record)->count())
-                                    ->icon('heroicon-o-rectangle-stack')
-                                    ->iconColor('primary')
-                                    ->size('2xl')
-                                    ->weight('bold')
-                                    ->color('primary')
-                                    ->extraAttributes([
-                                        'class' => 'rounded-xl border border-primary-100 dark:border-primary-500/20 bg-primary-50/60 dark:bg-primary-500/10 px-4 py-3 text-center',
-                                    ]),
-
-                                \Filament\Infolists\Components\TextEntry::make('stat_followups')
-                                    ->label('Follow-ups')
-                                    ->getStateUsing(fn ($record) => self::resolveGuidanceHistory($record)->filter(fn ($a) => $a->isFollowUp())->count())
-                                    ->icon('heroicon-o-arrow-path-rounded-square')
-                                    ->iconColor('info')
-                                    ->size('2xl')
-                                    ->weight('bold')
-                                    ->color('info')
-                                    ->extraAttributes([
-                                        'class' => 'rounded-xl border border-info-100 dark:border-info-500/20 bg-info-50/60 dark:bg-info-500/10 px-4 py-3 text-center',
-                                    ]),
-
-                                \Filament\Infolists\Components\TextEntry::make('stat_pending')
-                                    ->label('Pending')
-                                    ->getStateUsing(fn ($record) => self::resolveGuidanceHistory($record)->where('status', 'pending')->count())
-                                    ->icon('heroicon-o-clock')
-                                    ->iconColor('warning')
-                                    ->size('2xl')
-                                    ->weight('bold')
-                                    ->color('warning')
-                                    ->extraAttributes([
-                                        'class' => 'rounded-xl border border-warning-100 dark:border-warning-500/20 bg-warning-50/60 dark:bg-warning-500/10 px-4 py-3 text-center',
-                                    ]),
-
-                                \Filament\Infolists\Components\TextEntry::make('stat_latest')
-                                    ->label('Latest Visit')
-                                    ->getStateUsing(fn ($record) => optional(self::resolveGuidanceHistory($record)->first())->counseling_date)
-                                    ->date('M d, Y')
-                                    ->placeholder('—')
-                                    ->icon('heroicon-o-calendar')
-                                    ->iconColor('success')
-                                    ->size('2xl')
-                                    ->weight('bold')
-                                    ->color('success')
-                                    ->extraAttributes([
-                                        'class' => 'rounded-xl border border-success-100 dark:border-success-500/20 bg-success-50/60 dark:bg-success-500/10 px-4 py-3 text-center',
-                                    ]),
-                            ]),
-
-                        // ── Timeline ────────────────────────────────────
-                        \Filament\Infolists\Components\RepeatableEntry::make('guidance_history')
-                            ->label('')
-                            ->getStateUsing(fn ($record) => self::resolveGuidanceHistory($record))
-                            ->schema([
-                                \Filament\Infolists\Components\Section::make('entry')
-                                    ->heading(fn ($record) =>
-                                        ($record->counseling_date ? \Carbon\Carbon::parse($record->counseling_date)->format('M d, Y') : 'No date')
-                                        . ' — ' . ($record->isFollowUp() ? 'Follow-up Session' : 'Initial Session')
-                                    )
-                                    ->description(fn ($record) => collect([
-                                        $record->modeOfCounseling?->name,
-                                        $record->supportNeeded?->name,
-                                    ])->filter()->implode(' · ') ?: 'No mode/support recorded')
-                                    ->icon(fn ($record) => $record->isFollowUp()
-                                        ? 'heroicon-o-arrow-path-rounded-square'
-                                        : 'heroicon-o-calendar-days')
-                                    ->iconColor(fn ($record) => match ($record->status) {
-                                        'approved' => 'success',
-                                        'rejected' => 'danger',
-                                        default    => 'warning',
-                                    })
-                                    ->extraAttributes(fn ($record) => [
-                                        'class' => 'rounded-xl shadow-sm mb-4 border border-gray-100 dark:border-white/10 bg-white dark:bg-white/5 border-l-4 '
-                                            . ($record->isFollowUp() ? 'border-l-info-400' : 'border-l-gray-300 dark:border-l-gray-600'),
-                                    ])
-                                    ->collapsible()
-                                    ->compact()
-                                    ->schema([
-                                        \Filament\Infolists\Components\Grid::make(2)
-                                            ->schema([
-                                                \Filament\Infolists\Components\TextEntry::make('status')
-                                                    ->getStateUsing(fn ($record) => $record->status)
-                                                    ->badge()
-                                                    ->icon(fn (?string $state) => match ($state) {
-                                                        'approved' => 'heroicon-o-check-circle',
-                                                        'rejected' => 'heroicon-o-x-circle',
-                                                        default    => 'heroicon-o-clock',
-                                                    })
-                                                    ->color(fn (?string $state): string => match ($state) {
-                                                        'approved' => 'success',
-                                                        'rejected' => 'danger',
-                                                        default    => 'warning',
-                                                    }),
-
-                                                \Filament\Infolists\Components\TextEntry::make('followup_of')
-                                                    ->label('Follow-up of')
-                                                    ->getStateUsing(fn ($record) => $record->isFollowUp() && $record->parentAppointment
-                                                        ? \Carbon\Carbon::parse($record->parentAppointment->counseling_date)->format('M d, Y')
-                                                        : null)
-                                                    ->visible(fn ($record) => $record->isFollowUp() && $record->parentAppointment)
-                                                    ->badge()
-                                                    ->icon('heroicon-o-arrow-uturn-left')
-                                                    ->color('gray'),
-                                            ]),
-
-                                        \Filament\Infolists\Components\TextEntry::make('concern')
-                                            ->label('Concern')
-                                            ->getStateUsing(fn ($record) => $record->concern)
-                                            ->placeholder('No concern recorded')
-                                            ->columnSpanFull(),
-
-                                        // ── Session Records sub-block ────────────
-                                        \Filament\Infolists\Components\Section::make('Session Records')
-                                            ->icon('heroicon-o-document-text')
-                                            ->iconColor('gray')
-                                            ->extraAttributes([
-                                                'class' => 'rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 mt-2',
-                                            ])
-                                            ->compact()
-                                            ->schema([
-                                                \Filament\Infolists\Components\RepeatableEntry::make('logforms')
-                                                    ->label('')
-                                                    ->getStateUsing(fn ($record) => $record->logforms)
-                                                    ->schema([
-                                                        \Filament\Infolists\Components\Grid::make(2)
-                                                            ->schema([
-                                                                \Filament\Infolists\Components\TextEntry::make('session_concern')
-                                                                    ->label('Concern')
-                                                                    ->getStateUsing(fn ($record) => $record->concern)
-                                                                    ->placeholder('—'),
-
-                                                                \Filament\Infolists\Components\TextEntry::make('session_remarks')
-                                                                    ->label('Remarks')
-                                                                    ->getStateUsing(fn ($record) => $record->remarks)
-                                                                    ->placeholder('—'),
-                                                            ]),
-
-                                                        \Filament\Infolists\Components\RepeatableEntry::make('anecdotals')
-                                                            ->label('Anecdotal Records')
-                                                            ->getStateUsing(fn ($record) => $record->anecdotals)
-                                                            ->schema([
-                                                                \Filament\Infolists\Components\Grid::make(2)
-                                                                    ->schema([
-                                                                        \Filament\Infolists\Components\TextEntry::make('area_concern')
-                                                                            ->label('Area of Concern')
-                                                                            ->getStateUsing(fn ($record) => $record->area_concern)
-                                                                            ->badge()
-                                                                            ->icon('heroicon-o-tag')
-                                                                            ->color('gray'),
-
-                                                                        \Filament\Infolists\Components\TextEntry::make('interviewed_by')
-                                                                            ->label('Interviewed By')
-                                                                            ->getStateUsing(fn ($record) => $record->personnel
-                                                                                ? trim("{$record->personnel->first_name} {$record->personnel->last_name}")
-                                                                                : '—')
-                                                                            ->icon('heroicon-o-user'),
-                                                                    ]),
-
-                                                                \Filament\Infolists\Components\TextEntry::make('observation')
-                                                                    ->label('Observation')
-                                                                    ->getStateUsing(fn ($record) => $record->concern)
-                                                                    ->html()
-                                                                    ->columnSpanFull(),
-
-                                                                \Filament\Infolists\Components\TextEntry::make('intervention_note')
-                                                                    ->label('Intervention')
-                                                                    ->getStateUsing(fn ($record) => $record->intervention)
-                                                                    ->html()
-                                                                    ->columnSpanFull(),
-                                                            ])
-                                                            ->visible(fn ($record) => $record->anecdotals->isNotEmpty()),
-                                                    ])
-                                            ])
-                                            ->visible(fn ($record) => $record->logforms->isNotEmpty()),
-
-                                        // ── Endorsement sub-block ────────────────
-                                        \Filament\Infolists\Components\Section::make('Endorsement')
-                                            ->icon('heroicon-o-paper-airplane')
-                                            ->iconColor('info')
-                                            ->extraAttributes([
-                                                'class' => 'rounded-lg bg-info-50/60 dark:bg-info-500/5 border border-info-100 dark:border-info-500/20 mt-2',
-                                            ])
-                                            ->compact()
-                                            ->columns(2)
-                                            ->schema([
-                                                \Filament\Infolists\Components\TextEntry::make('endorsed_to')
-                                                    ->label('Endorsed To')
-                                                    ->getStateUsing(fn ($record) => $record->endorsement?->to_where)
-                                                    ->placeholder('—')
-                                                    ->icon('heroicon-o-arrow-right-circle'),
-
-                                                \Filament\Infolists\Components\TextEntry::make('endorsement_date')
-                                                    ->label('Date')
-                                                    ->getStateUsing(fn ($record) => $record->endorsement?->date)
-                                                    ->date('M d, Y')
-                                                    ->placeholder('—')
-                                                    ->icon('heroicon-o-calendar'),
-
-                                                \Filament\Infolists\Components\TextEntry::make('endorsement_issue')
-                                                    ->label('Issue')
-                                                    ->getStateUsing(fn ($record) => $record->endorsement?->issue)
-                                                    ->placeholder('—')
-                                                    ->columnSpanFull(),
-
-                                                \Filament\Infolists\Components\TextEntry::make('endorsed_by')
-                                                    ->label('Endorsed By')
-                                                    ->getStateUsing(fn ($record) => $record->endorsement?->personnel
-                                                        ? trim("{$record->endorsement->personnel->first_name} {$record->endorsement->personnel->last_name}")
-                                                        : '—')
-                                                    ->icon('heroicon-o-user-circle'),
-                                            ])
-                                            ->visible(fn ($record) => $record->endorsement !== null),
-                                    ]),
-                            ])
-                            ->columnSpanFull(),
-                    ]),
-            ]);
-    }
+            \Filament\Infolists\Components\ViewEntry::make('guidance_history')
+                ->label('')
+                ->view('filament.infolists.guidance-history')
+                ->getStateUsing(fn ($record) => self::resolveGuidanceHistory($record))
+                ->columnSpanFull(),
+        ]);
+}
 
     /**
      * Resolves the full guidance history (including follow-ups reached via

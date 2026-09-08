@@ -502,138 +502,169 @@ class CounselingAppointmentsResource extends Resource
                     ]),
 
                 \Filament\Infolists\Components\Section::make('Guidance Records History')
-                    ->description('Every counseling appointment, session record, and endorsement for this student — across all their visits, not just this one.')
+                    ->description('Every counseling appointment, follow-up, session record, and endorsement for this student — across all their visits, not just this one.')
                     ->icon('heroicon-o-clock')
                     ->schema([
                         \Filament\Infolists\Components\RepeatableEntry::make('guidance_history')
-    ->label('')
-    ->getStateUsing(function ($record) {
-        $query = CounselingAppointments::query()
-            ->whereNull('archived_at')
-            ->with([
-                'logforms.anecdotals.personnel',
-                'endorsement.personnel',
-                'modeOfCounseling',
-                'supportNeeded',
-            ]);
+                            ->label('')
+                            ->getStateUsing(function ($record) {
+                                $query = CounselingAppointments::query()->whereNull('archived_at');
 
-        if ($record->student_id) {
-            $query->where('student_id', $record->student_id);
-        } else {
-            $query->where('first_name', $record->first_name)
-                  ->where('last_name', $record->last_name);
-        }
+                                if ($record->student_id) {
+                                    $query->where('student_id', $record->student_id);
+                                } else {
+                                    $query->where('first_name', $record->first_name)
+                                          ->where('last_name', $record->last_name);
+                                }
 
-        return $query->orderByDesc('counseling_date')->get();
-    })
-    ->schema([
-        \Filament\Infolists\Components\Grid::make(4)
-            ->schema([
-                \Filament\Infolists\Components\TextEntry::make('counseling_date')
-                    ->label('Date')
-                    ->getStateUsing(fn ($record) => $record->counseling_date)
-                    ->date('M d, Y')
-                    ->placeholder('—'),
+                                $matchedIds = $query->pluck('id');
 
-                \Filament\Infolists\Components\TextEntry::make('mode')
-                    ->label('Mode')
-                    ->getStateUsing(fn ($record) => $record->modeOfCounseling?->name)
-                    ->placeholder('—'),
+                                // Follow-ups don't inherit student_id/name matching
+                                // reliably (the "Schedule Follow-up" action doesn't
+                                // copy student_id onto the new row), so walk the
+                                // parent_appointment_id chain explicitly to pull in
+                                // every follow-up (and follow-ups of follow-ups)
+                                // tied to any appointment we've already matched.
+                                $allIds = $matchedIds;
+                                do {
+                                    $newIds = CounselingAppointments::query()
+                                        ->whereNull('archived_at')
+                                        ->whereIn('parent_appointment_id', $allIds)
+                                        ->pluck('id')
+                                        ->diff($allIds);
 
-                \Filament\Infolists\Components\TextEntry::make('support')
-                    ->label('Support Needed')
-                    ->getStateUsing(fn ($record) => $record->supportNeeded?->name)
-                    ->placeholder('—'),
+                                    $allIds = $allIds->merge($newIds);
+                                } while ($newIds->isNotEmpty());
 
-                \Filament\Infolists\Components\TextEntry::make('status')
-                    ->getStateUsing(fn ($record) => $record->status)
-                    ->badge()
-                    ->color(fn (?string $state): string => match ($state) {
-                        'approved' => 'success',
-                        'rejected' => 'danger',
-                        default    => 'warning',
-                    }),
-            ]),
+                                return CounselingAppointments::query()
+                                    ->whereIn('id', $allIds)
+                                    ->with([
+                                        'logforms.anecdotals.personnel',
+                                        'endorsement.personnel',
+                                        'modeOfCounseling',
+                                        'supportNeeded',
+                                        'parentAppointment',
+                                    ])
+                                    ->orderByDesc('counseling_date')
+                                    ->get();
+                            })
+                            ->schema([
+                                \Filament\Infolists\Components\Grid::make(5)
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('counseling_date')
+                                            ->label('Date')
+                                            ->getStateUsing(fn ($record) => $record->counseling_date)
+                                            ->date('M d, Y')
+                                            ->placeholder('—'),
 
-        \Filament\Infolists\Components\TextEntry::make('concern')
-            ->label('Concern')
-            ->getStateUsing(fn ($record) => $record->concern)
-            ->placeholder('—')
-            ->columnSpanFull(),
+                                        \Filament\Infolists\Components\TextEntry::make('session_type')
+                                            ->label('Type')
+                                            ->getStateUsing(fn ($record) => $record->isFollowUp() ? 'Follow-up' : 'Initial')
+                                            ->badge()
+                                            ->color(fn ($record) => $record->isFollowUp() ? 'info' : 'gray')
+                                            ->tooltip(fn ($record) => $record->isFollowUp() && $record->parentAppointment
+                                                ? 'Follow-up of ' . \Carbon\Carbon::parse($record->parentAppointment->counseling_date)->format('M d, Y')
+                                                : null),
 
-        \Filament\Infolists\Components\RepeatableEntry::make('logforms')
-            ->label('Session Records')
-            ->getStateUsing(fn ($record) => $record->logforms)
-            ->schema([
-                \Filament\Infolists\Components\TextEntry::make('session_concern')
-                    ->label('Session Concern')
-                    ->getStateUsing(fn ($record) => $record->concern)
-                    ->placeholder('—'),
+                                        \Filament\Infolists\Components\TextEntry::make('mode')
+                                            ->label('Mode')
+                                            ->getStateUsing(fn ($record) => $record->modeOfCounseling?->name)
+                                            ->placeholder('—'),
 
-                \Filament\Infolists\Components\TextEntry::make('session_remarks')
-                    ->label('Remarks')
-                    ->getStateUsing(fn ($record) => $record->remarks)
-                    ->placeholder('—'),
+                                        \Filament\Infolists\Components\TextEntry::make('support')
+                                            ->label('Support Needed')
+                                            ->getStateUsing(fn ($record) => $record->supportNeeded?->name)
+                                            ->placeholder('—'),
 
-                \Filament\Infolists\Components\RepeatableEntry::make('anecdotals')
-                    ->label('Anecdotal Records')
-                    ->getStateUsing(fn ($record) => $record->anecdotals)
-                    ->schema([
-                        \Filament\Infolists\Components\TextEntry::make('area_concern')
-                            ->label('Area of Concern')
-                            ->getStateUsing(fn ($record) => $record->area_concern),
+                                        \Filament\Infolists\Components\TextEntry::make('status')
+                                            ->getStateUsing(fn ($record) => $record->status)
+                                            ->badge()
+                                            ->color(fn (?string $state): string => match ($state) {
+                                                'approved' => 'success',
+                                                'rejected' => 'danger',
+                                                default    => 'warning',
+                                            }),
+                                    ]),
 
-                        \Filament\Infolists\Components\TextEntry::make('observation')
-                            ->label('Observation')
-                            ->getStateUsing(fn ($record) => $record->concern)
-                            ->html(),
+                                \Filament\Infolists\Components\TextEntry::make('concern')
+                                    ->label('Concern')
+                                    ->getStateUsing(fn ($record) => $record->concern)
+                                    ->placeholder('—')
+                                    ->columnSpanFull(),
 
-                        \Filament\Infolists\Components\TextEntry::make('intervention_note')
-                            ->label('Intervention')
-                            ->getStateUsing(fn ($record) => $record->intervention)
-                            ->html(),
+                                \Filament\Infolists\Components\RepeatableEntry::make('logforms')
+                                    ->label('Session Records')
+                                    ->getStateUsing(fn ($record) => $record->logforms)
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('session_concern')
+                                            ->label('Session Concern')
+                                            ->getStateUsing(fn ($record) => $record->concern)
+                                            ->placeholder('—'),
 
-                        \Filament\Infolists\Components\TextEntry::make('interviewed_by')
-                            ->label('Interviewed By')
-                            ->getStateUsing(fn ($record) => $record->personnel
-                                ? trim("{$record->personnel->first_name} {$record->personnel->last_name}")
-                                : '—'),
-                    ])
-                    ->columns(2)
-                    ->visible(fn ($record) => $record->anecdotals->isNotEmpty()),
-            ])
-            ->columns(2)
-            ->visible(fn ($record) => $record->logforms->isNotEmpty()),
+                                        \Filament\Infolists\Components\TextEntry::make('session_remarks')
+                                            ->label('Remarks')
+                                            ->getStateUsing(fn ($record) => $record->remarks)
+                                            ->placeholder('—'),
 
-        \Filament\Infolists\Components\Section::make('Endorsement')
-            ->schema([
-                \Filament\Infolists\Components\TextEntry::make('endorsed_to')
-                    ->label('Endorsed To')
-                    ->getStateUsing(fn ($record) => $record->endorsement?->to_where)
-                    ->placeholder('—'),
+                                        \Filament\Infolists\Components\RepeatableEntry::make('anecdotals')
+                                            ->label('Anecdotal Records')
+                                            ->getStateUsing(fn ($record) => $record->anecdotals)
+                                            ->schema([
+                                                \Filament\Infolists\Components\TextEntry::make('area_concern')
+                                                    ->label('Area of Concern')
+                                                    ->getStateUsing(fn ($record) => $record->area_concern),
 
-                \Filament\Infolists\Components\TextEntry::make('endorsement_date')
-                    ->label('Date')
-                    ->getStateUsing(fn ($record) => $record->endorsement?->date)
-                    ->date('M d, Y')
-                    ->placeholder('—'),
+                                                \Filament\Infolists\Components\TextEntry::make('observation')
+                                                    ->label('Observation')
+                                                    ->getStateUsing(fn ($record) => $record->concern)
+                                                    ->html(),
 
-                \Filament\Infolists\Components\TextEntry::make('endorsement_issue')
-                    ->label('Issue')
-                    ->getStateUsing(fn ($record) => $record->endorsement?->issue)
-                    ->placeholder('—')
-                    ->columnSpanFull(),
+                                                \Filament\Infolists\Components\TextEntry::make('intervention_note')
+                                                    ->label('Intervention')
+                                                    ->getStateUsing(fn ($record) => $record->intervention)
+                                                    ->html(),
 
-                \Filament\Infolists\Components\TextEntry::make('endorsed_by')
-                    ->label('Endorsed By')
-                    ->getStateUsing(fn ($record) => $record->endorsement?->personnel
-                        ? trim("{$record->endorsement->personnel->first_name} {$record->endorsement->personnel->last_name}")
-                        : '—'),
-            ])
-            ->columns(2)
-            ->visible(fn ($record) => $record->endorsement !== null),
-    ])
-    ->columnSpanFull(),
+                                                \Filament\Infolists\Components\TextEntry::make('interviewed_by')
+                                                    ->label('Interviewed By')
+                                                    ->getStateUsing(fn ($record) => $record->personnel
+                                                        ? trim("{$record->personnel->first_name} {$record->personnel->last_name}")
+                                                        : '—'),
+                                            ])
+                                            ->columns(2)
+                                            ->visible(fn ($record) => $record->anecdotals->isNotEmpty()),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn ($record) => $record->logforms->isNotEmpty()),
+
+                                \Filament\Infolists\Components\Section::make('Endorsement')
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('endorsed_to')
+                                            ->label('Endorsed To')
+                                            ->getStateUsing(fn ($record) => $record->endorsement?->to_where)
+                                            ->placeholder('—'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('endorsement_date')
+                                            ->label('Date')
+                                            ->getStateUsing(fn ($record) => $record->endorsement?->date)
+                                            ->date('M d, Y')
+                                            ->placeholder('—'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('endorsement_issue')
+                                            ->label('Issue')
+                                            ->getStateUsing(fn ($record) => $record->endorsement?->issue)
+                                            ->placeholder('—')
+                                            ->columnSpanFull(),
+
+                                        \Filament\Infolists\Components\TextEntry::make('endorsed_by')
+                                            ->label('Endorsed By')
+                                            ->getStateUsing(fn ($record) => $record->endorsement?->personnel
+                                                ? trim("{$record->endorsement->personnel->first_name} {$record->endorsement->personnel->last_name}")
+                                                : '—'),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn ($record) => $record->endorsement !== null),
+                            ])
+                            ->columnSpanFull(),
                     ]),
             ]);
     }

@@ -57,6 +57,35 @@ class ListScholars extends ListRecords
         $set('total_hours', $total);
     }
 
+    /**
+     * Finds the Scholars row that corresponds to a given InstitutionalScholar
+     * record, so "Assign Department Head" on the Institutional Scholars tab
+     * updates the same underlying scholar instead of creating duplicates.
+     *
+     * Match priority: user_id (most reliable) -> student_id -> name+birthdate,
+     * scoped to the same term when available.
+     */
+    protected static function findMatchingScholar(InstitutionalScholar $record): ?Scholars
+    {
+        $query = Scholars::query();
+
+        if ($record->user_id) {
+            $query->where('user_id', $record->user_id);
+        } elseif ($record->student_id) {
+            $query->where('student_id', $record->student_id);
+        } else {
+            $query->where('first_name', $record->first_name)
+                  ->where('last_name', $record->last_name)
+                  ->where('birthdate', $record->birthdate);
+        }
+
+        if ($record->term_id) {
+            $query->where('term_id', $record->term_id);
+        }
+
+        return $query->first();
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -306,9 +335,9 @@ class ListScholars extends ListRecords
     {
         // ── Institutional Scholars tab ──────────────────────────────────
         // Queries the SEPARATE institutional_scholars table directly
-        // (via InstitutionalScholar model), not the `scholars` table.
+        // (via InstitutionalScholar model), not the scholars table.
         // This is where approved Applicant records land — see
-        // ApplicantResource's `approve` action — and where matching
+        // ApplicantResource's approve action — and where matching
         // Scholars rows get mirrored to (see Scholars::mirrorToInstitutional
         // / syncAllToInstitutional).
         if ($this->activeTab === 'institutional') {
@@ -571,6 +600,88 @@ class ListScholars extends ListRecords
                 )
                 ->actions([
                     Tables\Actions\ActionGroup::make([
+                        // ── Assign Department Head (Institutional Scholars tab) ──
+                        // Promotes/syncs this institutional scholar into the main
+                        // scholars table (matched by user_id -> student_id ->
+                        // name+birthdate) and sets department_head_id on it.
+                        // Carries user_id across so Daily Time Record and other
+                        // features that key off scholars.user_id work correctly.
+                        Tables\Actions\Action::make('assign_department_head_institutional')
+                            ->label('Assign Department Head')
+                            ->icon('heroicon-o-user-plus')
+                            ->color('info')
+                            ->modalHeading('Assign Department Head')
+                            ->modalDescription('This creates (or updates) this scholar\'s record in the main Scholars list and assigns their Department Head.')
+                            ->modalSubmitActionLabel('Save Assignment')
+                            ->visible(fn () => auth()->user()->hasAnyRole(['admin', 'scholarship']))
+                            ->form([
+                                Forms\Components\Select::make('department_head_id')
+                                    ->label('Department Head')
+                                    ->options(fn () => \App\Models\User::whereHas('role', fn ($q) => $q->where('name', 'Department Head'))
+                                        ->with('department')
+                                        ->get()
+                                        ->mapWithKeys(fn ($u) => [
+                                            $u->id => $u->name . ($u->department ? " — {$u->department->name}" : ''),
+                                        ]))
+                                    ->searchable()
+                                    ->preload()
+                                    ->native(false)
+                                    ->required()
+                                    ->placeholder('Select a Department Head'),
+                            ])
+                            ->fillForm(function (InstitutionalScholar $record): array {
+                                $existing = self::findMatchingScholar($record);
+
+                                return [
+                                    'department_head_id' => $existing?->department_head_id,
+                                ];
+                            })
+                            ->action(function (InstitutionalScholar $record, array $data): void {
+                                $scholar = self::findMatchingScholar($record) ?? new Scholars();
+
+                                $wasNew = ! $scholar->exists;
+
+                                $scholar->fill([
+                                    'user_id'             => $record->user_id,
+                                    'student_id'          => $record->student_id,
+                                    'first_name'          => $record->first_name,
+                                    'middle_name'         => $record->middle_name,
+                                    'last_name'           => $record->last_name,
+                                    'extension_name'      => $record->extension_name,
+                                    'sex'                 => $record->sex,
+                                    'birthdate'           => $record->birthdate,
+                                    'program'             => $record->program,
+                                    'year_level'          => $record->year_level,
+                                    'type_of_scholarship' => $record->type_of_scholarship,
+                                    'batch_no'            => $record->batch_no,
+                                    'ip_group'            => $record->ip_group,
+                                    'pwd'                 => $record->pwd,
+                                    'benefit'             => $record->benefit,
+                                    'status'              => $record->status,
+                                    'term_id'             => $record->term_id,
+                                    'department_head_id'  => $data['department_head_id'],
+                                ]);
+
+                                $scholar->save();
+
+                                $headName = \App\Models\User::find($data['department_head_id'])?->name ?? 'the selected head';
+
+                                $this->logCustomActivity(
+                                    $scholar,
+                                    'scholars',
+                                    $wasNew ? 'created' : 'updated',
+                                    ($wasNew
+                                        ? "Promoted {$record->first_name} {$record->last_name} to Scholars and assigned "
+                                        : "Reassigned {$record->first_name} {$record->last_name} to ") . $headName
+                                );
+
+                                Notification::make()
+                                    ->title($wasNew ? 'Scholar Created & Department Head Assigned' : 'Department Head Assigned')
+                                    ->success()
+                                    ->body("{$record->first_name} {$record->last_name} is now assigned to {$headName}.")
+                                    ->send();
+                            }),
+
                         Tables\Actions\ViewAction::make()
                             ->form(ScholarsResource::scholarFormSchema())
                             ->infolist([

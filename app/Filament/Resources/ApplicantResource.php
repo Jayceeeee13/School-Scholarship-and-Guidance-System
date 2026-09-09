@@ -616,7 +616,12 @@ TextInput::make('age')
                     : null;
 
                 // ── 6. Create institutional scholar record ────────────────
+                // NOTE: user_id is carried over from the Applicant record so
+                // downstream features (Daily Time Record, mobile app lookups,
+                // etc.) that resolve a scholar by the logged-in user's id
+                // continue to work after approval.
                 InstitutionalScholar::create([
+                    'user_id'             => $record->user_id,
                     'student_id'          => $studentId,
                     'first_name'          => $record->first_name,
                     'middle_name'         => $record->middle_name,
@@ -794,7 +799,12 @@ TextInput::make('age')
             $sex             = $record->gender ? $record->gender->name : '';
             $scholarshipType = $scholarshipTypeModel ? $scholarshipTypeModel->name : '';
 
+            // NOTE: user_id is carried over from the Applicant record so
+            // downstream features (Daily Time Record, mobile app lookups,
+            // etc.) that resolve a scholar by the logged-in user's id
+            // continue to work after approval.
             InstitutionalScholar::create([
+                'user_id'            => $record->user_id,
                 'student_id'         => $studentId,
                 'first_name'         => $record->first_name,
                 'middle_name'        => $record->middle_name,

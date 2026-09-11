@@ -29,7 +29,7 @@ class ListReferrals extends ListRecords
     {
         $query = parent::getTableQuery()
             ->whereNull('archived_at')
-            ->with(['followUpAppointment']);
+            ->with('followUpAppointment');
 
         if ($this->activeTab === 'endorsed') {
             $query->whereHas('endorsement')

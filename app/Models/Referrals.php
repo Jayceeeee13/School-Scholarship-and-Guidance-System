@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Referrals extends Model
 {
@@ -32,6 +33,14 @@ class Referrals extends Model
             CounselingLogforms::class,
             'referral_id'
         );
+    }
+
+    public function followUpAppointment(): HasOne
+    {
+        return $this->hasOne(
+            CounselingAppointments::class,
+            'referral_id'
+        )->latestOfMany();
     }
 
     public function endorsement()

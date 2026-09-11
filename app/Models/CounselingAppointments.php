@@ -14,6 +14,7 @@ class CounselingAppointments extends Model
     protected $fillable = [
         'parent_appointment_id',
         'source_logform_id',
+        'referral_id',
         'student_id',
         'last_name',
         'first_name',
@@ -52,6 +53,14 @@ class CounselingAppointments extends Model
             'counseling_appointments_id'
         );
     }
+
+    public function referral(): BelongsTo
+{
+    return $this->belongsTo(
+        Referrals::class,
+        'referral_id'
+    );
+}
 
     public function endorsement(): HasOne
     {

@@ -40,6 +40,11 @@ class CounselingLogformsResource extends Resource
                             ->default('scheduled')
                             ->required()
                             ->live()
+                            ->afterStateUpdated(function (Forms\Set $set, ?string $state): void {
+                                if ($state !== 'walk_in') {
+                                    $set('follow_up_required', false);
+                                }
+                            })
                             ->native(false)
                             ->columnSpanFull(),
                     ]),
@@ -146,9 +151,13 @@ class CounselingLogformsResource extends Resource
 
                         Forms\Components\Toggle::make('follow_up_required')
                             ->label('Follow-up Required')
-                            ->helperText('Enable this when the student needs another counseling session.')
+                            ->helperText(
+                                'Enable this when the student needs another counseling session.'
+                            )
                             ->default(false)
-                            ->inline(false),
+                            ->inline(false)
+                            ->visible(fn (Get $get): bool => $get('type') === 'walk_in')
+                            ->dehydrated(true),
                     ]),
 
                 Forms\Components\Section::make('Anecdotal Records')

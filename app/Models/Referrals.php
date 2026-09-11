@@ -18,14 +18,22 @@ class Referrals extends Model
         'case_presented',
         'referred_by',
         'status',
+        'follow_up_required',
         'archived_at',
     ];
 
     protected $casts = [
-        'date'        => 'date',
-        'age'         => 'integer',
-        'archived_at' => 'datetime',
+        'date'               => 'date',
+        'age'                => 'integer',
+        'follow_up_required' => 'boolean',
+        'archived_at'        => 'datetime',
     ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
 
     public function logforms(): HasMany
     {
@@ -35,6 +43,9 @@ class Referrals extends Model
         );
     }
 
+    /**
+     * Latest follow-up appointment created for this referral.
+     */
     public function followUpAppointment(): HasOne
     {
         return $this->hasOne(
@@ -59,6 +70,12 @@ class Referrals extends Model
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Status Helpers
+    |--------------------------------------------------------------------------
+    */
+
     public function isCompleted(): bool
     {
         return $this->status === 'completed';
@@ -79,20 +96,40 @@ class Referrals extends Model
         return $this->status === 'rejected';
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Status Permissions
+    |--------------------------------------------------------------------------
+    */
+
     public function canBeApproved(): bool
     {
-        return in_array($this->status, ['pending', 'rejected'], true);
+        return in_array(
+            $this->status,
+            ['pending', 'rejected'],
+            true
+        );
     }
 
     public function canBeRejected(): bool
     {
-        return in_array($this->status, ['pending', 'approved'], true);
+        return in_array(
+            $this->status,
+            ['pending', 'approved'],
+            true
+        );
     }
 
     public function canBeCompleted(): bool
     {
         return $this->status === 'approved';
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Status Actions
+    |--------------------------------------------------------------------------
+    */
 
     public function markAsApproved(): bool
     {

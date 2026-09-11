@@ -4,11 +4,17 @@ namespace App\Filament\Resources\ReferralsResource\Pages;
 
 use App\Filament\Resources\ReferralsResource;
 use Filament\Actions;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Pages\ViewRecord;
 
 class ViewReferrals extends ViewRecord
 {
     protected static string $resource = ReferralsResource::class;
+
+    public function infolist(Infolist $infolist): Infolist
+    {
+        return ReferralsResource::infolist($infolist);
+    }
 
     protected function getHeaderActions(): array
     {
@@ -21,11 +27,11 @@ class ViewReferrals extends ViewRecord
                     'referral_id' => $this->record->id,
                 ]))
                 ->visible(fn () => auth()->user()->hasAnyRole(['admin', 'guidance'])),
-            
+
             Actions\EditAction::make()
                 ->icon('heroicon-o-pencil')
                 ->color('warning'),
-            
+
             Actions\DeleteAction::make()
                 ->icon('heroicon-o-trash')
                 ->visible(fn () => auth()->user()->hasRole('admin')),

@@ -8,6 +8,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Components\Tabs;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -117,37 +118,38 @@ class ReferralsResource extends Resource
                                     ->label('Session Logforms')
                                     ->schema([
                                         Forms\Components\Grid::make(3)
-    ->schema([
-        Forms\Components\TextInput::make('name')
-            ->label('Full Name')
-            ->required()
-            ->maxLength(500)
-            ->disabled()
-            ->dehydrated()
-            ->default(fn (Get $get) => $get('../../name'))
-            ->afterStateHydrated(function ($component, $state, $record) {
-                if (!empty($state)) return;
-                if ($record && $record->referral) {
-                    $component->state($record->referral->name);
-                }
-            })
-            ->columnSpan(2),
-    ]),
+                                            ->schema([
+                                                Forms\Components\TextInput::make('name')
+                                                    ->label('Full Name')
+                                                    ->required()
+                                                    ->maxLength(500)
+                                                    ->disabled()
+                                                    ->dehydrated()
+                                                    ->default(fn (Get $get) => $get('../../name'))
+                                                    ->afterStateHydrated(function ($component, $state, $record) {
+                                                        if (!empty($state)) return;
+                                                        if ($record && $record->referral) {
+                                                            $component->state($record->referral->name);
+                                                        }
+                                                    })
+                                                    ->columnSpan(2),
+                                            ]),
 
-Forms\Components\Grid::make(3)
-    ->schema([
-        Forms\Components\TextInput::make('course_and_year')
-            ->label('Course & Year')
-            ->maxLength(500)
-            ->disabled()
-            ->dehydrated()
-            ->default(fn (Get $get) => $get('../../course_and_year'))
-            ->afterStateHydrated(function ($component, $state, $record) {
-                if (!empty($state)) return;
-                if ($record && $record->referral) {
-                    $component->state($record->referral->course_and_year);
-                }
-            }),
+                                        Forms\Components\Grid::make(3)
+                                            ->schema([
+                                                Forms\Components\TextInput::make('course_and_year')
+                                                    ->label('Course & Year')
+                                                    ->maxLength(500)
+                                                    ->disabled()
+                                                    ->dehydrated()
+                                                    ->default(fn (Get $get) => $get('../../course_and_year'))
+                                                    ->afterStateHydrated(function ($component, $state, $record) {
+                                                        if (!empty($state)) return;
+                                                        if ($record && $record->referral) {
+                                                            $component->state($record->referral->course_and_year);
+                                                        }
+                                                    }),
+
                                                 Forms\Components\TextInput::make('contact_no')
                                                     ->label('Contact')
                                                     ->tel()
@@ -175,34 +177,34 @@ Forms\Components\Grid::make(3)
                                             ->label('Anecdotal Records')
                                             ->schema([
                                                 Forms\Components\Grid::make(4)
-    ->schema([
-        Forms\Components\TextInput::make('name')
-            ->label('Name')
-            ->required()
-            ->maxLength(500)
-            ->disabled()
-            ->dehydrated()
-            ->default(fn (Get $get) => $get('../../../../name'))
-            ->afterStateHydrated(function ($component, $state, $record) {
-                if (!empty($state)) return;
-                if ($record && $record->logform && $record->logform->referral) {
-                    $component->state($record->logform->referral->name);
-                }
-            })
-            ->columnSpan(2),
+                                                    ->schema([
+                                                        Forms\Components\TextInput::make('name')
+                                                            ->label('Name')
+                                                            ->required()
+                                                            ->maxLength(500)
+                                                            ->disabled()
+                                                            ->dehydrated()
+                                                            ->default(fn (Get $get) => $get('../../../../name'))
+                                                            ->afterStateHydrated(function ($component, $state, $record) {
+                                                                if (!empty($state)) return;
+                                                                if ($record && $record->logform && $record->logform->referral) {
+                                                                    $component->state($record->logform->referral->name);
+                                                                }
+                                                            })
+                                                            ->columnSpan(2),
 
-        Forms\Components\TextInput::make('course_and_year')
-            ->label('Course')
-            ->maxLength(500)
-            ->disabled()
-            ->dehydrated()
-            ->default(fn (Get $get) => $get('../../../../course_and_year'))
-            ->afterStateHydrated(function ($component, $state, $record) {
-                if (!empty($state)) return;
-                if ($record && $record->logform && $record->logform->referral) {
-                    $component->state($record->logform->referral->course_and_year);
-                }
-            }),
+                                                        Forms\Components\TextInput::make('course_and_year')
+                                                            ->label('Course')
+                                                            ->maxLength(500)
+                                                            ->disabled()
+                                                            ->dehydrated()
+                                                            ->default(fn (Get $get) => $get('../../../../course_and_year'))
+                                                            ->afterStateHydrated(function ($component, $state, $record) {
+                                                                if (!empty($state)) return;
+                                                                if ($record && $record->logform && $record->logform->referral) {
+                                                                    $component->state($record->logform->referral->course_and_year);
+                                                                }
+                                                            }),
 
                                                         Forms\Components\TextInput::make('contact_no')
                                                             ->label('Contact')
@@ -440,25 +442,25 @@ Forms\Components\Grid::make(3)
                                                 Forms\Components\Grid::make(2)
                                                     ->schema([
                                                         Forms\Components\DatePicker::make('session_date')
-    ->label('Preferred Session Date')
-    ->required()
-    ->native(false)
-    ->displayFormat('F d, Y')
-    ->minDate(now())
-    ->closeOnDateSelection()
-    ->live()
-    ->helperText('Select the date for the counseling session')
-    ->disabledDates(fn () => \App\Models\InactiveDate::getInactiveDates())
-    ->rules([
-        function () {
-            return function (string $attribute, $value, $fail) {
-                if ($value && \App\Models\InactiveDate::isInactive($value)) {
-                    $fail('This date is unavailable for scheduling. Please choose another date.');
-                }
-            };
-        },
-    ])
-    ->afterStateUpdated(fn (callable $set) => $set('time_slot_id', null)),
+                                                            ->label('Preferred Session Date')
+                                                            ->required()
+                                                            ->native(false)
+                                                            ->displayFormat('F d, Y')
+                                                            ->minDate(now())
+                                                            ->closeOnDateSelection()
+                                                            ->live()
+                                                            ->helperText('Select the date for the counseling session')
+                                                            ->disabledDates(fn () => \App\Models\InactiveDate::getInactiveDates())
+                                                            ->rules([
+                                                                function () {
+                                                                    return function (string $attribute, $value, $fail) {
+                                                                        if ($value && \App\Models\InactiveDate::isInactive($value)) {
+                                                                            $fail('This date is unavailable for scheduling. Please choose another date.');
+                                                                        }
+                                                                    };
+                                                                },
+                                                            ])
+                                                            ->afterStateUpdated(fn (callable $set) => $set('time_slot_id', null)),
 
                                                         Forms\Components\Select::make('time_slot_id')
                                                             ->label('Time Slot')
@@ -520,6 +522,61 @@ Forms\Components\Grid::make(3)
                     ->contained(false),
             ])
             ->columns(1);
+    }
+
+    /**
+     * Canonical infolist for a single student's referral history. Used by
+     * both the dedicated View page (Pages\ViewReferrals) and the "View"
+     * table action's modal in Pages\ListReferrals, so the two stay in
+     * sync instead of drifting apart.
+     */
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                \Filament\Infolists\Components\Section::make('Student Information')
+                    ->icon('heroicon-o-user-circle')
+                    ->iconColor('primary')
+                    ->columns(2)
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('name')
+                            ->label('Student Name')
+                            ->size('lg')
+                            ->weight('bold'),
+
+                        \Filament\Infolists\Components\TextEntry::make('course_and_year')
+                            ->label('Program')
+                            ->badge()
+                            ->color('primary'),
+                    ]),
+
+                \Filament\Infolists\Components\ViewEntry::make('referral_history')
+                    ->label('')
+                    ->view('filament.infolists.referral-history')
+                    ->getStateUsing(fn ($record) => self::resolveReferralHistory($record))
+                    ->columnSpanFull(),
+            ]);
+    }
+
+    /**
+     * Resolves all referral records tied to the same student (matched by
+     * name, since Referrals doesn't split first/last name the way
+     * CounselingAppointments does). Shared by the stats row and the
+     * timeline so the query logic lives in one place.
+     */
+    protected static function resolveReferralHistory(Referrals $record): \Illuminate\Support\Collection
+    {
+        return Referrals::query()
+            ->whereNull('archived_at')
+            ->where('name', $record->name)
+            ->with([
+                'logforms.anecdotals.personnel',
+                'endorsement.personnel',
+                'invitation.personnel',
+                'invitation.timeSlot',
+            ])
+            ->orderByDesc('date')
+            ->get();
     }
 
     public static function table(Table $table): Table
@@ -638,7 +695,10 @@ Forms\Components\Grid::make(3)
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make(),
+                    Tables\Actions\ViewAction::make()
+                        ->modalHeading(fn ($record) => 'Guidance Records — ' . $record->name)
+                        ->modalWidth('5xl')
+                        ->infolist(fn (Infolist $infolist) => ReferralsResource::infolist($infolist)),
 
                     Tables\Actions\EditAction::make()
                         ->url(fn ($record) => ReferralsResource::getUrl('edit', [

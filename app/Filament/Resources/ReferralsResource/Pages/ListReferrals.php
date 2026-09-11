@@ -7,6 +7,7 @@ use App\Models\Referrals;
 use App\Models\AppointmentNotification;
 use App\Traits\LogsCustomActivity;
 use Filament\Actions;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Tables;
@@ -283,7 +284,10 @@ class ListReferrals extends ListRecords
 
             ->actions([
                 Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make(),
+                    Tables\Actions\ViewAction::make()
+                        ->modalHeading(fn ($record) => 'Guidance Records — ' . $record->name)
+                        ->modalWidth('5xl')
+                        ->infolist(fn (Infolist $infolist) => ReferralsResource::infolist($infolist)),
 
                     Tables\Actions\EditAction::make()
                         ->url(

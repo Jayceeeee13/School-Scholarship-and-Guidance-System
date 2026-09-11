@@ -5,12 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CounselingLogforms extends Model
 {
     protected $table = 'counseling_logforms';
 
-    protected $with = ['appointment', 'walkInStudent'];
+    protected $with = [
+        'appointment',
+        'walkInStudent',
+    ];
 
     protected $fillable = [
         'counseling_appointments_id',
@@ -20,10 +24,12 @@ class CounselingLogforms extends Model
         'support_needed_id',
         'concern',
         'remarks',
+        'follow_up_required',
         'archived_at',
     ];
 
     protected $casts = [
+        'follow_up_required' => 'boolean',
         'archived_at' => 'datetime',
     ];
 
@@ -99,6 +105,14 @@ class CounselingLogforms extends Model
         );
     }
 
+    public function followUpAppointment(): HasOne
+    {
+        return $this->hasOne(
+            CounselingAppointments::class,
+            'source_logform_id'
+        );
+    }
+
     public function isWalkIn(): bool
     {
         return $this->type === 'walk_in';
@@ -116,6 +130,10 @@ class CounselingLogforms extends Model
                 : '—';
         }
 
+        if ($this->referral) {
+            return $this->referral->name;
+        }
+
         return $this->appointment
             ? trim(
                 "{$this->appointment->first_name} " .
@@ -128,7 +146,6 @@ class CounselingLogforms extends Model
     public function getDisplayCourseAttribute(): string
     {
         if ($this->isWalkIn()) {
-
             if (! $this->walkInStudent) {
                 return '—';
             }
@@ -137,6 +154,10 @@ class CounselingLogforms extends Model
             $year = $this->walkInStudent->year_level ?? '';
 
             return trim("{$program} {$year}") ?: '—';
+        }
+
+        if ($this->referral) {
+            return $this->referral->course_and_year ?? '—';
         }
 
         return $this->appointment?->course_and_year ?? '—';
@@ -148,6 +169,10 @@ class CounselingLogforms extends Model
             return $this->walkInStudent?->contact_no ?? '—';
         }
 
+        if ($this->referral) {
+            return '—';
+        }
+
         return $this->appointment?->contact_no ?? '—';
     }
 
@@ -155,6 +180,10 @@ class CounselingLogforms extends Model
     {
         if ($this->isWalkIn()) {
             return $this->walkInStudent?->address ?? '—';
+        }
+
+        if ($this->referral) {
+            return '—';
         }
 
         return $this->appointment?->present_address ?? '—';

@@ -338,6 +338,7 @@ class ListCounselingLogforms extends ListRecords
                         ->color('warning')
                         ->visible(
                             fn (CounselingLogforms $record): bool =>
+                                $record->type === 'walk_in' &&
                                 $record->follow_up_required &&
                                 ! $record->followUpAppointment
                         )
@@ -403,6 +404,18 @@ class ListCounselingLogforms extends ListRecords
                                 CounselingLogforms $record,
                                 array $data
                             ): void {
+                                if ($record->type !== 'walk_in') {
+                                    Notification::make()
+                                        ->title('Follow-up Not Available')
+                                        ->body(
+                                            'Follow-up scheduling is only available for walk-in counseling records.'
+                                        )
+                                        ->warning()
+                                        ->send();
+
+                                    return;
+                                }
+
                                 if ($record->followUpAppointment) {
                                     Notification::make()
                                         ->title('Follow-up Already Scheduled')

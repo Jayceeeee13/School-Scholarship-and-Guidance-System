@@ -95,6 +95,13 @@ class ReferralsResource extends Resource
                                             ->native(false)
                                             ->visible(fn ($operation) => $operation === 'edit'),
 
+                                        Forms\Components\Toggle::make('follow_up_required')
+                                            ->label('Follow-up Required')
+                                            ->helperText(
+                                                'Enable this when the student needs another counseling session.'
+                                            )
+                                            ->default(false),
+
                                         Forms\Components\Textarea::make('case_presented')
                                             ->label('Case Presented')
                                             ->required()

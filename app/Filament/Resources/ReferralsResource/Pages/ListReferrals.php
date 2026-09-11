@@ -11,6 +11,7 @@ use App\Models\ModeOfCounseling;
 use App\Models\SupportNeeded;
 use App\Traits\LogsCustomActivity;
 use Filament\Actions;
+use Filament\Forms;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
@@ -148,6 +149,12 @@ class ListReferrals extends ListRecords
                         $this->activeTab,
                         ['endorsed', 'invited']
                     )),
+
+                Tables\Columns\TextColumn::make('followUpAppointment.counseling_date')
+                    ->label('Follow-up Date')
+                    ->date('M d, Y')
+                    ->placeholder('—')
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('endorsement.to_where')
                     ->label('Endorsed To')
@@ -349,6 +356,152 @@ class ListReferrals extends ListRecords
                             }
                         ),
 
+                    Tables\Actions\Action::make('schedule_follow_up')
+                        ->label('Schedule Follow-up')
+                        ->icon('heroicon-o-arrow-path')
+                        ->color('warning')
+                        ->visible(
+                            fn (Referrals $record): bool =>
+                                $record->follow_up_required &&
+                                ! $record->followUpAppointment
+                        )
+                        ->form([
+                            Forms\Components\DatePicker::make('counseling_date')
+                                ->label('Follow-up Date')
+                                ->required()
+                                ->native(false)
+                                ->minDate(today()),
+
+                            Forms\Components\Select::make('time_slot_id')
+                                ->label('Time Slot')
+                                ->options(
+                                    fn () =>
+                                        CounselingTimeSlot::query()
+                                            ->where('is_active', true)
+                                            ->pluck('name', 'id')
+                                            ->toArray()
+                                )
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->native(false),
+
+                            Forms\Components\Select::make('mode_of_counseling_id')
+                                ->label('Mode of Counseling')
+                                ->options(
+                                    fn () =>
+                                        ModeOfCounseling::query()
+                                            ->pluck('name', 'id')
+                                            ->toArray()
+                                )
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->native(false),
+
+                            Forms\Components\Select::make('support_needed_id')
+                                ->label('Support Needed')
+                                ->options(
+                                    fn () =>
+                                        SupportNeeded::active()
+                                            ->pluck('name', 'id')
+                                            ->toArray()
+                                )
+                                ->searchable()
+                                ->preload()
+                                ->native(false),
+
+                            Forms\Components\Textarea::make('concern')
+                                ->label('Concern')
+                                ->rows(4)
+                                ->required()
+                                ->columnSpanFull(),
+                        ])
+                        ->modalHeading('Schedule Follow-up Counseling')
+                        ->modalDescription(
+                            'Create the next counseling appointment for this referral.'
+                        )
+                        ->modalSubmitActionLabel('Schedule Follow-up')
+                        ->action(
+                            function (Referrals $record, array $data): void {
+                                if ($record->followUpAppointment) {
+                                    Notification::make()
+                                        ->title('Follow-up Already Scheduled')
+                                        ->body(
+                                            'A follow-up appointment already exists for this referral.'
+                                        )
+                                        ->warning()
+                                        ->send();
+
+                                    return;
+                                }
+
+                                $nameParts = preg_split(
+                                    '/\s+/',
+                                    trim($record->name)
+                                );
+
+                                $lastName = '';
+                                $firstName = '';
+                                $middleName = '';
+
+                                if (count($nameParts) === 1) {
+                                    $firstName = $nameParts[0];
+                                } elseif (count($nameParts) === 2) {
+                                    $firstName = $nameParts[0];
+                                    $lastName = $nameParts[1];
+                                } else {
+                                    $lastName = array_pop($nameParts);
+                                    $firstName = array_shift($nameParts);
+                                    $middleName = implode(' ', $nameParts);
+                                }
+
+                                $followUp = CounselingAppointments::create([
+                                    'parent_appointment_id' => null,
+                                    'source_logform_id' => null,
+                                    'referral_id' => $record->id,
+                                    'student_id' => null,
+                                    'last_name' => $lastName,
+                                    'first_name' => $firstName,
+                                    'middle_name' => $middleName,
+                                    'course_and_year' => $record->course_and_year ?? '',
+                                    'contact_no' => '',
+                                    'present_address' => '',
+                                    'counseling_date' => $data['counseling_date'],
+                                    'time_slot_id' => $data['time_slot_id'],
+                                    'mode_of_counseling_id' => $data['mode_of_counseling_id'],
+                                    'support_needed_id' => $data['support_needed_id'] ?? null,
+                                    'concern' => $data['concern'],
+                                    'status' => 'pending',
+                                ]);
+
+                                $record->update([
+                                    'follow_up_required' => false,
+                                ]);
+
+                                try {
+                                    $followUp->notifyAdmin('follow_up_scheduled');
+                                } catch (\Throwable $e) {
+                                }
+
+                                $this->logCustomActivity(
+                                    $record,
+                                    'referrals',
+                                    'follow_up_scheduled',
+                                    "Scheduled follow-up counseling for {$record->name} on " .
+                                    $followUp->counseling_date->format('M d, Y')
+                                );
+
+                                Notification::make()
+                                    ->title('Follow-up Scheduled')
+                                    ->body(
+                                        "A follow-up counseling appointment has been scheduled for {$record->name}."
+                                    )
+                                    ->success()
+                                    ->send();
+                            }
+                        ),
+
                     Tables\Actions\Action::make('complete')
                         ->label('Complete Referral')
                         ->icon('heroicon-o-check-badge')
@@ -432,146 +585,6 @@ class ListReferrals extends ListRecords
                                         "The referral for {$record->name} has been rejected."
                                     )
                                     ->danger()
-                                    ->send();
-                            }
-                        ),
-
-                    Tables\Actions\Action::make('schedule_follow_up')
-                        ->label('Schedule Follow-up')
-                        ->icon('heroicon-o-arrow-path')
-                        ->color('warning')
-                        ->visible(
-                            fn (Referrals $record): bool =>
-                                $record->status === 'approved' &&
-                                ! $record->followUpAppointment
-                        )
-                        ->form([
-                            \Filament\Forms\Components\DatePicker::make('counseling_date')
-                                ->label('Follow-up Date')
-                                ->required()
-                                ->native(false)
-                                ->minDate(today()),
-
-                            \Filament\Forms\Components\Select::make('time_slot_id')
-                                ->label('Time Slot')
-                                ->options(
-                                    fn () => CounselingTimeSlot::query()
-                                        ->where('is_active', true)
-                                        ->pluck('name', 'id')
-                                        ->toArray()
-                                )
-                                ->searchable()
-                                ->preload()
-                                ->required()
-                                ->native(false),
-
-                            \Filament\Forms\Components\Select::make('mode_of_counseling_id')
-                                ->label('Mode of Counseling')
-                                ->options(
-                                    fn () => ModeOfCounseling::query()
-                                        ->pluck('name', 'id')
-                                        ->toArray()
-                                )
-                                ->searchable()
-                                ->preload()
-                                ->required()
-                                ->native(false),
-
-                            \Filament\Forms\Components\Select::make('support_needed_id')
-                                ->label('Support Needed')
-                                ->options(
-                                    fn () => SupportNeeded::active()
-                                        ->pluck('name', 'id')
-                                        ->toArray()
-                                )
-                                ->searchable()
-                                ->preload()
-                                ->native(false),
-
-                            \Filament\Forms\Components\Textarea::make('concern')
-                                ->label('Concern')
-                                ->rows(4)
-                                ->required()
-                                ->columnSpanFull(),
-                        ])
-                        ->modalHeading('Schedule Follow-up Counseling')
-                        ->modalDescription(
-                            'Create the next counseling appointment for this referred student.'
-                        )
-                        ->modalSubmitActionLabel('Schedule Follow-up')
-                        ->action(
-                            function (Referrals $record, array $data): void {
-                                if ($record->followUpAppointment) {
-                                    Notification::make()
-                                        ->title('Follow-up Already Scheduled')
-                                        ->body(
-                                            'A follow-up appointment already exists for this referral.'
-                                        )
-                                        ->warning()
-                                        ->send();
-
-                                    return;
-                                }
-
-                                $nameParts = preg_split('/\s+/', trim($record->name));
-
-                                $lastName = '';
-                                $firstName = '';
-                                $middleName = '';
-
-                                if (count($nameParts) === 1) {
-                                    $firstName = $nameParts[0];
-                                } elseif (count($nameParts) === 2) {
-                                    $firstName = $nameParts[0];
-                                    $lastName = $nameParts[1];
-                                } else {
-                                    $lastName = array_pop($nameParts);
-                                    $firstName = array_shift($nameParts);
-                                    $middleName = implode(' ', $nameParts);
-                                }
-
-                                $followUp = CounselingAppointments::create([
-                                    'parent_appointment_id' => null,
-                                    'source_logform_id' => null,
-                                    'referral_id' => $record->id,
-                                    'student_id' => null,
-                                    'last_name' => $lastName,
-                                    'first_name' => $firstName,
-                                    'middle_name' => $middleName,
-                                    'course_and_year' => $record->course_and_year ?? '',
-                                    'contact_no' => '',
-                                    'present_address' => '',
-                                    'counseling_date' => $data['counseling_date'],
-                                    'time_slot_id' => $data['time_slot_id'],
-                                    'mode_of_counseling_id' => $data['mode_of_counseling_id'],
-                                    'support_needed_id' => $data['support_needed_id'] ?? null,
-                                    'concern' => $data['concern'],
-                                    'status' => 'pending',
-                                ]);
-
-                                $record->update([
-                                    'status' => 'approved',
-                                ]);
-
-                                try {
-                                    $followUp->notifyAdmin('follow_up_scheduled');
-                                } catch (\Throwable $e) {
-                                }
-
-                                $this->logCustomActivity(
-                                    $record,
-                                    'referrals',
-                                    'follow_up_scheduled',
-                                    "Scheduled follow-up counseling for {$record->name} on " .
-                                    $followUp->counseling_date->format('M d, Y')
-                                );
-
-                                Notification::make()
-                                    ->title('Follow-up Scheduled')
-                                    ->body(
-                                        "A follow-up counseling appointment has been scheduled for {$record->name}."
-                                    )
-                                    ->success()
                                     ->send();
                             }
                         ),

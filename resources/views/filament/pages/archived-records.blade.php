@@ -11,6 +11,7 @@
         >
             Archived Users
         </button>
+
         <button
             type="button"
             wire:click="setActiveTab('personnels')"
@@ -22,6 +23,7 @@
         >
             Archived Personnels
         </button>
+
         <button
             type="button"
             wire:click="setActiveTab('applicants')"
@@ -33,6 +35,7 @@
         >
             Archived Applicants
         </button>
+
         <button
             type="button"
             wire:click="setActiveTab('appointments')"
@@ -44,6 +47,7 @@
         >
             Archived Appointments
         </button>
+
         <button
             type="button"
             wire:click="setActiveTab('referrals')"
@@ -55,6 +59,7 @@
         >
             Archived Referrals
         </button>
+
         <button
             type="button"
             wire:click="setActiveTab('logforms')"
@@ -66,6 +71,7 @@
         >
             Archived Logforms
         </button>
+
         <button
             type="button"
             wire:click="setActiveTab('examinees')"
@@ -76,6 +82,30 @@
             ])
         >
             Archived Examinees
+        </button>
+
+        <button
+            type="button"
+            wire:click="setActiveTab('dtr')"
+            @class([
+                'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                'bg-primary-600 text-white' => $activeTab === 'dtr',
+                'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' => $activeTab !== 'dtr',
+            ])
+        >
+            Archived DTR
+        </button>
+
+        <button
+            type="button"
+            wire:click="setActiveTab('accomplishment_reports')"
+            @class([
+                'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                'bg-primary-600 text-white' => $activeTab === 'accomplishment_reports',
+                'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' => $activeTab !== 'accomplishment_reports',
+            ])
+        >
+            Archived Accomplishment Reports
         </button>
     </div>
 

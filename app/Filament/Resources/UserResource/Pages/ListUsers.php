@@ -49,18 +49,33 @@ class ListUsers extends ListRecords
      * account is archived. Each model uses its own real archival
      * mechanism rather than a one-size-fits-all column, since Scholars/
      * InstitutionalScholar track this via status='revoked' (no
-     * archived_at column exists there), while CounselingAppointments and
-     * Referrals use archived_at directly.
+     * archived_at column exists there), while CounselingAppointments,
+     * Referrals, and Personnels use archived_at directly.
      *
      * Returns a summary of what was archived, for the success notification.
      */
     protected function cascadeArchiveUserRecords(User $user): array
     {
         $summary = [
+            'personnel'    => 0,
             'scholars'     => 0,
             'appointments' => 0,
             'referrals'    => 0,
         ];
+
+        // ── Linked Personnel profile — matched via users.personnel_id ──
+        if ($user->personnel && ! $user->personnel->archived_at) {
+            $user->personnel->update(['archived_at' => now()]);
+
+            $this->logCustomActivity(
+                $user->personnel,
+                'personnels',
+                'archived',
+                "Archived personnel {$user->personnel->first_name} {$user->personnel->last_name} (cascaded from user archive)"
+            );
+
+            $summary['personnel'] = 1;
+        }
 
         // ── Scholars / Institutional Scholars — matched directly by user_id ──
         foreach ([Scholars::class, InstitutionalScholar::class] as $scholarModel) {
@@ -613,7 +628,7 @@ class ListUsers extends ListRecords
                     ->form([
                         Forms\Components\Checkbox::make('archive_records')
                             ->label('Also archive all related records')
-                            ->helperText('Includes their scholar records (if any), counseling appointments, and referrals tied to their student profile.')
+                            ->helperText('Includes their linked Personnel profile (if any), scholar records, counseling appointments, and referrals tied to their student profile.')
                             ->default(false),
 
                         Forms\Components\TextInput::make('confirm_password')
@@ -648,6 +663,7 @@ class ListUsers extends ListRecords
                                     'user',
                                     'archived_records',
                                     "Cascaded archive for {$record->name}: "
+                                        . ($summary['personnel'] ? "personnel profile, " : '')
                                         . "{$summary['scholars']} scholar record(s), "
                                         . "{$summary['appointments']} appointment(s), "
                                         . "{$summary['referrals']} referral(s)."

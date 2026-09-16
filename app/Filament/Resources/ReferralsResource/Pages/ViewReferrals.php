@@ -32,9 +32,9 @@ class ViewReferrals extends ViewRecord
                 ->icon('heroicon-o-pencil')
                 ->color('warning'),
 
-            Actions\DeleteAction::make()
-                ->icon('heroicon-o-trash')
-                ->visible(fn () => auth()->user()->hasRole('admin')),
+            // Actions\DeleteAction::make()
+            //     ->icon('heroicon-o-trash')
+            //     ->visible(fn () => auth()->user()->hasRole('admin')),
         ];
     }
 }

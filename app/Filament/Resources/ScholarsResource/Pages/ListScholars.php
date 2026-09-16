@@ -731,7 +731,7 @@ class ListScholars extends ListRecords
                         Tables\Actions\EditAction::make()
                             ->form(ScholarsResource::scholarFormSchema()),
 
-                        Tables\Actions\DeleteAction::make(),
+                        // Tables\Actions\DeleteAction::make(),
                     ])
                     ->label('Actions')
                     ->icon('heroicon-m-ellipsis-vertical')
@@ -1165,7 +1165,7 @@ class ListScholars extends ListRecords
                                     ->send();
                             }),
 
-                        Tables\Actions\DeleteAction::make(),
+                        // Tables\Actions\DeleteAction::make(),
                     ])
                     ->label('Actions')
                     ->icon('heroicon-m-ellipsis-vertical')

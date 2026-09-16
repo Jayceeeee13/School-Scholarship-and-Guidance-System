@@ -522,7 +522,7 @@ TextInput::make('mothers_lastname')
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
-                    Tables\Actions\DeleteAction::make(),
+                    // Tables\Actions\DeleteAction::make(),
                 ])
                 ->label('Actions')
                 ->icon('heroicon-m-ellipsis-vertical')

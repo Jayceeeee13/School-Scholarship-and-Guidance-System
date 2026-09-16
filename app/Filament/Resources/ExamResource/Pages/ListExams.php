@@ -365,7 +365,7 @@ class ListExams extends ListRecords
                         ->url(fn (Exam $record) => url("/admin/exams/{$record->id}/questions")),
 
                     Tables\Actions\EditAction::make(),
-                    Tables\Actions\DeleteAction::make(),
+                    // Tables\Actions\DeleteAction::make(),
                 ])
                 ->label('Actions')
                 ->icon('heroicon-m-ellipsis-vertical')

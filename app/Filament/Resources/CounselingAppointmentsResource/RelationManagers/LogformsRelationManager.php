@@ -87,7 +87,7 @@ class LogformsRelationManager extends RelationManager
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                // Tables\Actions\DeleteAction::make(),
                 Tables\Actions\Action::make('view_anecdotals')
                     ->label('View Anecdotals')
                     ->icon('heroicon-o-clipboard-document-list')

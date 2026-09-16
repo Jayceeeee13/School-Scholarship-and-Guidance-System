@@ -24,7 +24,7 @@ class ViewCounselingAppointments extends ViewRecord
                     'record' => $this->record->id,
                     'tab'    => '-personal-information-tab',
                 ])),
-            Actions\DeleteAction::make(),
+            // Actions\DeleteAction::make(),
         ];
     }
 }

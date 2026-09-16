@@ -3,17 +3,25 @@
 namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Filament\Resources\UserResource;
+use App\Models\CounselingAppointments;
+use App\Models\InstitutionalScholar;
 use App\Models\Personnels;
+use App\Models\Referrals;
+use App\Models\Scholars;
+use App\Models\TypeOfScholarship;
 use App\Models\User;
 use App\Traits\LogsCustomActivity;
 use Filament\Actions;
 use Filament\Forms;
+use Filament\Notifications\Notification;
 use Filament\Tables;
 use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Activitylog\Models\Activity;
 
 class ListUsers extends ListRecords
@@ -34,6 +42,63 @@ class ListUsers extends ListRecords
     public function updatedActiveTab(): void
     {
         $this->resetTable();
+    }
+
+    /**
+     * Cascade-archives all data tied to a user's identity when their
+     * account is archived. Each model uses its own real archival
+     * mechanism rather than a one-size-fits-all column, since Scholars/
+     * InstitutionalScholar track this via status='revoked' (no
+     * archived_at column exists there), while CounselingAppointments and
+     * Referrals use archived_at directly.
+     *
+     * Returns a summary of what was archived, for the success notification.
+     */
+    protected function cascadeArchiveUserRecords(User $user): array
+    {
+        $summary = [
+            'scholars'     => 0,
+            'appointments' => 0,
+            'referrals'    => 0,
+        ];
+
+        // ── Scholars / Institutional Scholars — matched directly by user_id ──
+        foreach ([Scholars::class, InstitutionalScholar::class] as $scholarModel) {
+            $scholars = $scholarModel::where('user_id', $user->id)
+                ->where('status', '!=', 'revoked')
+                ->get();
+
+            foreach ($scholars as $scholar) {
+                $scholar->update([
+                    'status'            => 'revoked',
+                    'revocation_reason' => 'Associated user account was archived.',
+                    'revoked_at'        => now(),
+                ]);
+
+                TypeOfScholarship::where('name', $scholar->type_of_scholarship)
+                    ->increment('slots');
+
+                $summary['scholars']++;
+            }
+        }
+
+        // ── Counseling Appointments — matched via the linked Students record ──
+        if ($student = $user->student) {
+            $summary['appointments'] = CounselingAppointments::where('student_id', $student->id)
+                ->whereNull('archived_at')
+                ->update(['archived_at' => now()]);
+
+            // ── Referrals — no student_id column, matched by full name ──
+            $fullName = trim("{$student->first_name} {$student->last_name}");
+
+            if ($fullName !== '') {
+                $summary['referrals'] = Referrals::where('name', $fullName)
+                    ->whereNull('archived_at')
+                    ->update(['archived_at' => now()]);
+            }
+        }
+
+        return $summary;
     }
 
     protected function getHeaderActions(): array
@@ -151,7 +216,7 @@ class ListUsers extends ListRecords
                         "Added personnel {$record->first_name} {$record->last_name}"
                     );
 
-                    \Filament\Notifications\Notification::make()
+                    Notification::make()
                         ->title('Personnel added')
                         ->success()
                         ->send();
@@ -360,7 +425,7 @@ class ListUsers extends ListRecords
 
                                 $record->update($data);
 
-                                \Filament\Notifications\Notification::make()
+                                Notification::make()
                                     ->title('Personnel updated')
                                     ->success()
                                     ->send();
@@ -395,7 +460,7 @@ class ListUsers extends ListRecords
                                     "Archived personnel {$record->first_name} {$record->last_name}"
                                 );
 
-                                \Filament\Notifications\Notification::make()
+                                Notification::make()
                                     ->title('Personnel archived')
                                     ->success()
                                     ->send();
@@ -508,7 +573,7 @@ class ListUsers extends ListRecords
         // 'users' tab — shows EVERY non-archived user account, regardless
         // of whether it has a linked Personnels record.
         return $table
-            ->query(User::query()->whereNull('archived_at')->with(['personnel', 'role']))
+            ->query(User::query()->whereNull('archived_at')->with(['personnel', 'role', 'student']))
             ->columns([
                 TextColumn::make('name')
                     ->label('Name')
@@ -542,20 +607,55 @@ class ListUsers extends ListRecords
                     ->color('danger')
                     ->requiresConfirmation()
                     ->modalHeading('Archive User')
-                    ->modalDescription('This user will lose panel access and be hidden from this list. You can restore it later from Settings → Archived Records.')
+                    ->modalDescription('Are you sure you want to archive this user? They will immediately lose access and be logged out if currently signed in.')
                     ->modalSubmitActionLabel('Yes, Archive')
                     ->visible(fn (User $record): bool => $record->id !== auth()->id())
-                    ->action(function (User $record): void {
-                        $record->update(['archived_at' => now()]);
+                    ->form([
+                        Forms\Components\Checkbox::make('archive_records')
+                            ->label('Also archive all related records')
+                            ->helperText('Includes their scholar records (if any), counseling appointments, and referrals tied to their student profile.')
+                            ->default(false),
 
-                        $this->logCustomActivity(
-                            $record,
-                            'user',
-                            'archived',
-                            "Archived user {$record->name}"
-                        );
+                        Forms\Components\TextInput::make('confirm_password')
+                            ->label('Confirm your password to continue')
+                            ->password()
+                            ->revealable()
+                            ->required()
+                            ->rule(function () {
+                                return function (string $attribute, $value, $fail) {
+                                    if (! Hash::check($value, auth()->user()->password)) {
+                                        $fail('The password is incorrect.');
+                                    }
+                                };
+                            }),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        DB::transaction(function () use ($record, $data) {
+                            $record->update(['archived_at' => now()]);
 
-                        \Filament\Notifications\Notification::make()
+                            $this->logCustomActivity(
+                                $record,
+                                'user',
+                                'archived',
+                                "Archived user {$record->name}"
+                            );
+
+                            if ($data['archive_records'] ?? false) {
+                                $summary = $this->cascadeArchiveUserRecords($record);
+
+                                $this->logCustomActivity(
+                                    $record,
+                                    'user',
+                                    'archived_records',
+                                    "Cascaded archive for {$record->name}: "
+                                        . "{$summary['scholars']} scholar record(s), "
+                                        . "{$summary['appointments']} appointment(s), "
+                                        . "{$summary['referrals']} referral(s)."
+                                );
+                            }
+                        });
+
+                        Notification::make()
                             ->title('User archived')
                             ->success()
                             ->send();

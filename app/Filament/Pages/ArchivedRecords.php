@@ -6,15 +6,20 @@ use App\Models\Applicant;
 use App\Models\CounselingAppointments;
 use App\Models\CounselingLogforms;
 use App\Models\ExamAttempt;
+use App\Models\InstitutionalScholar;
 use App\Models\Personnels;
 use App\Models\Referrals;
+use App\Models\Scholars;
+use App\Models\TypeOfScholarship;
 use App\Models\User;
+use Filament\Forms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Tables;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\DB;
 
 class ArchivedRecords extends Page implements HasTable
 {
@@ -43,6 +48,60 @@ class ArchivedRecords extends Page implements HasTable
     {
         $this->activeTab = $tab;
         $this->resetTable();
+    }
+
+    /**
+     * Reverses cascadeArchiveUserRecords() from ListUsers.php. Only
+     * un-revokes scholars whose revocation_reason exactly matches the
+     * auto-generated cascade text, so manually-revoked scholars (revoked
+     * for an unrelated reason) are never touched by accident.
+     * Appointments/Referrals have no such marker to check against, so
+     * those are restored based on the student link alone — acceptable
+     * since the admin explicitly opts in via the checkbox either way.
+     */
+    protected function cascadeRestoreUserRecords(User $user): array
+    {
+        $summary = [
+            'scholars'     => 0,
+            'appointments' => 0,
+            'referrals'    => 0,
+        ];
+
+        foreach ([Scholars::class, InstitutionalScholar::class] as $scholarModel) {
+            $scholars = $scholarModel::where('user_id', $user->id)
+                ->where('status', 'revoked')
+                ->where('revocation_reason', 'Associated user account was archived.')
+                ->get();
+
+            foreach ($scholars as $scholar) {
+                $scholar->update([
+                    'status'            => 'active',
+                    'revocation_reason' => null,
+                    'revoked_at'        => null,
+                ]);
+
+                TypeOfScholarship::where('name', $scholar->type_of_scholarship)
+                    ->decrement('slots');
+
+                $summary['scholars']++;
+            }
+        }
+
+        if ($student = $user->student) {
+            $summary['appointments'] = CounselingAppointments::where('student_id', $student->id)
+                ->whereNotNull('archived_at')
+                ->update(['archived_at' => null]);
+
+            $fullName = trim("{$student->first_name} {$student->last_name}");
+
+            if ($fullName !== '') {
+                $summary['referrals'] = Referrals::where('name', $fullName)
+                    ->whereNotNull('archived_at')
+                    ->update(['archived_at' => null]);
+            }
+        }
+
+        return $summary;
     }
 
     public function table(Table $table): Table
@@ -371,7 +430,7 @@ class ArchivedRecords extends Page implements HasTable
         }
 
         return $table
-            ->query(User::query()->whereNotNull('archived_at')->with(['personnel', 'role']))
+            ->query(User::query()->whereNotNull('archived_at')->with(['personnel', 'role', 'student']))
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Name')
@@ -401,8 +460,21 @@ class ArchivedRecords extends Page implements HasTable
                     ->requiresConfirmation()
                     ->modalHeading('Restore User')
                     ->modalDescription('This user will regain panel access and reappear in the main Users list.')
-                    ->action(function (User $record): void {
-                        $record->update(['archived_at' => null]);
+                    ->modalSubmitActionLabel('Yes, Restore')
+                    ->form([
+                        Forms\Components\Checkbox::make('restore_records')
+                            ->label('Also restore their related records')
+                            ->helperText('Reverses any scholar/appointment/referral records that were archived alongside this user, if any.')
+                            ->default(false),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        DB::transaction(function () use ($record, $data) {
+                            $record->update(['archived_at' => null]);
+
+                            if ($data['restore_records'] ?? false) {
+                                $this->cascadeRestoreUserRecords($record);
+                            }
+                        });
 
                         Notification::make()
                             ->title('User restored')

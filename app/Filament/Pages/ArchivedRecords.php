@@ -62,10 +62,17 @@ class ArchivedRecords extends Page implements HasTable
     protected function cascadeRestoreUserRecords(User $user): array
     {
         $summary = [
+            'personnel'    => 0,
             'scholars'     => 0,
             'appointments' => 0,
             'referrals'    => 0,
         ];
+
+        // ── Linked Personnel profile — matched via users.personnel_id ──
+        if ($user->personnel && $user->personnel->archived_at) {
+            $user->personnel->update(['archived_at' => null]);
+            $summary['personnel'] = 1;
+        }
 
         foreach ([Scholars::class, InstitutionalScholar::class] as $scholarModel) {
             $scholars = $scholarModel::where('user_id', $user->id)
@@ -149,12 +156,6 @@ class ArchivedRecords extends Page implements HasTable
                                 ->success()
                                 ->send();
                         }),
-
-                    Tables\Actions\DeleteAction::make()
-                        ->label('Delete Permanently')
-                        ->requiresConfirmation()
-                        ->modalHeading('Delete Permanently')
-                        ->modalDescription('This cannot be undone. The record will be permanently removed.'),
                 ]);
         }
 
@@ -207,12 +208,6 @@ class ArchivedRecords extends Page implements HasTable
                                 ->success()
                                 ->send();
                         }),
-
-                    Tables\Actions\DeleteAction::make()
-                        ->label('Delete Permanently')
-                        ->requiresConfirmation()
-                        ->modalHeading('Delete Permanently')
-                        ->modalDescription('This cannot be undone. The application will be permanently removed.'),
                 ]);
         }
 
@@ -259,12 +254,6 @@ class ArchivedRecords extends Page implements HasTable
                                 ->success()
                                 ->send();
                         }),
-
-                    Tables\Actions\DeleteAction::make()
-                        ->label('Delete Permanently')
-                        ->requiresConfirmation()
-                        ->modalHeading('Delete Permanently')
-                        ->modalDescription('This cannot be undone. The appointment will be permanently removed.'),
                 ]);
         }
 
@@ -315,12 +304,6 @@ class ArchivedRecords extends Page implements HasTable
                                 ->success()
                                 ->send();
                         }),
-
-                    Tables\Actions\DeleteAction::make()
-                        ->label('Delete Permanently')
-                        ->requiresConfirmation()
-                        ->modalHeading('Delete Permanently')
-                        ->modalDescription('This cannot be undone. The referral will be permanently removed.'),
                 ]);
         }
 
@@ -367,12 +350,6 @@ class ArchivedRecords extends Page implements HasTable
                                 ->success()
                                 ->send();
                         }),
-
-                    Tables\Actions\DeleteAction::make()
-                        ->label('Delete Permanently')
-                        ->requiresConfirmation()
-                        ->modalHeading('Delete Permanently')
-                        ->modalDescription('This cannot be undone. The logform will be permanently removed.'),
                 ]);
         }
 
@@ -420,12 +397,6 @@ class ArchivedRecords extends Page implements HasTable
                                 ->success()
                                 ->send();
                         }),
-
-                    Tables\Actions\DeleteAction::make()
-                        ->label('Delete Permanently')
-                        ->requiresConfirmation()
-                        ->modalHeading('Delete Permanently')
-                        ->modalDescription('This cannot be undone. The exam attempt will be permanently removed.'),
                 ]);
         }
 
@@ -464,7 +435,7 @@ class ArchivedRecords extends Page implements HasTable
                     ->form([
                         Forms\Components\Checkbox::make('restore_records')
                             ->label('Also restore their related records')
-                            ->helperText('Reverses any scholar/appointment/referral records that were archived alongside this user, if any.')
+                            ->helperText('Reverses their linked Personnel profile plus any scholar/appointment/referral records that were archived alongside this user, if any.')
                             ->default(false),
                     ])
                     ->action(function (User $record, array $data): void {
@@ -481,12 +452,6 @@ class ArchivedRecords extends Page implements HasTable
                             ->success()
                             ->send();
                     }),
-
-                Tables\Actions\DeleteAction::make()
-                    ->label('Delete Permanently')
-                    ->requiresConfirmation()
-                    ->modalHeading('Delete Permanently')
-                    ->modalDescription('This cannot be undone. The account will be permanently removed.'),
             ]);
     }
 }

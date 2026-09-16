@@ -56,7 +56,20 @@ Route::post('/login', function (Request $request) {
     ]);
 
     if (Auth::attempt($credentials)) {
-        $role = strtolower(Auth::user()->role?->name ?? '');
+        $user = Auth::user();
+
+        // Block archived accounts from logging in, regardless of role.
+        if ($user->isArchived()) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors([
+                'email' => 'This account has been archived. Please contact the administrator.',
+            ])->onlyInput('email');
+        }
+
+        $role = strtolower($user->role?->name ?? '');
 
         // Only students and guests may log in through this portal.
         // Admin, guidance, and scholarship accounts must use their own panels.

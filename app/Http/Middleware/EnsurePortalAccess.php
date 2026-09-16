@@ -11,6 +11,18 @@ class EnsurePortalAccess
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
+
+        // If this account gets archived while the user still has an active
+        // session, kick them out immediately on their very next request —
+        // don't wait for the session to naturally expire.
+        if ($user && $user->isArchived()) {
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect('/login')->with('error', 'This account has been archived. Please contact the administrator.');
+        }
+
         $role = strtolower($user?->role?->name ?? '');
 
         if ($user && !in_array($role, ['student', 'guest'])) {

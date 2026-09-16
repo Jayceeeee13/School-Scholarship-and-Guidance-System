@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Filament\Resources\UserResource;
+use App\Models\AccomplishmentReport;
 use App\Models\CounselingAppointments;
+use App\Models\DailyTimeRecord;
 use App\Models\InstitutionalScholar;
 use App\Models\Personnels;
 use App\Models\Referrals;
@@ -47,20 +49,23 @@ class ListUsers extends ListRecords
     /**
      * Cascade-archives all data tied to a user's identity when their
      * account is archived. Each model uses its own real archival
-     * mechanism rather than a one-size-fits-all column, since Scholars/
+     * mechanism rather than a one-size-fits-all column: Scholars/
      * InstitutionalScholar track this via status='revoked' (no
      * archived_at column exists there), while CounselingAppointments,
-     * Referrals, and Personnels use archived_at directly.
+     * Referrals, Personnels, DailyTimeRecord, and AccomplishmentReport
+     * use archived_at directly.
      *
      * Returns a summary of what was archived, for the success notification.
      */
     protected function cascadeArchiveUserRecords(User $user): array
     {
         $summary = [
-            'personnel'    => 0,
-            'scholars'     => 0,
-            'appointments' => 0,
-            'referrals'    => 0,
+            'personnel'              => 0,
+            'scholars'               => 0,
+            'appointments'           => 0,
+            'referrals'              => 0,
+            'dtr'                    => 0,
+            'accomplishment_reports' => 0,
         ];
 
         // ── Linked Personnel profile — matched via users.personnel_id ──
@@ -78,6 +83,14 @@ class ListUsers extends ListRecords
         }
 
         // ── Scholars / Institutional Scholars — matched directly by user_id ──
+        // IDs are kept per-model so DTR and Accomplishment Reports (which
+        // are polymorphic/foreign-keyed to a specific scholar model) can
+        // be matched correctly below.
+        $scholarIds = [
+            Scholars::class             => [],
+            InstitutionalScholar::class => [],
+        ];
+
         foreach ([Scholars::class, InstitutionalScholar::class] as $scholarModel) {
             $scholars = $scholarModel::where('user_id', $user->id)
                 ->where('status', '!=', 'revoked')
@@ -90,11 +103,26 @@ class ListUsers extends ListRecords
                     'revoked_at'        => now(),
                 ]);
 
-                TypeOfScholarship::where('name', $scholar->type_of_scholarship)
+                // Case-insensitive match — a mismatched-casing type name
+                // (e.g. "talents" vs "Talents") would otherwise silently
+                // skip restoring the slot.
+                TypeOfScholarship::whereRaw('LOWER(name) = ?', [strtolower(trim($scholar->type_of_scholarship ?? ''))])
                     ->increment('slots');
 
+                $scholarIds[$scholarModel][] = $scholar->id;
                 $summary['scholars']++;
             }
+        }
+
+        // ── Daily Time Records — matched via the scholar(s) tied to this user ──
+        foreach ($scholarIds as $ids) {
+            if (empty($ids)) {
+                continue;
+            }
+
+            $summary['dtr'] += DailyTimeRecord::whereIn('scholar_id', $ids)
+                ->whereNull('archived_at')
+                ->update(['archived_at' => now()]);
         }
 
         // ── Counseling Appointments — matched via the linked Students record ──
@@ -111,6 +139,18 @@ class ListUsers extends ListRecords
                     ->whereNull('archived_at')
                     ->update(['archived_at' => now()]);
             }
+        }
+
+        // ── Accomplishment Reports — polymorphic (scholar_type + scholar_id) ──
+        foreach ($scholarIds as $scholarModel => $ids) {
+            if (empty($ids)) {
+                continue;
+            }
+
+            $summary['accomplishment_reports'] += AccomplishmentReport::where('scholar_type', $scholarModel)
+                ->whereIn('scholar_id', $ids)
+                ->whereNull('archived_at')
+                ->update(['archived_at' => now()]);
         }
 
         return $summary;
@@ -520,8 +560,6 @@ class ListUsers extends ListRecords
                         ->dateTime('M d, Y h:i A')
                         ->sortable(),
 
-                    // ── Log (module) column ─────────────────────────────
-                    // Grouped by which part of the system the event came from.
                     TextColumn::make('log_name')
                         ->label('Log')
                         ->badge()
@@ -540,34 +578,28 @@ class ListUsers extends ListRecords
                         })
                         ->sortable(),
 
-                    // ── Event column ────────────────────────────────────
-                    // Grouped by the general nature of the action, regardless
-                    // of which module it came from.
                     TextColumn::make('event')
                         ->label('Event')
                         ->badge()
                         ->formatStateUsing(fn (?string $state): string => $state ? ucfirst(str_replace('_', ' ', $state)) : '—')
                         ->color(fn (?string $state): string => match ($state) {
-                            // Positive / success outcomes
                             'created',
                             'login',
                             'approved',
                             'invitation_accepted' => 'success',
 
-                            // Neutral / in-progress changes
                             'updated',
                             'rescheduled',
                             'follow_up_scheduled' => 'warning',
 
-                            // Restorative
                             'restored' => 'info',
 
-                            // Negative / terminal outcomes
                             'deleted',
                             'logout',
                             'failed_login',
                             'rejected',
                             'archived',
+                            'archived_records',
                             'invitation_declined' => 'danger',
 
                             default => 'gray',
@@ -625,11 +657,6 @@ class ListUsers extends ListRecords
                     ->placeholder('—'),
             ])
             ->actions([
-                // \Filament\Tables\Actions\Action::make('edit')
-                //     ->label('Edit')
-                //     ->icon('heroicon-o-pencil-square')
-                //     ->url(fn (User $record): string => UserResource::getUrl('edit', ['record' => $record])),
-
                 \Filament\Tables\Actions\Action::make('archiveUser')
                     ->label('Archive')
                     ->icon('heroicon-o-archive-box')
@@ -642,7 +669,7 @@ class ListUsers extends ListRecords
                     ->form([
                         Forms\Components\Checkbox::make('archive_records')
                             ->label('Also archive all related records')
-                            ->helperText('Includes their linked Personnel profile (if any), scholar records, counseling appointments, and referrals tied to their student profile.')
+                            ->helperText('Includes their linked Personnel profile (if any), scholar records, DTR entries, counseling appointments, referrals, and accomplishment reports tied to their student profile.')
                             ->default(false),
 
                         Forms\Components\TextInput::make('confirm_password')
@@ -679,8 +706,10 @@ class ListUsers extends ListRecords
                                     "Cascaded archive for {$record->name}: "
                                         . ($summary['personnel'] ? "personnel profile, " : '')
                                         . "{$summary['scholars']} scholar record(s), "
+                                        . "{$summary['dtr']} DTR entry(ies), "
                                         . "{$summary['appointments']} appointment(s), "
-                                        . "{$summary['referrals']} referral(s)."
+                                        . "{$summary['referrals']} referral(s), "
+                                        . "{$summary['accomplishment_reports']} accomplishment report(s)."
                                 );
                             }
                         });

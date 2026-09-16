@@ -2,9 +2,11 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\AccomplishmentReport;
 use App\Models\Applicant;
 use App\Models\CounselingAppointments;
 use App\Models\CounselingLogforms;
+use App\Models\DailyTimeRecord;
 use App\Models\ExamAttempt;
 use App\Models\InstitutionalScholar;
 use App\Models\Personnels;
@@ -77,17 +79,20 @@ class ArchivedRecords extends Page implements HasTable
      * un-revokes scholars whose revocation_reason exactly matches the
      * auto-generated cascade text, so manually-revoked scholars (revoked
      * for an unrelated reason) are never touched by accident.
-     * Appointments/Referrals have no such marker to check against, so
-     * those are restored based on the student link alone — acceptable
-     * since the admin explicitly opts in via the checkbox either way.
+     * Appointments/Referrals/DTR/Accomplishment Reports have no such
+     * marker to check against, so those are restored based on the
+     * scholar/student link alone — acceptable since the admin explicitly
+     * opts in via the checkbox either way.
      */
     protected function cascadeRestoreUserRecords(User $user): array
     {
         $summary = [
-            'personnel'    => 0,
-            'scholars'     => 0,
-            'appointments' => 0,
-            'referrals'    => 0,
+            'personnel'              => 0,
+            'scholars'               => 0,
+            'appointments'           => 0,
+            'referrals'              => 0,
+            'dtr'                    => 0,
+            'accomplishment_reports' => 0,
         ];
 
         // ── Linked Personnel profile — matched via users.personnel_id ──
@@ -95,6 +100,11 @@ class ArchivedRecords extends Page implements HasTable
             $user->personnel->update(['archived_at' => null]);
             $summary['personnel'] = 1;
         }
+
+        $scholarIds = [
+            Scholars::class             => [],
+            InstitutionalScholar::class => [],
+        ];
 
         foreach ([Scholars::class, InstitutionalScholar::class] as $scholarModel) {
             $scholars = $scholarModel::where('user_id', $user->id)
@@ -109,11 +119,23 @@ class ArchivedRecords extends Page implements HasTable
                     'revoked_at'        => null,
                 ]);
 
-                TypeOfScholarship::where('name', $scholar->type_of_scholarship)
+                TypeOfScholarship::whereRaw('LOWER(name) = ?', [strtolower(trim($scholar->type_of_scholarship ?? ''))])
                     ->decrement('slots');
 
+                $scholarIds[$scholarModel][] = $scholar->id;
                 $summary['scholars']++;
             }
+        }
+
+        // ── Daily Time Records — matched via the scholar(s) tied to this user ──
+        foreach ($scholarIds as $ids) {
+            if (empty($ids)) {
+                continue;
+            }
+
+            $summary['dtr'] += DailyTimeRecord::whereIn('scholar_id', $ids)
+                ->whereNotNull('archived_at')
+                ->update(['archived_at' => null]);
         }
 
         if ($student = $user->student) {
@@ -128,6 +150,18 @@ class ArchivedRecords extends Page implements HasTable
                     ->whereNotNull('archived_at')
                     ->update(['archived_at' => null]);
             }
+        }
+
+        // ── Accomplishment Reports — polymorphic (scholar_type + scholar_id) ──
+        foreach ($scholarIds as $scholarModel => $ids) {
+            if (empty($ids)) {
+                continue;
+            }
+
+            $summary['accomplishment_reports'] += AccomplishmentReport::where('scholar_type', $scholarModel)
+                ->whereIn('scholar_id', $ids)
+                ->whereNotNull('archived_at')
+                ->update(['archived_at' => null]);
         }
 
         return $summary;
@@ -440,6 +474,114 @@ class ArchivedRecords extends Page implements HasTable
                 ]);
         }
 
+        if ($this->activeTab === 'dtr') {
+            return $table
+                ->query(DailyTimeRecord::query()->whereNotNull('archived_at')->with('scholar'))
+                ->columns([
+                    Tables\Columns\TextColumn::make('scholar.full_name')
+                        ->label('Scholar')
+                        ->getStateUsing(fn (DailyTimeRecord $record) => $record->scholar
+                            ? trim("{$record->scholar->first_name} {$record->scholar->last_name}")
+                            : '—')
+                        ->searchable(),
+
+                    Tables\Columns\TextColumn::make('office_assigned')
+                        ->label('Office Assigned')
+                        ->searchable(),
+
+                    Tables\Columns\TextColumn::make('date')
+                        ->label('Date')
+                        ->date('M d, Y')
+                        ->sortable(),
+
+                    Tables\Columns\TextColumn::make('status')
+                        ->badge()
+                        ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+
+                    Tables\Columns\TextColumn::make('archived_at')
+                        ->label('Archived On')
+                        ->dateTime('M d, Y h:i A')
+                        ->sortable(),
+                ])
+                ->actions([
+                    Tables\Actions\Action::make('restore')
+                        ->label('Restore')
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Restore DTR Entry')
+                        ->modalDescription('This DTR entry will reappear in the main DTR list.')
+                        ->form([
+                            $this->passwordConfirmationField(),
+                        ])
+                        ->action(function (DailyTimeRecord $record): void {
+                            $record->update(['archived_at' => null]);
+
+                            Notification::make()
+                                ->title('DTR entry restored')
+                                ->success()
+                                ->send();
+                        }),
+                ]);
+        }
+
+        if ($this->activeTab === 'accomplishment_reports') {
+            return $table
+                ->query(AccomplishmentReport::query()->whereNotNull('archived_at')->with(['scholar', 'term']))
+                ->columns([
+                    Tables\Columns\TextColumn::make('scholar.full_name')
+                        ->label('Scholar')
+                        ->getStateUsing(fn (AccomplishmentReport $record) => $record->scholar
+                            ? trim("{$record->scholar->first_name} {$record->scholar->last_name}")
+                            : '—'),
+
+                    Tables\Columns\TextColumn::make('term.school_year')
+                        ->label('Term')
+                        ->formatStateUsing(fn ($state, $record) => $record->term
+                            ? "{$record->term->school_year} — {$record->term->semester}"
+                            : '—'),
+
+                    Tables\Columns\TextColumn::make('status')
+                        ->badge()
+                        ->color(fn (string $state): string => match ($state) {
+                            'approved' => 'success',
+                            'rejected' => 'danger',
+                            default    => 'warning',
+                        })
+                        ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+
+                    Tables\Columns\TextColumn::make('submitted_at')
+                        ->label('Submitted')
+                        ->dateTime('M d, Y h:i A')
+                        ->sortable(),
+
+                    Tables\Columns\TextColumn::make('archived_at')
+                        ->label('Archived On')
+                        ->dateTime('M d, Y h:i A')
+                        ->sortable(),
+                ])
+                ->actions([
+                    Tables\Actions\Action::make('restore')
+                        ->label('Restore')
+                        ->icon('heroicon-o-arrow-uturn-left')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Restore Accomplishment Report')
+                        ->modalDescription('This report will reappear in the main Accomplishment Reports list.')
+                        ->form([
+                            $this->passwordConfirmationField(),
+                        ])
+                        ->action(function (AccomplishmentReport $record): void {
+                            $record->update(['archived_at' => null]);
+
+                            Notification::make()
+                                ->title('Accomplishment report restored')
+                                ->success()
+                                ->send();
+                        }),
+                ]);
+        }
+
         return $table
             ->query(User::query()->whereNotNull('archived_at')->with(['personnel', 'role', 'student']))
             ->columns([
@@ -475,7 +617,7 @@ class ArchivedRecords extends Page implements HasTable
                     ->form([
                         Forms\Components\Checkbox::make('restore_records')
                             ->label('Also restore their related records')
-                            ->helperText('Reverses their linked Personnel profile plus any scholar/appointment/referral records that were archived alongside this user, if any.')
+                            ->helperText('Reverses their linked Personnel profile plus any scholar/DTR/appointment/referral/accomplishment report records that were archived alongside this user, if any.')
                             ->default(false),
 
                         $this->passwordConfirmationField(),

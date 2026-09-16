@@ -29,12 +29,14 @@ class DailyTimeRecord extends Model
         'approved_at',
         'received_by_id',
         'received_at',
+        'archived_at',
     ];
 
     protected $casts = [
         'date'        => 'date',
         'approved_at' => 'datetime',
         'received_at' => 'datetime',
+        'archived_at' => 'datetime',
     ];
 
     public function scholar(): BelongsTo
@@ -52,29 +54,11 @@ class DailyTimeRecord extends Model
         return $this->belongsTo(User::class, 'received_by_id');
     }
 
-    /**
-     * "MONTH:" on the paper form — derived from `date`, no separate column needed.
-     */
     public function getMonthLabelAttribute(): ?string
     {
         return $this->date?->format('F Y');
     }
 
-    /**
-     * Computes total hours worked from the AM/PM in-out pairs.
-     * Any pair missing either its "in" or "out" time is simply skipped
-     * (not counted), rather than throwing — so a half-filled entry still
-     * gives a partial total instead of failing.
-     *
-     * FIX: previously called diffInMinutes() with the "out" time as the
-     * base and "in" time as the argument (Carbon::parse($amOut)->diffInMinutes($amIn)).
-     * Carbon's $a->diffInMinutes($b) returns a SIGNED value equal to
-     * ($b - $a), so that produced (amIn - amOut), i.e. a negative number,
-     * instead of the intended (amOut - amIn). Swapped the call order so
-     * "in" is the base and "out" is the argument, and added absolute: true
-     * as a safety net so the total can never go negative even if a time
-     * pair is entered out of order.
-     */
     public static function calculateTotalHours(
         ?string $amIn,
         ?string $amOut,
@@ -84,13 +68,23 @@ class DailyTimeRecord extends Model
         $hours = 0.0;
 
         if ($amIn && $amOut) {
-            $hours += Carbon::parse($amIn)->diffInMinutes(Carbon::parse($amOut), absolute: true) / 60;
+            $hours += Carbon::parse($amOut)->diffInMinutes(Carbon::parse($amIn)) / 60;
         }
 
         if ($pmIn && $pmOut) {
-            $hours += Carbon::parse($pmIn)->diffInMinutes(Carbon::parse($pmOut), absolute: true) / 60;
+            $hours += Carbon::parse($pmOut)->diffInMinutes(Carbon::parse($pmIn)) / 60;
         }
 
         return round($hours, 2);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function scopeArchived($query)
+    {
+        return $query->whereNotNull('archived_at');
     }
 }

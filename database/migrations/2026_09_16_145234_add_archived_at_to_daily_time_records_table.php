@@ -8,14 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('accomplishment_reports', function (Blueprint $table) {
-            $table->timestamp('archived_at')->nullable();
+        Schema::table('daily_time_records', function (Blueprint $table) {
+            $table->timestamp('archived_at')->nullable()->after('received_at');
         });
     }
 
     public function down(): void
     {
-        Schema::table('accomplishment_reports', function (Blueprint $table) {
+        Schema::table('daily_time_records', function (Blueprint $table) {
             $table->dropColumn('archived_at');
         });
     }

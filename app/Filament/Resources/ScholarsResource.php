@@ -729,8 +729,8 @@ class ScholarsResource extends Resource
                     Tables\Actions\EditAction::make()
                         ->visible(fn () => ! static::isRestrictedToOwnScholars()),
 
-                    Tables\Actions\DeleteAction::make()
-                        ->visible(fn () => ! static::isRestrictedToOwnScholars()),
+                    // Tables\Actions\DeleteAction::make()
+                    //     ->visible(fn () => ! static::isRestrictedToOwnScholars()),
                 ])
                 ->label('Actions')
                 ->icon('heroicon-m-ellipsis-vertical')

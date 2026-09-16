@@ -38,12 +38,18 @@ class ListCounselingAppointments extends ListRecords
         }
 
         if ($this->activeTab === 'follow_ups') {
-            $query->whereNotNull('parent_appointment_id');
-        }
+    $query->where(function ($q) {
+        $q->whereNotNull('parent_appointment_id')
+          ->orWhereNotNull('source_logform_id')
+          ->orWhereNotNull('referral_id');
+    });
+}
 
-        if ($this->activeTab === 'all') {
-            $query->whereNull('parent_appointment_id');
-        }
+if ($this->activeTab === 'all') {
+    $query->whereNull('parent_appointment_id')
+          ->whereNull('source_logform_id')
+          ->whereNull('referral_id');
+}
 
         return $query
             ->withCount('followUps')
@@ -92,13 +98,17 @@ class ListCounselingAppointments extends ListRecords
                 ),
 
             'follow_ups' => Tab::make('Follow-ups')
-                ->icon('heroicon-o-arrow-path-rounded-square')
-                ->badgeColor('info')
-                ->badge(
-                    fn () => CounselingAppointments::whereNull('archived_at')
-                        ->whereNotNull('parent_appointment_id')
-                        ->count()
-                ),
+    ->icon('heroicon-o-arrow-path-rounded-square')
+    ->badgeColor('info')
+    ->badge(
+        fn () => CounselingAppointments::whereNull('archived_at')
+            ->where(function ($q) {
+                $q->whereNotNull('parent_appointment_id')
+                  ->orWhereNotNull('source_logform_id')
+                  ->orWhereNotNull('referral_id');
+            })
+            ->count()
+    ),
         ];
     }
 

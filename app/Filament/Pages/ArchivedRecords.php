@@ -20,6 +20,7 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class ArchivedRecords extends Page implements HasTable
 {
@@ -48,6 +49,27 @@ class ArchivedRecords extends Page implements HasTable
     {
         $this->activeTab = $tab;
         $this->resetTable();
+    }
+
+    /**
+     * Shared password-confirmation field used on every restore action in
+     * this page — requires the currently logged-in admin to re-confirm
+     * their own password before any archived record is brought back.
+     */
+    protected function passwordConfirmationField(): Forms\Components\TextInput
+    {
+        return Forms\Components\TextInput::make('confirm_password')
+            ->label('Confirm your password to continue')
+            ->password()
+            ->revealable()
+            ->required()
+            ->rule(function () {
+                return function (string $attribute, $value, $fail) {
+                    if (! Hash::check($value, auth()->user()->password)) {
+                        $fail('The password is incorrect.');
+                    }
+                };
+            });
     }
 
     /**
@@ -148,6 +170,9 @@ class ArchivedRecords extends Page implements HasTable
                         ->requiresConfirmation()
                         ->modalHeading('Restore Personnel')
                         ->modalDescription('This record will reappear in the main Personnels list.')
+                        ->form([
+                            $this->passwordConfirmationField(),
+                        ])
                         ->action(function (Personnels $record): void {
                             $record->update(['archived_at' => null]);
 
@@ -200,6 +225,9 @@ class ArchivedRecords extends Page implements HasTable
                         ->requiresConfirmation()
                         ->modalHeading('Restore Applicant')
                         ->modalDescription('This application will reappear in the main Applicants list.')
+                        ->form([
+                            $this->passwordConfirmationField(),
+                        ])
                         ->action(function (Applicant $record): void {
                             $record->update(['archived_at' => null]);
 
@@ -246,6 +274,9 @@ class ArchivedRecords extends Page implements HasTable
                         ->requiresConfirmation()
                         ->modalHeading('Restore Appointment')
                         ->modalDescription('This appointment will reappear in the main Counseling Appointments list.')
+                        ->form([
+                            $this->passwordConfirmationField(),
+                        ])
                         ->action(function (CounselingAppointments $record): void {
                             $record->update(['archived_at' => null]);
 
@@ -296,6 +327,9 @@ class ArchivedRecords extends Page implements HasTable
                         ->requiresConfirmation()
                         ->modalHeading('Restore Referral')
                         ->modalDescription('This referral will reappear in the main Referrals list.')
+                        ->form([
+                            $this->passwordConfirmationField(),
+                        ])
                         ->action(function (Referrals $record): void {
                             $record->update(['archived_at' => null]);
 
@@ -342,6 +376,9 @@ class ArchivedRecords extends Page implements HasTable
                         ->requiresConfirmation()
                         ->modalHeading('Restore Logform')
                         ->modalDescription('This logform will reappear in the main Logforms list.')
+                        ->form([
+                            $this->passwordConfirmationField(),
+                        ])
                         ->action(function (CounselingLogforms $record): void {
                             $record->update(['archived_at' => null]);
 
@@ -389,6 +426,9 @@ class ArchivedRecords extends Page implements HasTable
                         ->requiresConfirmation()
                         ->modalHeading('Restore Examinee Record')
                         ->modalDescription('This exam attempt will reappear in the main Examinees list.')
+                        ->form([
+                            $this->passwordConfirmationField(),
+                        ])
                         ->action(function (ExamAttempt $record): void {
                             $record->update(['archived_at' => null]);
 
@@ -437,6 +477,8 @@ class ArchivedRecords extends Page implements HasTable
                             ->label('Also restore their related records')
                             ->helperText('Reverses their linked Personnel profile plus any scholar/appointment/referral records that were archived alongside this user, if any.')
                             ->default(false),
+
+                        $this->passwordConfirmationField(),
                     ])
                     ->action(function (User $record, array $data): void {
                         DB::transaction(function () use ($record, $data) {

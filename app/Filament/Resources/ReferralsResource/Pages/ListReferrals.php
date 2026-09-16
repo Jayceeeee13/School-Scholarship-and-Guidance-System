@@ -10,6 +10,7 @@ use App\Models\CounselingTimeSlot;
 use App\Models\ModeOfCounseling;
 use App\Models\SupportNeeded;
 use App\Traits\LogsCustomActivity;
+use Illuminate\Support\Facades\Hash;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Infolists\Infolist;
@@ -599,6 +600,20 @@ class ListReferrals extends ListRecords
                             'This will hide the referral from this list. You can restore it later from Settings → Archived Records.'
                         )
                         ->modalSubmitActionLabel('Yes, Archive')
+                        ->form([
+                            Forms\Components\TextInput::make('confirm_password')
+                                ->label('Confirm your password to continue')
+                                ->password()
+                                ->revealable()
+                                ->required()
+                                ->rule(function () {
+                                    return function (string $attribute, $value, $fail) {
+                                        if (! Hash::check($value, auth()->user()->password)) {
+                                            $fail('The password is incorrect.');
+                                        }
+                                    };
+                                }),
+                        ])
                         ->action(
                             function (Referrals $record): void {
                                 $record->update([
@@ -665,6 +680,20 @@ class ListReferrals extends ListRecords
                             'This will hide the referral from this list. You can restore it later from Settings → Archived Records.'
                         )
                         ->modalSubmitActionLabel('Yes, Archive')
+                        ->form([
+                            Forms\Components\TextInput::make('confirm_password')
+                                ->label('Confirm your password to continue')
+                                ->password()
+                                ->revealable()
+                                ->required()
+                                ->rule(function () {
+                                    return function (string $attribute, $value, $fail) {
+                                        if (! Hash::check($value, auth()->user()->password)) {
+                                            $fail('The password is incorrect.');
+                                        }
+                                    };
+                                }),
+                        ])
                         ->action(
                             function (Referrals $record): void {
                                 $record->update([
@@ -684,7 +713,6 @@ class ListReferrals extends ListRecords
                                     ->send();
                             }
                         ),
-
                     Tables\Actions\ViewAction::make('view_endorsement')
                         ->infolist([
                             \Filament\Infolists\Components\Section::make(
@@ -878,6 +906,20 @@ class ListReferrals extends ListRecords
                             'This will hide the referral from this list. You can restore it later from Settings → Archived Records.'
                         )
                         ->modalSubmitActionLabel('Yes, Archive')
+                        ->form([
+                            Forms\Components\TextInput::make('confirm_password')
+                                ->label('Confirm your password to continue')
+                                ->password()
+                                ->revealable()
+                                ->required()
+                                ->rule(function () {
+                                    return function (string $attribute, $value, $fail) {
+                                        if (! Hash::check($value, auth()->user()->password)) {
+                                            $fail('The password is incorrect.');
+                                        }
+                                    };
+                                }),
+                        ])
                         ->action(
                             function (Referrals $record): void {
                                 $record->update([
@@ -897,7 +939,6 @@ class ListReferrals extends ListRecords
                                     ->send();
                             }
                         ),
-
                     Tables\Actions\ViewAction::make('view_invitation')
                         ->infolist([
                             \Filament\Infolists\Components\Section::make(

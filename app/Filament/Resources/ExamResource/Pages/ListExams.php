@@ -7,6 +7,7 @@ use App\Filament\Resources\ExamAttemptResource;
 use App\Models\Exam;
 use App\Models\ExamAttempt;
 use App\Models\Term;
+use Illuminate\Support\Facades\Hash;
 use App\Traits\LogsCustomActivity;
 use Filament\Actions;
 use Filament\Forms;
@@ -261,6 +262,20 @@ class ListExams extends ListRecords
                             ->modalHeading('Archive Examinee Record')
                             ->modalDescription('This will hide the exam attempt from this list. You can restore it later from Settings → Archived Records.')
                             ->modalSubmitActionLabel('Yes, Archive')
+                            ->form([
+                                Forms\Components\TextInput::make('confirm_password')
+                                    ->label('Confirm your password to continue')
+                                    ->password()
+                                    ->revealable()
+                                    ->required()
+                                    ->rule(function () {
+                                        return function (string $attribute, $value, $fail) {
+                                            if (! Hash::check($value, auth()->user()->password)) {
+                                                $fail('The password is incorrect.');
+                                            }
+                                        };
+                                    }),
+                            ])
                             ->action(function (ExamAttempt $record): void {
                                 $record->update(['archived_at' => now()]);
 

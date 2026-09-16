@@ -14,6 +14,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
+use Illuminate\Support\Facades\Hash;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Grid;
 use Filament\Tables\Columns\TextColumn;
@@ -731,28 +732,42 @@ TextInput::make('age')
                     Tables\Actions\EditAction::make(),
 
                     Tables\Actions\Action::make('archive')
-                        ->label('Archive')
-                        ->icon('heroicon-o-archive-box')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->modalHeading('Archive Applicant')
-                        ->modalDescription('This will hide the application from this list. You can restore it later from Settings → Archived Records.')
-                        ->modalSubmitActionLabel('Yes, Archive')
-                        ->action(function (Applicant $record): void {
-                            $record->update(['archived_at' => now()]);
+    ->label('Archive')
+    ->icon('heroicon-o-archive-box')
+    ->color('danger')
+    ->requiresConfirmation()
+    ->modalHeading('Archive Applicant')
+    ->modalDescription('This will hide the application from this list. You can restore it later from Settings → Archived Records.')
+    ->modalSubmitActionLabel('Yes, Archive')
+    ->form([
+        Forms\Components\TextInput::make('confirm_password')
+            ->label('Confirm your password to continue')
+            ->password()
+            ->revealable()
+            ->required()
+            ->rule(function () {
+                return function (string $attribute, $value, $fail) {
+                    if (! Hash::check($value, auth()->user()->password)) {
+                        $fail('The password is incorrect.');
+                    }
+                };
+            }),
+    ])
+    ->action(function (Applicant $record): void {
+        $record->update(['archived_at' => now()]);
 
-                            self::logCustomActivity(
-                                $record,
-                                'applicants',
-                                'archived',
-                                "Archived application for {$record->first_name} {$record->last_name}"
-                            );
+        self::logCustomActivity(
+            $record,
+            'applicants',
+            'archived',
+            "Archived application for {$record->first_name} {$record->last_name}"
+        );
 
-                            Notification::make()
-                                ->title('Applicant archived')
-                                ->success()
-                                ->send();
-                        }),
+        Notification::make()
+            ->title('Applicant archived')
+            ->success()
+            ->send();
+    }),
 
                     
                 ])

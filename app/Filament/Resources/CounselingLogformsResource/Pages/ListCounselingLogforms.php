@@ -6,6 +6,7 @@ use App\Filament\Resources\CounselingLogformsResource;
 use App\Filament\Resources\AnecdotalsResource;
 use App\Models\CounselingLogforms;
 use App\Models\Anecdotals;
+use Illuminate\Support\Facades\Hash;
 use App\Models\CounselingAppointments;
 use App\Models\Students;
 use App\Models\CounselingTimeSlot;
@@ -572,6 +573,20 @@ class ListCounselingLogforms extends ListRecords
                             'This will hide the logform from this list. You can restore it later from Settings → Archived Records.'
                         )
                         ->modalSubmitActionLabel('Yes, Archive')
+                        ->form([
+                            Forms\Components\TextInput::make('confirm_password')
+                                ->label('Confirm your password to continue')
+                                ->password()
+                                ->revealable()
+                                ->required()
+                                ->rule(function () {
+                                    return function (string $attribute, $value, $fail) {
+                                        if (! Hash::check($value, auth()->user()->password)) {
+                                            $fail('The password is incorrect.');
+                                        }
+                                    };
+                                }),
+                        ])
                         ->action(
                             function (
                                 CounselingLogforms $record

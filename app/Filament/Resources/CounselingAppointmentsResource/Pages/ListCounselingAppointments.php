@@ -8,6 +8,7 @@ use App\Traits\LogsCustomActivity;
 use Filament\Actions;
 use Filament\Infolists\Infolist;
 use Filament\Resources\Components\Tab;
+use Illuminate\Support\Facades\Hash;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -956,6 +957,20 @@ if ($this->activeTab === 'all') {
                         ->modalSubmitActionLabel(
                             'Yes, Archive'
                         )
+                        ->form([
+                            Forms\Components\TextInput::make('confirm_password')
+                                ->label('Confirm your password to continue')
+                                ->password()
+                                ->revealable()
+                                ->required()
+                                ->rule(function () {
+                                    return function (string $attribute, $value, $fail) {
+                                        if (! Hash::check($value, auth()->user()->password)) {
+                                            $fail('The password is incorrect.');
+                                        }
+                                    };
+                                }),
+                        ])
                         ->action(
                             function ($record): void {
 
@@ -1068,6 +1083,20 @@ if ($this->activeTab === 'all') {
                         ->modalSubmitActionLabel(
                             'Yes, Archive'
                         )
+                        ->form([
+                            Forms\Components\TextInput::make('confirm_password')
+                                ->label('Confirm your password to continue')
+                                ->password()
+                                ->revealable()
+                                ->required()
+                                ->rule(function () {
+                                    return function (string $attribute, $value, $fail) {
+                                        if (! Hash::check($value, auth()->user()->password)) {
+                                            $fail('The password is incorrect.');
+                                        }
+                                    };
+                                }),
+                        ])
                         ->action(
                             function ($record): void {
 
@@ -1091,7 +1120,6 @@ if ($this->activeTab === 'all') {
                                     ->send();
                             }
                         ),
-
                     Tables\Actions\ViewAction::make(
                         'view_endorsement'
                     )

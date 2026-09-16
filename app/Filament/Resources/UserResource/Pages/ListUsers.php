@@ -465,6 +465,20 @@ class ListUsers extends ListRecords
                             ->modalHeading('Archive Personnel')
                             ->modalDescription('This will hide the record from this list. You can restore it later from Settings → Archived Records.')
                             ->modalSubmitActionLabel('Yes, Archive')
+                            ->form([
+                                Forms\Components\TextInput::make('confirm_password')
+                                    ->label('Confirm your password to continue')
+                                    ->password()
+                                    ->revealable()
+                                    ->required()
+                                    ->rule(function () {
+                                        return function (string $attribute, $value, $fail) {
+                                            if (! Hash::check($value, auth()->user()->password)) {
+                                                $fail('The password is incorrect.');
+                                            }
+                                        };
+                                    }),
+                            ])
                             ->action(function (Personnels $record): void {
                                 $record->update(['archived_at' => now()]);
 

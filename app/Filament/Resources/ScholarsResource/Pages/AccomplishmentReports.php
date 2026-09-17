@@ -28,7 +28,13 @@ class AccomplishmentReports extends Page implements HasTable
             // this single query naturally covers reports belonging to
             // BOTH Scholars and InstitutionalScholar — no need to union
             // two separate queries.
-            ->query(AccomplishmentReport::query()->with(['scholar', 'term', 'activities']))
+            //
+            // whereNull('archived_at') excludes reports archived directly
+            // or cascaded from archiving their owning user (see
+            // ListUsers::cascadeArchiveUserRecords() and
+            // ArchivedRecords::cascadeRestoreUserRecords()) — without this,
+            // archived reports kept showing up here even after archiving.
+            ->query(AccomplishmentReport::query()->whereNull('archived_at')->with(['scholar', 'term', 'activities']))
             ->columns([
                 Tables\Columns\TextColumn::make('scholar.full_name')
                     ->label('Scholar')

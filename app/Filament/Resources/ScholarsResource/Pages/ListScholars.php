@@ -742,10 +742,12 @@ class ListScholars extends ListRecords
                 ->defaultSort('created_at', 'desc');
         }
 
-        if ($this->activeTab === 'dtr') {
+                if ($this->activeTab === 'dtr') {
             return $table
                 ->query(function () {
-                    $query = DailyTimeRecord::query()->with(['scholar', 'approvedBy', 'receivedBy']);
+                    $query = DailyTimeRecord::query()
+                        ->whereNull('archived_at')
+                        ->with(['scholar', 'approvedBy', 'receivedBy']);
 
                     return $this->scopeDtrQueryToRole($query);
                 })

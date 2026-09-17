@@ -1,22 +1,58 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+namespace App\Models;
 
-return new class extends Migration
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+
+class AccomplishmentReport extends Model
 {
-    public function up(): void
+    protected $fillable = [
+        'scholar_id',
+        'scholar_type',
+        'term_id',
+        'status',
+        'remarks',
+        'submitted_at',
+    ];
+
+    protected $casts = [
+        'submitted_at' => 'datetime',
+    ];
+
+    /**
+     * Polymorphic — resolves to either App\Models\Scholars or
+     * App\Models\InstitutionalScholar depending on scholar_type.
+     */
+    public function scholar(): MorphTo
     {
-        Schema::table('accomplishment_reports', function (Blueprint $table) {
-            $table->timestamp('archived_at')->nullable();
-        });
+        return $this->morphTo();
     }
 
-    public function down(): void
+    public function term(): BelongsTo
     {
-        Schema::table('accomplishment_reports', function (Blueprint $table) {
-            $table->dropColumn('archived_at');
-        });
+        return $this->belongsTo(Term::class);
     }
-};
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(AccomplishmentReportActivity::class)->orderBy('seq');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
+    public function scopeRejected($query)
+    {
+        return $query->where('status', 'rejected');
+    }
+}

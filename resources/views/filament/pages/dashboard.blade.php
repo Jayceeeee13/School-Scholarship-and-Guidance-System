@@ -251,36 +251,123 @@
 <div class="db-wrap">
 
     {{-- ROW 1 — Welcome --}}
-    <div class="db-card db-welcome">
-        <div class="db-welcome-left">
-            @if($avatarUrl)
-                <img src="{{ $avatarUrl }}" alt="{{ $user->name }}" class="db-avatar">
-            @else
-                <div class="db-avatar-init" style="background:{{ $avatarColor }};">
-                    <span style="color:#fff;font-size:1.25rem;font-weight:700;">{{ $initial }}</span>
-                </div>
-            @endif
-            <div>
-                <p class="db-welcome-name">{{ $user->name }}</p>
-                <p class="db-welcome-date">{{ now()->format('l, F j, Y') }} — Here's what's happening today.</p>
+    @php
+    $user = auth()->user();
+    $initial = strtoupper(substr($user->name, 0, 1));
+
+    if ($user->hasRole('Admin')) {
+        $avatarColor = '#2563eb';
+        $roleLabel = 'Administrator';
+        $roleIcon = '👑';
+        $badgeBg = '#dbeafe';
+        $badgeText = '#1d4ed8';
+    } elseif ($user->hasRole('Scholarship')) {
+        $avatarColor = '#059669';
+        $roleLabel = 'Scholarship Admin';
+        $roleIcon = '🎓';
+        $badgeBg = '#d1fae5';
+        $badgeText = '#047857';
+    } elseif ($user->hasRole('Department Head')) {
+        $avatarColor = '#7c3aed';
+        $roleLabel = 'Department Head';
+        $roleIcon = '🏢';
+        $badgeBg = '#ede9fe';
+        $badgeText = '#6d28d9';
+    } elseif ($user->hasRole('Guidance')) {
+        $avatarColor = '#db2777';
+        $roleLabel = 'Guidance Admin';
+        $roleIcon = '🧭';
+        $badgeBg = '#fce7f3';
+        $badgeText = '#be185d';
+    } else {
+        $avatarColor = '#6b7280';
+        $roleLabel = 'User';
+        $roleIcon = '👤';
+        $badgeBg = '#f3f4f6';
+        $badgeText = '#374151';
+    }
+
+    $avatarUrl = $user->avatar
+        ? \Illuminate\Support\Facades\Storage::disk('public')->url($user->avatar)
+        : null;
+@endphp
+
+<div class="db-card db-welcome">
+    <div class="db-welcome-left">
+        @if($avatarUrl)
+            <img src="{{ $avatarUrl }}" alt="{{ $user->name }}" class="db-avatar">
+        @else
+            <div class="db-avatar-init" style="background:{{ $avatarColor }};">
+                <span style="color:#fff;font-size:1.25rem;font-weight:700;">
+                    {{ $initial }}
+                </span>
             </div>
-        </div>
-        <div class="db-welcome-right">
-            <span class="db-badge" style="background:{{ $badgeBg }};color:{{ $badgeText }};">
-                {{ $roleIcon }} {{ $roleLabel }}
-            </span>
-            @if($user->isAdmin())
-                <a href="{{ url('/admin/users') }}" class="db-btn db-btn-outline">
-                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    Manage Users
-                </a>
-            @endif
-            <a href="{{ url('/admin/manage-settings') }}" class="db-btn db-btn-solid">
-                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                Settings
-            </a>
+        @endif
+
+        <div>
+            <p class="db-welcome-name">
+                {{ $user->name }}
+            </p>
+
+            <p class="db-welcome-date">
+                {{ now()->format('l, F j, Y') }} — Here's what's happening today.
+            </p>
         </div>
     </div>
+
+    <div class="db-welcome-right">
+
+        <span
+            class="db-badge"
+            style="background:{{ $badgeBg }};color:{{ $badgeText }};"
+        >
+            {{ $roleIcon }} {{ $roleLabel }}
+        </span>
+
+        @if($user->hasRole('Admin'))
+            <a
+                href="{{ url('/admin/users') }}"
+                class="db-btn db-btn-outline"
+            >
+                <svg
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                >
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+
+                Manage Users
+            </a>
+        @endif
+
+        <a
+            href="{{ url('/admin/manage-settings') }}"
+            class="db-btn db-btn-solid"
+        >
+            <svg
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+            >
+                <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 001.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-.94 1.543-.826 2.37 2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543-.826-2.37 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+
+            Settings
+        </a>
+
+    </div>
+</div>
 
     {{-- ROW 1.5 — School Year / Semester Filter (moved under profile) --}}
     <div class="db-card db-filter-bar">

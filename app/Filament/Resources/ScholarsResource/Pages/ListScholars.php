@@ -631,7 +631,7 @@ class ListScholars extends ListRecords
                             ->modalSubmitActionLabel('Save Assignment')
                             ->visible(fn () => auth()->user()->hasAnyRole(['admin', 'scholarship']))
                             ->form([
-                                                                Forms\Components\Select::make('department_head_id')
+                                                                    Forms\Components\Select::make('department_head_id')
                                     ->label('Department Head')
                                     ->options(fn () => \App\Models\User::whereHas('role', fn ($q) => $q->where('name', 'Department Head'))
                                         ->whereNull('archived_at')
@@ -640,6 +640,17 @@ class ListScholars extends ListRecords
                                         ->mapWithKeys(fn ($u) => [
                                             $u->id => $u->name . ($u->department ? " — {$u->department->name}" : ''),
                                         ]))
+                                    ->getOptionLabelUsing(function ($value) {
+                                        $user = \App\Models\User::with('department')->find($value);
+
+                                        if (! $user) {
+                                            return "User #{$value} (not found)";
+                                        }
+
+                                        $label = $user->name . ($user->department ? " — {$user->department->name}" : '');
+
+                                        return $user->archived_at ? "{$label} (Archived)" : $label;
+                                    })
                                     ->searchable()
                                     ->preload()
                                     ->native(false)

@@ -16,10 +16,12 @@ class AccomplishmentReport extends Model
         'status',
         'remarks',
         'submitted_at',
+        'archived_at',
     ];
 
     protected $casts = [
         'submitted_at' => 'datetime',
+        'archived_at'  => 'datetime',
     ];
 
     /**
@@ -54,5 +56,15 @@ class AccomplishmentReport extends Model
     public function scopeRejected($query)
     {
         return $query->where('status', 'rejected');
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->whereNull('archived_at');
+    }
+
+    public function scopeArchived($query)
+    {
+        return $query->whereNotNull('archived_at');
     }
 }

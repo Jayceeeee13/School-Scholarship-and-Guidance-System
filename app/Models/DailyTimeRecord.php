@@ -10,6 +10,14 @@ class DailyTimeRecord extends Model
 {
     protected $table = 'daily_time_records';
 
+    public const ATTENDANCE_STATUSES = [
+        'present'  => 'Present',
+        'absent'   => 'Absent',
+        'excused'  => 'Excused',
+        'half_day' => 'Half Day',
+        'late'     => 'Late',
+    ];
+
     protected $fillable = [
         'scholar_id',
         'office_assigned',
@@ -24,6 +32,8 @@ class DailyTimeRecord extends Model
         'pm_out_location',
         'total_hours',
         'status',
+        'attendance_status',
+        'attendance_notes',
         'remarks',
         'approved_by_id',
         'approved_at',
@@ -57,6 +67,13 @@ class DailyTimeRecord extends Model
     public function getMonthLabelAttribute(): ?string
     {
         return $this->date?->format('F Y');
+    }
+
+    public function getAttendanceStatusLabelAttribute(): ?string
+    {
+        return $this->attendance_status
+            ? (self::ATTENDANCE_STATUSES[$this->attendance_status] ?? ucfirst($this->attendance_status))
+            : null;
     }
 
     public static function calculateTotalHours(

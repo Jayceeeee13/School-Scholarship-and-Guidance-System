@@ -590,7 +590,8 @@ class ListUsers extends ListRecords
 
                             'updated',
                             'rescheduled',
-                            'follow_up_scheduled' => 'warning',
+                            'follow_up_scheduled',
+                            'attendance_noted' => 'warning',
 
                             'restored' => 'info',
 

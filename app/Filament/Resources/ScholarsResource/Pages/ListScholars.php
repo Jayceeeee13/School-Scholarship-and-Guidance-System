@@ -872,6 +872,19 @@ class ListScholars extends ListRecords
                         ->label('Total Hrs')
                         ->numeric(2)
                         ->placeholder('—'),
+                                            Tables\Columns\TextColumn::make('attendance_status')
+                        ->label('Attendance')
+                        ->badge()
+                        ->color(fn (?string $state): string => match ($state) {
+                            'present'  => 'success',
+                            'absent'   => 'danger',
+                            'excused'  => 'info',
+                            'half_day' => 'warning',
+                            'late'     => 'warning',
+                            default    => 'gray',
+                        })
+                        ->formatStateUsing(fn ($record) => $record->attendance_status_label)
+                        ->placeholder('—'),
 
                     Tables\Columns\TextColumn::make('status')
                         ->badge()
@@ -924,6 +937,9 @@ class ListScholars extends ListRecords
                                 'rejected'  => 'Rejected',
                             ];
                         }),
+                                            Tables\Filters\SelectFilter::make('attendance_status')
+                        ->label('Attendance')
+                        ->options(DailyTimeRecord::ATTENDANCE_STATUSES),
 
                     Tables\Filters\SelectFilter::make('month')
                         ->label('Month')
@@ -1063,6 +1079,29 @@ class ListScholars extends ListRecords
                                             ->columnSpanFull(),
                                     ])
                                     ->columns(2),
+                                                                    \Filament\Infolists\Components\Section::make('Attendance')
+                                    ->icon('heroicon-o-clipboard-document-check')
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('attendance_status')
+                                            ->label('Status')
+                                            ->badge()
+                                            ->color(fn (?string $state): string => match ($state) {
+                                                'present'  => 'success',
+                                                'absent'   => 'danger',
+                                                'excused'  => 'info',
+                                                'half_day' => 'warning',
+                                                'late'     => 'warning',
+                                                default    => 'gray',
+                                            })
+                                            ->formatStateUsing(fn ($record) => $record->attendance_status_label)
+                                            ->placeholder('Not recorded'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('attendance_notes')
+                                            ->label('Notes')
+                                            ->placeholder('—')
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->columns(1),
                             ]),
 
                         Tables\Actions\EditAction::make()
@@ -1075,6 +1114,55 @@ class ListScholars extends ListRecords
                                 );
 
                                 return $data;
+                            }),
+
+                                                    Tables\Actions\Action::make('setAttendance')
+                            ->label(fn (DailyTimeRecord $record): string => $record->attendance_status
+                                ? 'Edit Attendance Remarks'
+                                : 'Add Attendance Remarks')
+                            ->icon('heroicon-o-clipboard-document-check')
+                            ->color(fn (DailyTimeRecord $record): string => $record->attendance_status ? 'gray' : 'warning')
+                            ->modalHeading('Attendance Remarks')
+                            ->modalDescription('Note the scholar\'s attendance for this day — visible to Admin/Scholarship once submitted.')
+                            ->modalSubmitActionLabel('Save Remarks')
+                            ->visible(fn (): bool => auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
+                            ->form([
+                                Forms\Components\Select::make('attendance_status')
+                                    ->label('Attendance Status')
+                                    ->options(DailyTimeRecord::ATTENDANCE_STATUSES)
+                                    ->native(false)
+                                    ->required(),
+
+                                Forms\Components\Textarea::make('attendance_notes')
+                                    ->label('Notes (optional)')
+                                    ->placeholder('e.g., Family emergency, notified in advance...')
+                                    ->rows(3),
+                            ])
+                            ->fillForm(fn (DailyTimeRecord $record): array => [
+                                'attendance_status' => $record->attendance_status,
+                                'attendance_notes'  => $record->attendance_notes,
+                            ])
+                            ->action(function (DailyTimeRecord $record, array $data): void {
+                                $record->update([
+                                    'attendance_status' => $data['attendance_status'],
+                                    'attendance_notes'  => $data['attendance_notes'] ?? null,
+                                ]);
+
+                                $statusLabel = DailyTimeRecord::ATTENDANCE_STATUSES[$data['attendance_status']] ?? $data['attendance_status'];
+
+                                $this->logCustomActivity(
+                                    $record,
+                                    'dtr',
+                                    'attendance_noted',
+                                    "Marked {$record->scholar?->first_name} {$record->scholar?->last_name} as {$statusLabel} for {$record->date?->format('M d, Y')}",
+                                    ['attendance_status' => $data['attendance_status'], 'notes' => $data['attendance_notes'] ?? null]
+                                );
+
+                                Notification::make()
+                                    ->title('Attendance Remarks Saved')
+                                    ->success()
+                                    ->body("Marked as {$statusLabel}.")
+                                    ->send();
                             }),
 
                         Tables\Actions\Action::make('approve')

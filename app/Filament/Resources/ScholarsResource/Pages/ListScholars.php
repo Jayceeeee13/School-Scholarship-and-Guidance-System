@@ -606,18 +606,35 @@ class ListScholars extends ListRecords
                         // name+birthdate) and sets department_head_id on it.
                         // Carries user_id across so Daily Time Record and other
                         // features that key off scholars.user_id work correctly.
+                                                // ── Assign Department Head (Institutional Scholars tab) ──
+                        // Promotes/syncs this institutional scholar into the main
+                        // scholars table (matched by user_id -> student_id ->
+                        // name+birthdate) and sets department_head_id on it.
+                        // Carries user_id across so Daily Time Record and other
+                        // features that key off scholars.user_id work correctly.
                         Tables\Actions\Action::make('assign_department_head_institutional')
-                            ->label('Assign Department Head')
+                            ->label(function (InstitutionalScholar $record): string {
+                                $existing = self::findMatchingScholar($record);
+
+                                return $existing?->department_head_id
+                                    ? 'Reassign Department Head'
+                                    : 'Assign Department Head';
+                            })
                             ->icon('heroicon-o-user-plus')
-                            ->color('info')
+                            ->color(function (InstitutionalScholar $record): string {
+                                $existing = self::findMatchingScholar($record);
+
+                                return $existing?->department_head_id ? 'gray' : 'info';
+                            })
                             ->modalHeading('Assign Department Head')
                             ->modalDescription('This creates (or updates) this scholar\'s record in the main Scholars list and assigns their Department Head.')
                             ->modalSubmitActionLabel('Save Assignment')
                             ->visible(fn () => auth()->user()->hasAnyRole(['admin', 'scholarship']))
                             ->form([
-                                Forms\Components\Select::make('department_head_id')
+                                                                Forms\Components\Select::make('department_head_id')
                                     ->label('Department Head')
                                     ->options(fn () => \App\Models\User::whereHas('role', fn ($q) => $q->where('name', 'Department Head'))
+                                        ->whereNull('archived_at')
                                         ->with('department')
                                         ->get()
                                         ->mapWithKeys(fn ($u) => [
@@ -640,6 +657,7 @@ class ListScholars extends ListRecords
                                 $scholar = self::findMatchingScholar($record) ?? new Scholars();
 
                                 $wasNew = ! $scholar->exists;
+                                $oldDepartmentHeadId = $scholar->exists ? $scholar->department_head_id : null;
 
                                 $scholar->fill([
                                     'user_id'             => $record->user_id,
@@ -664,6 +682,18 @@ class ListScholars extends ListRecords
 
                                 $scholar->save();
 
+                                // Move DTR records that the previous department head
+                                // approved over to the newly assigned one, so approval
+                                // history stays with whoever currently manages this
+                                // scholar.
+                                $movedDtrCount = 0;
+
+                                if ($oldDepartmentHeadId && (int) $oldDepartmentHeadId !== (int) $data['department_head_id']) {
+                                    $movedDtrCount = DailyTimeRecord::where('scholar_id', $scholar->id)
+                                        ->where('approved_by_id', $oldDepartmentHeadId)
+                                        ->update(['approved_by_id' => $data['department_head_id']]);
+                                }
+
                                 $headName = \App\Models\User::find($data['department_head_id'])?->name ?? 'the selected head';
 
                                 $this->logCustomActivity(
@@ -673,12 +703,14 @@ class ListScholars extends ListRecords
                                     ($wasNew
                                         ? "Promoted {$record->first_name} {$record->last_name} to Scholars and assigned "
                                         : "Reassigned {$record->first_name} {$record->last_name} to ") . $headName
+                                        . ($movedDtrCount > 0 ? " ({$movedDtrCount} DTR record(s) moved)" : '')
                                 );
 
                                 Notification::make()
                                     ->title($wasNew ? 'Scholar Created & Department Head Assigned' : 'Department Head Assigned')
                                     ->success()
-                                    ->body("{$record->first_name} {$record->last_name} is now assigned to {$headName}.")
+                                    ->body("{$record->first_name} {$record->last_name} is now assigned to {$headName}."
+                                        . ($movedDtrCount > 0 ? " {$movedDtrCount} DTR record(s) moved to the new head." : ''))
                                     ->send();
                             }),
 

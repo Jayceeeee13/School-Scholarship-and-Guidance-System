@@ -683,10 +683,12 @@ class ScholarsResource extends Resource
                         })
                         ->visible(fn (Scholars $record): bool => $record->status !== 'revoked' && ! static::isRestrictedToOwnScholars()),
 
-                    Tables\Actions\Action::make('assign_department_head')
-                        ->label('Assign Department Head')
+                                        Tables\Actions\Action::make('assign_department_head')
+                        ->label(fn (Scholars $record): string => $record->department_head_id
+                            ? 'Reassign Department Head'
+                            : 'Assign Department Head')
                         ->icon('heroicon-o-user-plus')
-                        ->color('info')
+                        ->color(fn (Scholars $record): string => $record->department_head_id ? 'gray' : 'info')
                         ->modalHeading('Assign Department Head')
                         ->modalDescription('This scholar\'s Department Head will approve and submit their DTR entries.')
                         ->modalSubmitActionLabel('Save Assignment')
@@ -709,14 +711,25 @@ class ScholarsResource extends Resource
                             'department_head_id' => $record->department_head_id,
                         ])
                         ->action(function (Scholars $record, array $data): void {
+                            $oldDepartmentHeadId = $record->department_head_id;
+
                             $record->update(['department_head_id' => $data['department_head_id']]);
+
+                            $movedDtrCount = 0;
+
+                            if ($oldDepartmentHeadId && (int) $oldDepartmentHeadId !== (int) $data['department_head_id']) {
+                                $movedDtrCount = DailyTimeRecord::where('scholar_id', $record->id)
+                                    ->where('approved_by_id', $oldDepartmentHeadId)
+                                    ->update(['approved_by_id' => $data['department_head_id']]);
+                            }
 
                             $headName = \App\Models\User::find($data['department_head_id'])?->name ?? 'the selected head';
 
                             Notification::make()
                                 ->title('Department Head Assigned')
                                 ->success()
-                                ->body("{$record->first_name} {$record->last_name} is now assigned to {$headName}.")
+                                ->body("{$record->first_name} {$record->last_name} is now assigned to {$headName}."
+                                    . ($movedDtrCount > 0 ? " {$movedDtrCount} DTR record(s) moved to the new head." : ''))
                                 ->send();
                         })
                         ->visible(fn (Scholars $record): bool =>

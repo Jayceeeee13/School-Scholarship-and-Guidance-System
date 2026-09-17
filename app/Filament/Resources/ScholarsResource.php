@@ -825,10 +825,9 @@ class ScholarsResource extends Resource
     public static function getTabs(): array
 {
     $tabs = [
-        'institutional' => Tab::make('Institutional Scholars')
-            ->icon('heroicon-m-building-library')
-            ->badge(InstitutionalScholar::where('status', '!=', 'revoked')->count())
-            ->badgeColor('success'),
+        'all' => Tab::make('All Scholars')
+            ->icon('heroicon-m-academic-cap')
+            ->modifyQueryUsing(fn (Builder $query) => $query->where('status', '!=', 'revoked')),
 
         'revoked' => Tab::make('Revoked Scholars')
             ->icon('heroicon-m-no-symbol')
@@ -837,14 +836,16 @@ class ScholarsResource extends Resource
             ->badgeColor('danger'),
     ];
 
-    // Department Heads never get an "All Scholars" tab — they only need
-    // to see institutional scholars, revoked scholars, and (via
-    // ListScholars::getTabs(), which adds it on top of this) DTR.
+    // Department Heads never get an "Institutional Scholars" tab — they
+    // only need All Scholars, Revoked, and (via ListScholars::getTabs(),
+    // which adds it on top of this) DTR.
     if (! static::isRestrictedToOwnScholars()) {
-        $tabs = ['all' => Tab::make('All Scholars')
-            ->icon('heroicon-m-academic-cap')
-            ->modifyQueryUsing(fn (Builder $query) => $query->where('status', '!=', 'revoked')),
-        ] + $tabs;
+        $tabs = ['all' => $tabs['all']] + [
+            'institutional' => Tab::make('Institutional Scholars')
+                ->icon('heroicon-m-building-library')
+                ->badge(InstitutionalScholar::where('status', '!=', 'revoked')->count())
+                ->badgeColor('success'),
+        ] + ['revoked' => $tabs['revoked']];
     }
 
     return $tabs;

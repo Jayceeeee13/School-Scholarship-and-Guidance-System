@@ -306,30 +306,26 @@ class ListScholars extends ListRecords
     }
 
     public function getTabs(): array
-    {
-        $tabs = ScholarsResource::getTabs();
+{
+    $tabs = ScholarsResource::getTabs();
 
+    if (auth()->user()->isDepartmentHead()) {
         $tabs['dtr'] = Tab::make('DTR')
             ->icon('heroicon-o-clock')
             ->badge(function () {
                 $user = auth()->user();
 
-                if (! $user->isDepartmentHead() && $user->hasAnyRole(['admin', 'scholarship'])) {
-                    return DailyTimeRecord::where('status', 'submitted')->count();
-                }
-
-                $query = DailyTimeRecord::where('status', 'pending');
-
-                if ($user->isDepartmentHead()) {
-                    $query->whereHas('scholar', fn ($q) => $q->where('department_head_id', $user->id));
-                }
-
-                return $query->count();
+                return DailyTimeRecord::where('status', 'pending')
+                    ->whereHas('scholar', fn ($q) =>
+                        $q->where('department_head_id', $user->id)
+                    )
+                    ->count();
             })
             ->badgeColor('warning');
-
-        return $tabs;
     }
+
+    return $tabs;
+}
 
     public function table(Table $table): Table
     {

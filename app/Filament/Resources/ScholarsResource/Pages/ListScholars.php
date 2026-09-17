@@ -646,11 +646,21 @@ class ListScholars extends ListRecords
                                     ->required()
                                     ->placeholder('Select a Department Head'),
                             ])
-                            ->fillForm(function (InstitutionalScholar $record): array {
+                                                        ->fillForm(function (InstitutionalScholar $record): array {
                                 $existing = self::findMatchingScholar($record);
 
+                                // Only pre-fill if the currently-assigned head is
+                                // still active — an archived head's ID would
+                                // otherwise show up as a raw number in the field
+                                // since it no longer exists in options().
+                                $currentHeadId = $existing?->department_head_id;
+
+                                $stillActive = $currentHeadId
+                                    ? \App\Models\User::whereNull('archived_at')->where('id', $currentHeadId)->exists()
+                                    : false;
+
                                 return [
-                                    'department_head_id' => $existing?->department_head_id,
+                                    'department_head_id' => $stillActive ? $currentHeadId : null,
                                 ];
                             })
                             ->action(function (InstitutionalScholar $record, array $data): void {

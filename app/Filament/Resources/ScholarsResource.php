@@ -693,23 +693,30 @@ class ScholarsResource extends Resource
                         ->modalDescription('This scholar\'s Department Head will approve and submit their DTR entries.')
                         ->modalSubmitActionLabel('Save Assignment')
                         ->form([
-                            Forms\Components\Select::make('department_head_id')
-                                ->label('Department Head')
-                                ->options(fn () => \App\Models\User::whereHas('role', fn ($q) => $q->where('name', 'Department Head'))
-                                    ->with('department')
-                                    ->get()
-                                    ->mapWithKeys(fn ($u) => [
-                                        $u->id => $u->name . ($u->department ? " — {$u->department->name}" : ''),
-                                    ]))
-                                ->searchable()
-                                ->preload()
-                                ->native(false)
-                                ->required()
-                                ->placeholder('Select a Department Head'),
+                                                    Forms\Components\Select::make('department_head_id')
+                            ->label('Department Head')
+                            ->options(fn () => \App\Models\User::whereHas('role', fn ($q) => $q->where('name', 'Department Head'))
+                                ->whereNull('archived_at')
+                                ->with('department')
+                                ->get()
+                                ->mapWithKeys(fn ($u) => [
+                                    $u->id => $u->name . ($u->department ? " — {$u->department->name}" : ''),
+                                ]))
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->required()
+                            ->placeholder('Select a Department Head'),
                         ])
-                        ->fillForm(fn (Scholars $record): array => [
-                            'department_head_id' => $record->department_head_id,
-                        ])
+                                                ->fillForm(function (Scholars $record): array {
+                            $stillActive = $record->department_head_id
+                                ? \App\Models\User::whereNull('archived_at')->where('id', $record->department_head_id)->exists()
+                                : false;
+
+                            return [
+                                'department_head_id' => $stillActive ? $record->department_head_id : null,
+                            ];
+                        })
                         ->action(function (Scholars $record, array $data): void {
                             $oldDepartmentHeadId = $record->department_head_id;
 

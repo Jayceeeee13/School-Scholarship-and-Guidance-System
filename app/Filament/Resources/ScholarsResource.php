@@ -5,7 +5,6 @@ namespace App\Filament\Resources;
 use App\Exports\ScholarsExport;
 use App\Imports\ScholarsImport;
 use App\Filament\Resources\ScholarsResource\Pages;
-use App\Models\DailyTimeRecord;
 use App\Models\InstitutionalScholar;
 use App\Models\Scholars;
 use App\Models\Term;
@@ -684,7 +683,7 @@ class ScholarsResource extends Resource
                         })
                         ->visible(fn (Scholars $record): bool => $record->status !== 'revoked' && ! static::isRestrictedToOwnScholars()),
 
-                    Tables\Actions\Action::make('assign_department_head')
+                                        Tables\Actions\Action::make('assign_department_head')
                         ->label(fn (Scholars $record): string => $record->department_head_id
                             ? 'Reassign Department Head'
                             : 'Assign Department Head')
@@ -694,22 +693,22 @@ class ScholarsResource extends Resource
                         ->modalDescription('This scholar\'s Department Head will approve and submit their DTR entries.')
                         ->modalSubmitActionLabel('Save Assignment')
                         ->form([
-                            Forms\Components\Select::make('department_head_id')
-                                ->label('Department Head')
-                                ->options(fn () => \App\Models\User::whereHas('role', fn ($q) => $q->where('name', 'Department Head'))
-                                    ->whereNull('archived_at')
-                                    ->with('department')
-                                    ->get()
-                                    ->mapWithKeys(fn ($u) => [
-                                        $u->id => $u->name . ($u->department ? " — {$u->department->name}" : ''),
-                                    ]))
-                                ->searchable()
-                                ->preload()
-                                ->native(false)
-                                ->required()
-                                ->placeholder('Select a Department Head'),
+                                                    Forms\Components\Select::make('department_head_id')
+                            ->label('Department Head')
+                            ->options(fn () => \App\Models\User::whereHas('role', fn ($q) => $q->where('name', 'Department Head'))
+                                ->whereNull('archived_at')
+                                ->with('department')
+                                ->get()
+                                ->mapWithKeys(fn ($u) => [
+                                    $u->id => $u->name . ($u->department ? " — {$u->department->name}" : ''),
+                                ]))
+                            ->searchable()
+                            ->preload()
+                            ->native(false)
+                            ->required()
+                            ->placeholder('Select a Department Head'),
                         ])
-                        ->fillForm(function (Scholars $record): array {
+                                                ->fillForm(function (Scholars $record): array {
                             $stillActive = $record->department_head_id
                                 ? \App\Models\User::whereNull('archived_at')->where('id', $record->department_head_id)->exists()
                                 : false;
@@ -825,7 +824,11 @@ class ScholarsResource extends Resource
 
     public static function getTabs(): array
     {
-        $tabs = [
+        return [
+            'all' => Tab::make('All Scholars')
+                ->icon('heroicon-m-academic-cap')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', '!=', 'revoked')),
+
             'institutional' => Tab::make('Institutional Scholars')
                 ->icon('heroicon-m-building-library')
                 ->badge(InstitutionalScholar::where('status', '!=', 'revoked')->count())
@@ -837,18 +840,6 @@ class ScholarsResource extends Resource
                 ->badge(Scholars::where('status', 'revoked')->count())
                 ->badgeColor('danger'),
         ];
-
-        // Department Heads never get an "All Scholars" tab — they only
-        // need Institutional, Revoked, and (via ListScholars::getTabs(),
-        // which adds it on top of this) DTR.
-        if (! static::isRestrictedToOwnScholars()) {
-            $tabs = ['all' => Tab::make('All Scholars')
-                ->icon('heroicon-m-academic-cap')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', '!=', 'revoked')),
-            ] + $tabs;
-        }
-
-        return $tabs;
     }
 
     public static function getRelations(): array

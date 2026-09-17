@@ -823,12 +823,16 @@ class ScholarsResource extends Resource
     }
 
     public static function getTabs(): array
-{
-    if (auth()->user()->isDepartmentHead()) {
+    {
         return [
             'all' => Tab::make('All Scholars')
                 ->icon('heroicon-m-academic-cap')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', '!=', 'revoked')),
+
+            'institutional' => Tab::make('Institutional Scholars')
+                ->icon('heroicon-m-building-library')
+                ->badge(InstitutionalScholar::where('status', '!=', 'revoked')->count())
+                ->badgeColor('success'),
 
             'revoked' => Tab::make('Revoked Scholars')
                 ->icon('heroicon-m-no-symbol')
@@ -838,13 +842,6 @@ class ScholarsResource extends Resource
         ];
     }
 
-    return [
-        'institutional' => Tab::make('Institutional Scholars')
-            ->icon('heroicon-m-building-library')
-            ->badge(InstitutionalScholar::where('status', '!=', 'revoked')->count())
-            ->badgeColor('success'),
-    ];
-}
     public static function getRelations(): array
     {
         return [];

@@ -4,17 +4,37 @@
     $user = auth()->user();
     $initial = strtoupper(substr($user->name, 0, 1));
 
-    $avatarColor = $user->isAdmin()
-        ? 'linear-gradient(135deg, #2563eb, #1d4ed8)'
-        : ($user->isScholarship()
-            ? 'linear-gradient(135deg, #059669, #047857)'
-            : 'linear-gradient(135deg, #7c3aed, #6d28d9)');
-
-    $roleLabel = $user->isAdmin() ? 'Administrator' : ($user->isScholarship() ? 'Scholarship Admin' : 'Guidance Admin');
-    $roleIcon  = $user->isAdmin() ? '👑' : ($user->isScholarship() ? '🎓' : '🧭');
-
-    $badgeBg   = $user->isAdmin() ? '#DBEAFE' : ($user->isScholarship() ? '#D1FAE5' : '#EDE9FE');
-    $badgeText = $user->isAdmin() ? '#1D4ED8' : ($user->isScholarship() ? '#047857' : '#6D28D9');
+    if ($user->hasRole('Admin')) {
+        $avatarColor = '#2563eb';
+        $roleLabel = 'Administrator';
+        $roleIcon = '👑';
+        $badgeBg = '#dbeafe';
+        $badgeText = '#1d4ed8';
+    } elseif ($user->hasRole('Scholarship')) {
+        $avatarColor = '#059669';
+        $roleLabel = 'Scholarship Admin';
+        $roleIcon = '🎓';
+        $badgeBg = '#d1fae5';
+        $badgeText = '#047857';
+    } elseif ($user->hasRole('Department Head')) {
+        $avatarColor = '#7c3aed';
+        $roleLabel = 'Department Head';
+        $roleIcon = '🏢';
+        $badgeBg = '#ede9fe';
+        $badgeText = '#6d28d9';
+    } elseif ($user->hasRole('Guidance')) {
+        $avatarColor = '#db2777';
+        $roleLabel = 'Guidance Admin';
+        $roleIcon = '🧭';
+        $badgeBg = '#fce7f3';
+        $badgeText = '#be185d';
+    } else {
+        $avatarColor = '#6b7280';
+        $roleLabel = 'User';
+        $roleIcon = '👤';
+        $badgeBg = '#f3f4f6';
+        $badgeText = '#374151';
+    }
 
     $avatarUrl = $user->avatar
         ? \Illuminate\Support\Facades\Storage::disk('public')->url($user->avatar)
@@ -40,13 +60,23 @@
                             ->orderByDesc('count')
                             ->get();
 
-    $chartColors = ['#378ADD','#1D9E75','#7F77DD','#EF9F27','#D85A30','#D4537E','#639922','#888780','#E24B4A','#5DCAA5'];
+    // ── Active Scholars donut (conic-gradient, same technique as the
+    //    Department Head DTR Compliance donut) ─────────────────────────
+    $activeScholarsPercentage = $totalScholars > 0
+        ? round(($activeScholars / $totalScholars) * 100, 1)
+        : 0;
 
-    $scholarChartData = json_encode([
-        'labels' => $scholarTypes->pluck('type_of_scholarship')->values()->toArray(),
-        'counts' => $scholarTypes->pluck('count')->values()->toArray(),
-        'colors' => $scholarTypes->values()->map(fn($t, $i) => $chartColors[$i % count($chartColors)])->toArray(),
-    ]);
+    // ── Scholars Distribution by Program (system-wide, not DH-scoped) ──
+    $programDistribution = \App\Models\Scholars::query()
+        ->when($dateRange, fn($q) => $q->whereBetween('created_at', $dateRange))
+        ->get()
+        ->groupBy(fn($s) => trim($s->program ?? '') ?: 'Not Assigned')
+        ->map(fn($scholars, $program) => [
+            'program' => $program,
+            'count' => $scholars->count(),
+        ])
+        ->sortByDesc('count')
+        ->values();
 
     // ── Applicant stats ────────────────────────────────────────
     $totalApplicants   = \App\Models\Applicant::query()
@@ -61,7 +91,7 @@
                         ->when($dateRange, fn($q) => $q->whereBetween('created_at', $dateRange))
                         ->where('status', 'pending')->count();
 
-    // ── Support needs chart ────────────────────────────────────
+    // ── Support needs ───────────────────────────────────────────
     $supportNeeds = \App\Models\CounselingAppointments::query()
         ->with('supportNeeded')
         ->when($dateRange, fn($q) => $q->whereBetween('created_at', $dateRange))
@@ -73,20 +103,6 @@
 
     $supportTotal  = $supportNeeds->sum('count');
     $supportUnique = $supportNeeds->count();
-
-    $supportColors = [
-        'rgb(59,130,246)','rgb(16,185,129)','rgb(251,191,36)',
-        'rgb(239,68,68)','rgb(139,92,246)','rgb(236,72,153)',
-        'rgb(249,115,22)','rgb(14,165,233)',
-    ];
-
-    $supportChartData = json_encode([
-        'labels' => $supportNeeds->map(fn($n) =>
-            ($n->supportNeeded->name ?? 'Unknown') . ' (' . round($n->count / max($supportTotal, 1) * 100, 1) . '%)'
-        )->values()->toArray(),
-        'counts' => $supportNeeds->pluck('count')->values()->toArray(),
-        'colors' => $supportNeeds->values()->map(fn($n, $i) => $supportColors[$i % count($supportColors)])->toArray(),
-    ]);
 
     // ── Latest applicants ──────────────────────────────────────
     $latestApplicants = \App\Models\Applicant::query()
@@ -246,52 +262,63 @@
     }
     .db-filter-clear:hover { text-decoration:underline; }
     .db-filter-active-note { font-size:.75rem; color:#059669; font-weight:600; }
+
+    /* ── Progress-bar distribution rows (matches Department Head style) ── */
+    .dh-progress-row { margin-bottom: 1rem; }
+    .dh-progress-row:last-child { margin-bottom: 0; }
+    .dh-progress-header { display:flex; justify-content:space-between; align-items:center; gap:1rem; margin-bottom:.35rem; }
+    .dh-progress-name { font-size:.8rem; font-weight:600; color:#374151; }
+    .dark .dh-progress-name { color:#e5e7eb; }
+    .dh-progress-value { font-size:.75rem; font-weight:700; color:#6b7280; }
+    .dh-progress { width:100%; height:9px; background:#e5e7eb; border-radius:9999px; overflow:hidden; margin-top:.75rem; }
+    .dark .dh-progress { background:#374151; }
+    .dh-progress-fill { height:100%; border-radius:9999px; background:#16a34a; }
+    .dh-empty { text-align:center; padding:2rem 1rem; color:#9ca3af; font-size:.8125rem; }
+
+    /* ── Conic-gradient donut (matches Department Head DTR Compliance) ── */
+    .dh-compliance-circle {
+        width: 135px;
+        height: 135px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: .5rem auto 1rem;
+        background: conic-gradient(
+            #16a34a {{ $activeScholarsPercentage }}%,
+            #e5e7eb {{ $activeScholarsPercentage }}%
+        );
+    }
+    .dark .dh-compliance-circle {
+        background: conic-gradient(
+            #16a34a {{ $activeScholarsPercentage }}%,
+            #374151 {{ $activeScholarsPercentage }}%
+        );
+    }
+    .dh-compliance-inner {
+        width: 105px;
+        height: 105px;
+        border-radius: 50%;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+    .dark .dh-compliance-inner { background: #1f2937; }
+    .dh-compliance-value { font-size: 1.6rem; font-weight: 800; color: #16a34a; }
+    .dh-compliance-label { font-size: .65rem; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; }
+
+    .dh-dtr-summary { display:grid; grid-template-columns:repeat(2,1fr); gap:.75rem; margin-top:.75rem; }
+    .dh-dtr-summary-item { padding:.75rem; border-radius:8px; background:#f9fafb; border:1px solid #e5e7eb; text-align:center; }
+    .dark .dh-dtr-summary-item { background:#111827; border-color:#374151; }
+    .dh-dtr-summary-number { font-size:1.1rem; font-weight:700; margin:0; }
+    .dh-dtr-summary-label { font-size:.65rem; color:#6b7280; margin:2px 0 0; }
 </style>
 
 <div class="db-wrap">
 
     {{-- ROW 1 — Welcome --}}
-    @php
-    $user = auth()->user();
-    $initial = strtoupper(substr($user->name, 0, 1));
-
-    if ($user->hasRole('Admin')) {
-        $avatarColor = '#2563eb';
-        $roleLabel = 'Administrator';
-        $roleIcon = '👑';
-        $badgeBg = '#dbeafe';
-        $badgeText = '#1d4ed8';
-    } elseif ($user->hasRole('Scholarship')) {
-        $avatarColor = '#059669';
-        $roleLabel = 'Scholarship Admin';
-        $roleIcon = '🎓';
-        $badgeBg = '#d1fae5';
-        $badgeText = '#047857';
-    } elseif ($user->hasRole('Department Head')) {
-        $avatarColor = '#7c3aed';
-        $roleLabel = 'Department Head';
-        $roleIcon = '🏢';
-        $badgeBg = '#ede9fe';
-        $badgeText = '#6d28d9';
-    } elseif ($user->hasRole('Guidance')) {
-        $avatarColor = '#db2777';
-        $roleLabel = 'Guidance Admin';
-        $roleIcon = '🧭';
-        $badgeBg = '#fce7f3';
-        $badgeText = '#be185d';
-    } else {
-        $avatarColor = '#6b7280';
-        $roleLabel = 'User';
-        $roleIcon = '👤';
-        $badgeBg = '#f3f4f6';
-        $badgeText = '#374151';
-    }
-
-    $avatarUrl = $user->avatar
-        ? \Illuminate\Support\Facades\Storage::disk('public')->url($user->avatar)
-        : null;
-@endphp
-
 <div class="db-card db-welcome">
     <div class="db-welcome-left">
         @if($avatarUrl)
@@ -360,8 +387,8 @@
             stroke-width="2"
             viewBox="0 0 24 24"
         >
-            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 001.066 2.573c.94 1.543-.826 1.543-2.37 2.37a1.724 1.724 0 00-2.37-2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-.94 1.543-.826 1.543 2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543-.826-1.543 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-            <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.5 1.5-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.04 1.56v.09h-2.12v-.09a1.7 1.7 0 0 0-1.04-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-1.5-1.5.06-.06A1.7 1.7 0 0 0 9.12 15a1.7 1.7 0 0 0-1.56-1.04h-.09v-2.12h.09A1.7 1.7 0 0 0 9.12 10.8a1.7 1.7 0 0 0-.34-1.88l-.06-.06 1.5-1.5.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 13.2 6.2v-.09h2.12v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 1.5 1.5-.06.06A1.7 1.7 0 0 0 19.4 10.8a1.7 1.7 0 0 0 1.56 1.04h.09v2.12h-.09A1.7 1.7 0 0 0 19.4 15z"/>
         </svg>
 
         Settings
@@ -371,7 +398,7 @@
     </div>
 </div>
 
-    {{-- ROW 1.5 — School Year / Semester Filter (moved under profile) --}}
+    {{-- ROW 1.5 — School Year / Semester Filter --}}
     <div class="db-card db-filter-bar">
         <span class="db-filter-label">📊 Filter dashboard by:</span>
 
@@ -443,166 +470,133 @@
 
     </div>
 
-    {{-- ROW 3 — 2 Charts --}}
+    {{-- ROW 3 — Scholars Distribution by Program + Scholars by Scholarship Type --}}
+    @if($user->isAdmin() || $user->isScholarship())
     <div class="db-grid-2">
 
-        @if($user->isAdmin() || $user->isScholarship())
-        {{--
-            FIX: Dropped the custom canvas belowLabels plugin entirely.
-            Now using Chart.js built-in x-axis ticks with maxRotation/minRotation=45
-            and label truncation (max 14 chars). This lets Chart.js handle spacing
-            automatically — no overlap possible. Full name shown in tooltip on hover.
-            Count + % rendered above each bar via a clean afterDatasetsDraw plugin.
-        --}}
-        <div class="db-card"
-            wire:key="scholar-chart-{{ $schoolYear }}-{{ $semester }}"
-            x-data="{
-                init() {
-                    const draw = () => {
-                        const canvas = this.$refs.scholarBar;
-                        if (!canvas || !window.Chart) return;
-                        if (canvas._chart) canvas._chart.destroy();
-
-                        const data = {{ $scholarChartData }};
-                        const total = data.counts.reduce((a, b) => a + b, 0);
-
-                        // Truncate long labels so rotated ticks never overflow
-                        const truncate = (str, max) => str.length > max ? str.slice(0, max - 1) + '…' : str;
-                        const shortLabels = data.labels.map(l => truncate(l, 13));
-
-                        canvas._chart = new window.Chart(canvas, {
-                            type: 'bar',
-                            data: {
-                                labels: shortLabels,
-                                datasets: [{
-                                    data: data.counts,
-                                    backgroundColor: data.colors,
-                                    borderRadius: 6,
-                                    borderSkipped: false,
-                                    barPercentage: 0.55,
-                                    categoryPercentage: 0.65,
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                layout: { padding: { top: 24 } },
-                                plugins: {
-                                    legend: { display: false },
-                                    tooltip: {
-                                        callbacks: {
-                                            // Full untruncated name in tooltip
-                                            title: (items) => data.labels[items[0].dataIndex],
-                                            label: (ctx) => {
-                                                const pct = total > 0 ? Math.round(ctx.parsed.y / total * 100) : 0;
-                                                return ' ' + ctx.parsed.y + ' grantees (' + pct + '%)';
-                                            }
-                                        }
-                                    }
-                                },
-                                scales: {
-                                    x: {
-                                        grid: { display: false },
-                                        border: { display: false },
-                                        ticks: {
-                                            color: '#374151',
-                                            font: { size: 10, weight: '600' },
-                                            maxRotation: 45,
-                                            minRotation: 45,
-                                            autoSkip: false,
-                                        }
-                                    },
-                                    y: {
-                                        beginAtZero: true,
-                                        grid: { color: '#f3f4f6' },
-                                        ticks: { font: { size: 11 }, color: '#9ca3af', precision: 0 }
-                                    }
-                                }
-                            },
-                            plugins: [{
-                                // Count + % floated directly above each bar
-                                id: 'aboveBar',
-                                afterDatasetsDraw(chart) {
-                                    const ctx = chart.ctx;
-                                    const meta = chart.getDatasetMeta(0);
-                                    meta.data.forEach((bar, i) => {
-                                        const count = data.counts[i];
-                                        const pct   = total > 0 ? Math.round(count / total * 100) : 0;
-                                        ctx.save();
-                                        ctx.textAlign    = 'center';
-                                        ctx.textBaseline = 'bottom';
-                                        ctx.font         = 'bold 10px sans-serif';
-                                        ctx.fillStyle    = '#111827';
-                                        ctx.fillText(count, bar.x, bar.y - 2);
-                                        ctx.font      = '9px sans-serif';
-                                        ctx.fillStyle = '#9ca3af';
-                                        ctx.fillText(pct + '%', bar.x, bar.y - 14);
-                                        ctx.restore();
-                                    });
-                                }
-                            }]
-                        });
-                    };
-
-                    if (window.Chart) { draw(); }
-                    else {
-                        const s = document.createElement('script');
-                        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
-                        s.onload = draw;
-                        document.head.appendChild(s);
-                    }
-                }
-            }"
-        >
-            <p class="db-section-label">Scholars by Scholarship Type</p>
-            <div class="db-chart-wrap" style="height:300px;">
-                <canvas x-ref="scholarBar" style="width:100%;height:100%;"></canvas>
+        <div class="db-card">
+            <div class="db-table-head">
+                <div>
+                    <p class="db-table-title">Scholars Distribution by Program</p>
+                    <p class="db-table-desc">All scholars, grouped by program</p>
+                </div>
             </div>
+
+            @if($programDistribution->isEmpty())
+                <div class="dh-empty">No scholars found{{ $schoolYear ? ' for this period.' : '.' }}</div>
+            @else
+                @php $maxProgramCount = max((int) $programDistribution->max('count'), 1); @endphp
+
+                @foreach($programDistribution as $item)
+                    @php $programPercentage = round(($item['count'] / $maxProgramCount) * 100, 1); @endphp
+
+                    <div class="dh-progress-row">
+                        <div class="dh-progress-header">
+                            <span class="dh-progress-name">{{ $item['program'] }}</span>
+                            <span class="dh-progress-value">{{ $item['count'] }}</span>
+                        </div>
+                        <div class="dh-progress">
+                            <div class="dh-progress-fill" style="width:{{ $programPercentage }}%;background:#7c3aed;"></div>
+                        </div>
+                    </div>
+                @endforeach
+            @endif
+        </div>
+
+        <div class="db-card">
+            <div class="db-table-head">
+                <div>
+                    <p class="db-table-title">Scholars by Scholarship Type</p>
+                    <p class="db-table-desc">Distribution of scholarship types</p>
+                </div>
+            </div>
+
+            @if($scholarTypes->isEmpty())
+                <div class="dh-empty">No scholar data available.</div>
+            @else
+                @php $maxScholarType = max((int) $scholarTypes->max('count'), 1); @endphp
+
+                @foreach($scholarTypes as $type)
+                    @php $percentage = round(($type->count / $maxScholarType) * 100, 1); @endphp
+
+                    <div class="dh-progress-row">
+                        <div class="dh-progress-header">
+                            <span class="dh-progress-name">{{ $type->type_of_scholarship ?: 'Unknown' }}</span>
+                            <span class="dh-progress-value">{{ $type->count }}</span>
+                        </div>
+                        <div class="dh-progress">
+                            <div class="dh-progress-fill" style="width:{{ $percentage }}%;background:#2563eb;"></div>
+                        </div>
+                    </div>
+                @endforeach
+            @endif
+        </div>
+
+    </div>
+    @endif
+
+    {{-- ROW 3.5 — Counseling Support Needs + Active Scholars Donut --}}
+    <div class="db-grid-2">
+
+        @if($user->isAdmin() || $user->isGuidance())
+        <div class="db-card">
+            <div class="db-table-head">
+                <div>
+                    <p class="db-table-title">Counseling Support Needs</p>
+                    <p class="db-table-desc">Most requested counseling support</p>
+                </div>
+            </div>
+
+            @if($supportNeeds->isEmpty())
+                <div class="dh-empty">No support need data available.</div>
+            @else
+                @php $maxSupport = max((int) $supportNeeds->max('count'), 1); @endphp
+
+                @foreach($supportNeeds as $need)
+                    @php
+                        $percentage = $supportTotal > 0 ? round(($need->count / $supportTotal) * 100, 1) : 0;
+                        $barWidth = round(($need->count / $maxSupport) * 100, 1);
+                    @endphp
+
+                    <div class="dh-progress-row">
+                        <div class="dh-progress-header">
+                            <span class="dh-progress-name">{{ $need->supportNeeded->name ?? 'Unknown' }}</span>
+                            <span class="dh-progress-value">{{ $need->count }} ({{ $percentage }}%)</span>
+                        </div>
+                        <div class="dh-progress">
+                            <div class="dh-progress-fill" style="width:{{ $barWidth }}%;background:#059669;"></div>
+                        </div>
+                    </div>
+                @endforeach
+            @endif
         </div>
         @endif
 
-        @if($user->isAdmin() || $user->isGuidance())
-        <div class="db-card"
-            wire:key="support-chart-{{ $schoolYear }}-{{ $semester }}"
-            x-data="{
-                init() {
-                    const draw = () => {
-                        const canvas = this.$refs.supportBar;
-                        if (!canvas || !window.Chart) return;
-                        if (canvas._chart) canvas._chart.destroy();
-                        const data = {{ $supportChartData }};
-                        if (!data.counts.length) return;
-                        canvas._chart = new window.Chart(canvas, {
-                            type: 'bar',
-                            data: {
-                                labels: data.labels,
-                                datasets: [{ data: data.counts, backgroundColor: data.colors, borderColor: data.colors, borderWidth:1, borderRadius:6, borderSkipped:false }]
-                            },
-                            options: {
-                                responsive: true, maintainAspectRatio: false,
-                                plugins: { legend: { display: false }, tooltip: { enabled: true } },
-                                scales: {
-                                    x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#9ca3af' } },
-                                    y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 }, color: '#9ca3af' } }
-                                }
-                            }
-                        });
-                    };
-                    if (window.Chart) { draw(); }
-                    else {
-                        const s = document.createElement('script');
-                        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
-                        s.onload = draw; document.head.appendChild(s);
-                    }
-                }
-            }"
-        >
-            <p class="db-section-label">Support Needs Distribution</p>
-            <p style="font-size:.75rem;color:#9ca3af;margin:-8px 0 10px;">
-                Total: {{ $supportTotal }} appointments | {{ $supportUnique }} support types
-            </p>
-            <div class="db-chart-wrap" style="height:240px;">
-                <canvas x-ref="supportBar" style="width:100%;height:100%;"></canvas>
+        @if($user->isAdmin() || $user->isScholarship())
+        <div class="db-card">
+            <div class="db-table-head">
+                <div>
+                    <p class="db-table-title">Active Scholars</p>
+                    <p class="db-table-desc">Share of scholars currently active</p>
+                </div>
+            </div>
+
+            <div class="dh-compliance-circle">
+                <div class="dh-compliance-inner">
+                    <span class="dh-compliance-value">{{ number_format($activeScholarsPercentage, 1) }}%</span>
+                    <span class="dh-compliance-label">Active</span>
+                </div>
+            </div>
+
+            <div class="dh-dtr-summary">
+                <div class="dh-dtr-summary-item">
+                    <p class="dh-dtr-summary-number" style="color:#16a34a;">{{ $activeScholars }}</p>
+                    <p class="dh-dtr-summary-label">Active</p>
+                </div>
+                <div class="dh-dtr-summary-item">
+                    <p class="dh-dtr-summary-number" style="color:#dc2626;">{{ $inactiveScholars }}</p>
+                    <p class="dh-dtr-summary-label">Inactive</p>
+                </div>
             </div>
         </div>
         @endif

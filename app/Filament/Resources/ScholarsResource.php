@@ -7,6 +7,7 @@ use App\Imports\ScholarsImport;
 use App\Filament\Resources\ScholarsResource\Pages;
 use App\Models\InstitutionalScholar;
 use App\Models\Scholars;
+use App\Models\DailyTimeRecord;
 use App\Models\Term;
 use App\Models\TypeOfScholarship;
 use Filament\Forms;

@@ -45,7 +45,7 @@ class AdminPanelProvider extends PanelProvider
         ->visible(fn () => ! auth()->user()->hasRole('Department Head') && ! auth()->user()->hasRole('department head')),
     MenuItem::make()
     ->label('Profile')
-    ->url(fn () => \Filament\Facades\Filament::getEditProfileUrl())
+    ->url(fn () => route('filament.admin.auth.profile'))
     ->icon('heroicon-o-user-circle'),
 ])
             ->colors([

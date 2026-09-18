@@ -33,6 +33,7 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('Green Valley College Foundation Inc.')
             ->login(\App\Filament\Pages\Auth\Login::class)
             ->authGuard('web')
+            ->profile()
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->passwordReset(ForgotPassword::class)
@@ -43,9 +44,9 @@ class AdminPanelProvider extends PanelProvider
         ->icon('heroicon-o-cog-6-tooth')
         ->visible(fn () => ! auth()->user()->hasRole('Department Head') && ! auth()->user()->hasRole('department head')),
     MenuItem::make()
-        ->label('Profile')
-        ->url(fn () => '/admin/profile')
-        ->icon('heroicon-o-user-circle'),
+    ->label('Profile')
+    ->url(fn () => \Filament\Facades\Filament::getEditProfileUrl())
+    ->icon('heroicon-o-user-circle'),
 ])
             ->colors([
                 'primary' => Color::Green,

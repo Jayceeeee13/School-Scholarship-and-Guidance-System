@@ -36,16 +36,17 @@ class AdminPanelProvider extends PanelProvider
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->passwordReset(ForgotPassword::class)
-            ->userMenuItems([
-                MenuItem::make()
-                    ->label('Settings')
-                    ->url(fn () => \App\Filament\Pages\ManageSettings::getUrl())
-                    ->icon('heroicon-o-cog-6-tooth'),
-                MenuItem::make()
-                    ->label('Profile')
-                    ->url(fn () => '/admin/profile')
-                    ->icon('heroicon-o-user-circle'),
-            ])
+           ->userMenuItems([
+    MenuItem::make()
+        ->label('Settings')
+        ->url(fn () => \App\Filament\Pages\ManageSettings::getUrl())
+        ->icon('heroicon-o-cog-6-tooth')
+        ->visible(fn () => ! auth()->user()->hasRole('Department Head') && ! auth()->user()->hasRole('department head')),
+    MenuItem::make()
+        ->label('Profile')
+        ->url(fn () => '/admin/profile')
+        ->icon('heroicon-o-user-circle'),
+])
             ->colors([
                 'primary' => Color::Green,
             ])

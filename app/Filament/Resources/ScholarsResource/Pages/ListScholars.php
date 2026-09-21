@@ -894,8 +894,24 @@ class ListScholars extends ListRecords
     ->color('gray')
     ->modalHeading('Edit Institutional Scholar')
     ->modalSubmitActionLabel('Save Changes')
-    ->form(ScholarsResource::scholarFormSchema())
-    ->fillForm(fn (InstitutionalScholar $record): array => $record->toArray())
+    ->mountUsing(function (Forms\Form $form, InstitutionalScholar $record): void {
+        $form->fill($record->toArray());
+    })
+    ->form([
+        Forms\Components\TextInput::make('first_name')->required(),
+        Forms\Components\TextInput::make('last_name')->required(),
+        Forms\Components\TextInput::make('student_id')->label('Student ID'),
+        Forms\Components\Select::make('status')
+            ->options([
+                'active'       => 'Active',
+                'inactive'     => 'Inactive',
+                'graduated'    => 'Graduated',
+                'discontinued' => 'Discontinued',
+                'revoked'      => 'Revoked',
+            ])
+            ->required()
+            ->native(false),
+    ])
     ->action(function (InstitutionalScholar $record, array $data): void {
         $record->update($data);
 

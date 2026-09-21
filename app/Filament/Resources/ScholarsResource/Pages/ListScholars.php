@@ -629,7 +629,10 @@ class ListScholars extends ListRecords
                             ->modalHeading('Assign Department Head')
                             ->modalDescription('This creates (or updates) this scholar\'s record in the main Scholars list and assigns their Department Head.')
                             ->modalSubmitActionLabel('Save Assignment')
-                            ->visible(fn () => auth()->user()->hasAnyRole(['admin', 'scholarship']))
+                            ->visible(fn (InstitutionalScholar $record): bool =>
+    str_contains(strtolower(trim($record->type_of_scholarship ?? '')), 'student representative')
+    && auth()->user()->hasAnyRole(['admin', 'scholarship'])
+)
                             ->form([
                                                                                                     Forms\Components\Select::make('department_head_id')
                                     ->label('Department Head')

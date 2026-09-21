@@ -888,17 +888,24 @@ class ListScholars extends ListRecords
                                     ->visible(fn ($record) => $record->isEligibleForAccomplishmentReports()),
                             ]),
 
-                        Tables\Actions\EditAction::make()
+                        Tables\Actions\Action::make('edit_institutional')
+    ->label('Edit')
+    ->icon('heroicon-o-pencil-square')
+    ->color('gray')
+    ->modalHeading('Edit Institutional Scholar')
+    ->modalSubmitActionLabel('Save Changes')
     ->form(ScholarsResource::scholarFormSchema())
-    ->using(function (InstitutionalScholar $record, array $data): InstitutionalScholar {
+    ->fillForm(fn (InstitutionalScholar $record): array => $record->toArray())
+    ->action(function (InstitutionalScholar $record, array $data): void {
         $record->update($data);
-        return $record;
-    })
-    ->successNotification(
-        \Filament\Notifications\Notification::make()
+
+        Notification::make()
             ->title('Scholar Updated')
             ->success()
-    ),
+            ->send();
+
+        $this->resetTable();
+    }),
 
                         // Tables\Actions\DeleteAction::make(),
                     ])

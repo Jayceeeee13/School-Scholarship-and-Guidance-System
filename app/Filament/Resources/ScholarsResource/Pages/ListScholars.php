@@ -1378,17 +1378,118 @@ class ListScholars extends ListRecords
                                     ->columns(1),
                             ]),
 
-                        Tables\Actions\EditAction::make()
-                            ->mutateFormDataUsing(function (array $data): array {
-                                $data['total_hours'] = DailyTimeRecord::calculateTotalHours(
-                                    $data['am_in'] ?? null,
-                                    $data['am_out'] ?? null,
-                                    $data['pm_in'] ?? null,
-                                    $data['pm_out'] ?? null,
-                                );
+                        Tables\Actions\Action::make('edit_dtr')
+    ->label('Edit')
+    ->icon('heroicon-o-pencil-square')
+    ->color('gray')
+    ->modalHeading('Edit Daily Time Record')
+    ->modalSubmitActionLabel('Save Changes')
+    ->modalWidth('4xl')
+    ->fillForm(fn (DailyTimeRecord $record): array => [
+        'scholar_id'         => $record->scholar_id,
+        'office_assigned'    => $record->office_assigned,
+        'date'               => $record->date?->format('Y-m-d'),
+        'am_in'              => $record->am_in,
+        'am_in_location'     => $record->am_in_location,
+        'am_out'             => $record->am_out,
+        'am_out_location'    => $record->am_out_location,
+        'pm_in'              => $record->pm_in,
+        'pm_in_location'     => $record->pm_in_location,
+        'pm_out'             => $record->pm_out,
+        'pm_out_location'    => $record->pm_out_location,
+        'total_hours'        => $record->total_hours,
+        'remarks'            => $record->remarks,
+    ])
+    ->form([
+        Forms\Components\Select::make('scholar_id')
+            ->label('Scholar (Student Representatives)')
+            ->options(function () {
+                $query = Scholars::where('type_of_scholarship', 'Student Representatives');
 
-                                return $data;
-                            }),
+                if (auth()->user()->isDepartmentHead()) {
+                    $query->where('department_head_id', auth()->id());
+                }
+
+                return $query->get()->mapWithKeys(fn ($s) => [
+                    $s->id => "{$s->first_name} {$s->last_name}",
+                ]);
+            })
+            ->searchable()
+            ->preload()
+            ->required()
+            ->native(false),
+
+        Forms\Components\Select::make('office_assigned')
+            ->label('Office Assigned')
+            ->options(fn () => Department::active()->pluck('name', 'name'))
+            ->searchable()
+            ->preload()
+            ->native(false)
+            ->required(),
+
+        Forms\Components\DatePicker::make('date')
+            ->label('Date')
+            ->required()
+            ->native(false)
+            ->displayFormat('M d, Y')
+            ->maxDate(now()),
+
+        Forms\Components\Grid::make(2)->schema([
+            Forms\Components\TimePicker::make('am_in')->label('AM In')->seconds(false)
+                ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
+            Forms\Components\TextInput::make('am_in_location')->label('AM In Location')->maxLength(150),
+        ]),
+        Forms\Components\Grid::make(2)->schema([
+            Forms\Components\TimePicker::make('am_out')->label('AM Out')->seconds(false)
+                ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
+            Forms\Components\TextInput::make('am_out_location')->label('AM Out Location')->maxLength(150),
+        ]),
+        Forms\Components\Grid::make(2)->schema([
+            Forms\Components\TimePicker::make('pm_in')->label('PM In')->seconds(false)
+                ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
+            Forms\Components\TextInput::make('pm_in_location')->label('PM In Location')->maxLength(150),
+        ]),
+        Forms\Components\Grid::make(2)->schema([
+            Forms\Components\TimePicker::make('pm_out')->label('PM Out')->seconds(false)
+                ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
+            Forms\Components\TextInput::make('pm_out_location')->label('PM Out Location')->maxLength(150),
+        ]),
+
+        Forms\Components\TextInput::make('total_hours')
+            ->label('Total Hours')
+            ->numeric()
+            ->step(0.01)
+            ->readOnly()
+            ->suffix('hrs')
+            ->dehydrated(true)
+            ->columnSpanFull(),
+
+        Forms\Components\Textarea::make('remarks')
+            ->label('Remarks')
+            ->rows(2),
+    ])
+    ->action(function (DailyTimeRecord $record, array $data): void {
+        $data['total_hours'] = DailyTimeRecord::calculateTotalHours(
+            $data['am_in'] ?? null,
+            $data['am_out'] ?? null,
+            $data['pm_in'] ?? null,
+            $data['pm_out'] ?? null,
+        );
+
+        $record->update($data);
+
+        $this->logCustomActivity(
+            $record,
+            'dtr',
+            'updated',
+            "Updated DTR entry for {$record->date?->format('M d, Y')} ({$record->office_assigned})"
+        );
+
+        Notification::make()
+            ->title('DTR entry updated')
+            ->success()
+            ->send();
+    }),
 
                                                     Tables\Actions\Action::make('setAttendance')
                             ->label(fn (DailyTimeRecord $record): string => $record->attendance_status

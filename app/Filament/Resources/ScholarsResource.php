@@ -873,9 +873,13 @@ class ScholarsResource extends Resource
     }
 
     public static function getNavigationBadge(): ?string
-    {
-        return (string) Scholars::where('status', '!=', 'revoked')->count();
+{
+    if (static::isRestrictedToOwnScholars()) {
+        return null;
     }
+
+    return (string) Scholars::where('status', '!=', 'revoked')->count();
+}
 
     public static function getNavigationBadgeColor(): ?string
     {

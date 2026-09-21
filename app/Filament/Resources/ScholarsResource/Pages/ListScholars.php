@@ -343,6 +343,7 @@ class ListScholars extends ListRecords
         if ($this->activeTab === 'institutional') {
             return $table
                 ->query(InstitutionalScholar::query()->where('status', '!=', 'revoked'))
+                ->recordUrl(null) 
                 ->headerActions([
                     Tables\Actions\Action::make('sync_institutional')
                         ->label('Sync from Scholars')
@@ -1065,6 +1066,7 @@ class ListScholars extends ListRecords
 
                     return $this->scopeDtrQueryToRole($query);
                 })
+                ->recordUrl(null) 
                 ->columns([
                     Tables\Columns\TextColumn::make('scholar.full_name')
                         ->label('Name')

@@ -750,7 +750,212 @@ class ScholarsResource extends Resource
                             && ! static::isRestrictedToOwnScholars()
                         ),
 
-                    Tables\Actions\ViewAction::make(),
+                    Tables\Actions\ViewAction::make()
+                        ->modalHeading(fn (Scholars $record): string => static::isRestrictedToOwnScholars()
+                            ? "DTR Records — {$record->first_name} {$record->last_name}"
+                            : "{$record->first_name} {$record->last_name}")
+                        ->modalWidth('4xl')
+                        ->infolist(function (Scholars $record) {
+                            // ── Department Heads: focused DTR-only view ──────────
+                            if (static::isRestrictedToOwnScholars()) {
+                                return [
+                                    \Filament\Infolists\Components\Section::make('Scholar')
+                                        ->icon('heroicon-o-user')
+                                        ->schema([
+                                            \Filament\Infolists\Components\TextEntry::make('full_name')
+                                                ->label('Name'),
+
+                                            \Filament\Infolists\Components\TextEntry::make('program')
+                                                ->label('Program'),
+
+                                            \Filament\Infolists\Components\TextEntry::make('status')
+                                                ->badge()
+                                                ->color(fn (string $state): string => match ($state) {
+                                                    'active'       => 'success',
+                                                    'inactive'     => 'warning',
+                                                    'graduated'    => 'info',
+                                                    'discontinued' => 'danger',
+                                                    'revoked'      => 'danger',
+                                                    default        => 'gray',
+                                                }),
+                                        ])
+                                        ->columns(3),
+
+                                    \Filament\Infolists\Components\Section::make('Daily Time Records')
+                                        ->icon('heroicon-o-clock')
+                                        ->description('Every DTR entry this scholar has submitted, most recent first.')
+                                        ->schema([
+                                            \Filament\Infolists\Components\RepeatableEntry::make('dtr_history')
+                                                ->label('')
+                                                ->getStateUsing(fn (Scholars $record) => $record->dailyTimeRecords()
+                                                    ->whereNull('archived_at')
+                                                    ->orderByDesc('date')
+                                                    ->get())
+                                                ->schema([
+                                                    \Filament\Infolists\Components\TextEntry::make('date')
+                                                        ->label('Date')
+                                                        ->date('M d, Y'),
+
+                                                    \Filament\Infolists\Components\TextEntry::make('office_assigned')
+                                                        ->label('Office')
+                                                        ->placeholder('—'),
+
+                                                    \Filament\Infolists\Components\TextEntry::make('total_hours')
+                                                        ->label('Total Hrs')
+                                                        ->numeric(2)
+                                                        ->placeholder('—'),
+
+                                                    \Filament\Infolists\Components\TextEntry::make('attendance_status')
+                                                        ->label('Attendance')
+                                                        ->badge()
+                                                        ->color(fn (?string $state): string => match ($state) {
+                                                            'present'  => 'success',
+                                                            'absent'   => 'danger',
+                                                            'excused'  => 'info',
+                                                            'half_day' => 'warning',
+                                                            'late'     => 'warning',
+                                                            default    => 'gray',
+                                                        })
+                                                        ->formatStateUsing(fn ($record) => $record->attendance_status_label)
+                                                        ->placeholder('—'),
+
+                                                    \Filament\Infolists\Components\TextEntry::make('status')
+                                                        ->label('DTR Status')
+                                                        ->badge()
+                                                        ->color(fn (string $state): string => match ($state) {
+                                                            'pending'   => 'warning',
+                                                            'approved'  => 'info',
+                                                            'submitted' => 'primary',
+                                                            'received'  => 'success',
+                                                            'rejected'  => 'danger',
+                                                            default     => 'gray',
+                                                        })
+                                                        ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+                                                ])
+                                                ->columns(5),
+                                        ]),
+                                ];
+                            }
+
+                            // ── Admin/Scholarship: full profile, same fields as
+                            // the form, just read-only ────────────────────────
+                            return [
+                                \Filament\Infolists\Components\Section::make('Scholar Information')
+                                    ->icon('heroicon-o-identification')
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('student_id')
+                                            ->label('Student ID')
+                                            ->placeholder('Not Assigned'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('status')
+                                            ->badge()
+                                            ->color(fn (string $state): string => match ($state) {
+                                                'active'       => 'success',
+                                                'inactive'     => 'warning',
+                                                'graduated'    => 'info',
+                                                'discontinued' => 'danger',
+                                                'revoked'      => 'danger',
+                                                default        => 'gray',
+                                            }),
+
+                                        \Filament\Infolists\Components\TextEntry::make('term.school_year')
+                                            ->label('Term')
+                                            ->formatStateUsing(fn ($state, $record) => $record->term
+                                                ? "{$record->term->school_year} — {$record->term->semester}"
+                                                : '—'),
+                                    ])
+                                    ->columns(3)
+                                    ->collapsible(),
+
+                                \Filament\Infolists\Components\Section::make('Personal Information')
+                                    ->icon('heroicon-o-user')
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('first_name')
+                                            ->label('First Name'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('middle_name')
+                                            ->label('Middle Name'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('last_name')
+                                            ->label('Last Name'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('extension_name')
+                                            ->label('Extension')
+                                            ->placeholder('—'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('sex')
+                                            ->badge()
+                                            ->color(fn (string $state): string => match ($state) {
+                                                'Male'   => 'info',
+                                                'Female' => 'danger',
+                                                default  => 'gray',
+                                            }),
+
+                                        \Filament\Infolists\Components\TextEntry::make('birthdate')
+                                            ->date('M d, Y'),
+                                    ])
+                                    ->columns(4)
+                                    ->collapsible(),
+
+                                \Filament\Infolists\Components\Section::make('Academic Information')
+                                    ->icon('heroicon-o-academic-cap')
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('program')
+                                            ->label('Program')
+                                            ->badge()
+                                            ->color('info'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('year_level')
+                                            ->label('Year Level')
+                                            ->formatStateUsing(fn ($state) => match ((string) $state) {
+                                                '1'     => '1st Year',
+                                                '2'     => '2nd Year',
+                                                '3'     => '3rd Year',
+                                                '4'     => '4th Year',
+                                                '5'     => '5th Year',
+                                                default => $state,
+                                            })
+                                            ->badge()
+                                            ->color('primary'),
+                                    ])
+                                    ->columns(2)
+                                    ->collapsible(),
+
+                                \Filament\Infolists\Components\Section::make('Scholarship Details')
+                                    ->icon('heroicon-o-star')
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('type_of_scholarship')
+                                            ->label('Type of Scholarship')
+                                            ->badge()
+                                            ->color('success'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('batch_no')
+                                            ->label('Batch Number')
+                                            ->placeholder('Not Set'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('ip_group')
+                                            ->label('IP Group')
+                                            ->placeholder('—'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('pwd')
+                                            ->label('PWD')
+                                            ->placeholder('—'),
+
+                                        \Filament\Infolists\Components\TextEntry::make('benefit')
+                                            ->label('Scholarship Benefit')
+                                            ->formatStateUsing(function ($state) {
+                                                if (is_null($state)) return 'Not set';
+                                                return \App\Models\ExamAttempt::resolveDiscount((int) $state)['label'];
+                                            }),
+
+                                        \Filament\Infolists\Components\TextEntry::make('departmentHead.name')
+                                            ->label('Department Head')
+                                            ->placeholder('— Not Assigned —'),
+                                    ])
+                                    ->columns(3)
+                                    ->collapsible(),
+                            ];
+                        }),
 
                     Tables\Actions\EditAction::make()
                         ->visible(fn () => ! static::isRestrictedToOwnScholars()),

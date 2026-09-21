@@ -392,11 +392,16 @@ class ScholarsResource extends Resource
             ->columns(static::scholarTableColumns())
             ->headerActions([
                 Tables\Actions\Action::make('view_accomplishment_reports')
-                    ->label('View Accomplishment Reports')
-                    ->icon('heroicon-o-document-check')
-                    ->color('gray')
-                    ->url(fn () => static::getUrl('accomplishment-reports'))
-                    ->visible(fn () => ! static::isRestrictedToOwnScholars()),
+    ->label('View Accomplishment Reports')
+    ->icon('heroicon-o-document-check')
+    ->color('gray')
+    ->url(fn () => static::getUrl('accomplishment-reports'))
+    ->visible(function ($livewire) {
+        // Hidden specifically on the "All Scholars" tab; still shows on
+        // Revoked Scholars (both tabs share this same table() method).
+        return ! static::isRestrictedToOwnScholars()
+            && ($livewire->activeTab ?? 'all') !== 'all';
+    }),
 
                 Tables\Actions\Action::make('export')
                     ->label('Export Excel')

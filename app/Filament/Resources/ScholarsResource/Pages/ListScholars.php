@@ -894,23 +894,147 @@ class ListScholars extends ListRecords
     ->color('gray')
     ->modalHeading('Edit Institutional Scholar')
     ->modalSubmitActionLabel('Save Changes')
+    ->modalWidth('4xl')
     ->mountUsing(function (Forms\Form $form, InstitutionalScholar $record): void {
-        $form->fill($record->toArray());
+        $form->fill([
+            'student_id'          => $record->student_id,
+            'first_name'          => $record->first_name,
+            'middle_name'         => $record->middle_name,
+            'last_name'           => $record->last_name,
+            'extension_name'      => $record->extension_name,
+            'sex'                 => $record->sex,
+            'birthdate'           => $record->birthdate?->format('Y-m-d'),
+            'program'             => $record->program,
+            'year_level'          => $record->year_level,
+            'type_of_scholarship' => $record->type_of_scholarship,
+            'batch_no'            => $record->batch_no,
+            'ip_group'            => $record->ip_group,
+            'pwd'                 => $record->pwd,
+            'benefit'             => $record->benefit,
+            'status'              => $record->status,
+            'term_id'             => $record->term_id,
+        ]);
     })
     ->form([
-        Forms\Components\TextInput::make('first_name')->required(),
-        Forms\Components\TextInput::make('last_name')->required(),
-        Forms\Components\TextInput::make('student_id')->label('Student ID'),
-        Forms\Components\Select::make('status')
-            ->options([
-                'active'       => 'Active',
-                'inactive'     => 'Inactive',
-                'graduated'    => 'Graduated',
-                'discontinued' => 'Discontinued',
-                'revoked'      => 'Revoked',
-            ])
+        Forms\Components\Grid::make(2)
+            ->schema([
+                Forms\Components\TextInput::make('student_id')
+                    ->label('Student ID')
+                    ->numeric()
+                    ->placeholder('Optional'),
+
+                Forms\Components\Select::make('status')
+                    ->label('Status')
+                    ->options([
+                        'active'       => 'Active',
+                        'inactive'     => 'Inactive',
+                        'graduated'    => 'Graduated',
+                        'discontinued' => 'Discontinued',
+                        'revoked'      => 'Revoked',
+                    ])
+                    ->required()
+                    ->native(false),
+            ]),
+
+        Forms\Components\Select::make('term_id')
+            ->label('Term')
+            ->options(function () {
+                return Term::orderByDesc('is_active')
+                    ->orderByDesc('id')
+                    ->get()
+                    ->mapWithKeys(fn ($term) => [
+                        $term->id => $term->school_year . ' — ' . $term->semester
+                            . ($term->is_active ? ' (Active)' : ''),
+                    ]);
+            })
             ->required()
-            ->native(false),
+            ->native(false)
+            ->searchable(),
+
+        Forms\Components\Grid::make(4)
+            ->schema([
+                Forms\Components\TextInput::make('first_name')
+                    ->label('First Name')
+                    ->required()
+                    ->maxLength(200),
+
+                Forms\Components\TextInput::make('middle_name')
+                    ->label('Middle Name')
+                    ->maxLength(200),
+
+                Forms\Components\TextInput::make('last_name')
+                    ->label('Last Name')
+                    ->required()
+                    ->maxLength(200),
+
+                Forms\Components\TextInput::make('extension_name')
+                    ->label('Extension')
+                    ->placeholder('Jr., Sr., III')
+                    ->maxLength(200),
+            ]),
+
+        Forms\Components\Grid::make(2)
+            ->schema([
+                Forms\Components\Select::make('sex')
+                    ->label('Sex')
+                    ->options([
+                        'Male'   => 'Male',
+                        'Female' => 'Female',
+                    ])
+                    ->required()
+                    ->native(false),
+
+                Forms\Components\DatePicker::make('birthdate')
+                    ->label('Birthdate')
+                    ->required()
+                    ->native(false)
+                    ->maxDate(now()),
+            ]),
+
+        Forms\Components\Grid::make(2)
+            ->schema([
+                Forms\Components\TextInput::make('program')
+                    ->label('Program')
+                    ->required()
+                    ->maxLength(200),
+
+                Forms\Components\Select::make('year_level')
+                    ->label('Year Level')
+                    ->options([
+                        '1' => '1st Year',
+                        '2' => '2nd Year',
+                        '3' => '3rd Year',
+                        '4' => '4th Year',
+                        '5' => '5th Year',
+                    ])
+                    ->required()
+                    ->native(false),
+            ]),
+
+        Forms\Components\Grid::make(3)
+            ->schema([
+                Forms\Components\TextInput::make('type_of_scholarship')
+                    ->label('Type of Scholarship')
+                    ->required()
+                    ->maxLength(255),
+
+                Forms\Components\TextInput::make('batch_no')
+                    ->label('Batch Number')
+                    ->numeric(),
+
+                Forms\Components\TextInput::make('ip_group')
+                    ->label('IP Group')
+                    ->maxLength(255),
+
+                Forms\Components\TextInput::make('pwd')
+                    ->label('PWD')
+                    ->maxLength(200),
+
+                Forms\Components\TextInput::make('benefit')
+                    ->label('Benefit')
+                    ->numeric()
+                    ->prefix('₱'),
+            ]),
     ])
     ->action(function (InstitutionalScholar $record, array $data): void {
         $record->update($data);

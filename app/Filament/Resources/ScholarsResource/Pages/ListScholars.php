@@ -895,26 +895,24 @@ class ListScholars extends ListRecords
     ->modalHeading('Edit Institutional Scholar')
     ->modalSubmitActionLabel('Save Changes')
     ->modalWidth('4xl')
-    ->mountUsing(function (Forms\Form $form, InstitutionalScholar $record): void {
-        $form->fill([
-            'student_id'          => $record->student_id,
-            'first_name'          => $record->first_name,
-            'middle_name'         => $record->middle_name,
-            'last_name'           => $record->last_name,
-            'extension_name'      => $record->extension_name,
-            'sex'                 => $record->sex,
-            'birthdate'           => $record->birthdate?->format('Y-m-d'),
-            'program'             => $record->program,
-            'year_level'          => $record->year_level,
-            'type_of_scholarship' => $record->type_of_scholarship,
-            'batch_no'            => $record->batch_no,
-            'ip_group'            => $record->ip_group,
-            'pwd'                 => $record->pwd,
-            'benefit'             => $record->benefit,
-            'status'              => $record->status,
-            'term_id'             => $record->term_id,
-        ]);
-    })
+    ->fillForm(fn (InstitutionalScholar $record): array => [
+        'student_id'          => $record->student_id,
+        'first_name'          => $record->first_name,
+        'middle_name'         => $record->middle_name,
+        'last_name'           => $record->last_name,
+        'extension_name'      => $record->extension_name,
+        'sex'                 => $record->sex,
+        'birthdate'           => $record->birthdate?->format('Y-m-d'),
+        'program'             => $record->program,
+        'year_level'          => (string) $record->year_level,
+        'type_of_scholarship' => $record->type_of_scholarship,
+        'batch_no'            => $record->batch_no,
+        'ip_group'            => $record->ip_group,
+        'pwd'                 => $record->pwd,
+        'benefit'             => $record->benefit,
+        'status'              => $record->status,
+        'term_id'             => $record->term_id,
+    ])
     ->form([
         Forms\Components\Grid::make(2)
             ->schema([

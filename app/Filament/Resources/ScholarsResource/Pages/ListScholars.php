@@ -889,7 +889,16 @@ class ListScholars extends ListRecords
                             ]),
 
                         Tables\Actions\EditAction::make()
-                            ->form(ScholarsResource::scholarFormSchema()),
+    ->form(ScholarsResource::scholarFormSchema())
+    ->using(function (InstitutionalScholar $record, array $data): InstitutionalScholar {
+        $record->update($data);
+        return $record;
+    })
+    ->successNotification(
+        \Filament\Notifications\Notification::make()
+            ->title('Scholar Updated')
+            ->success()
+    ),
 
                         // Tables\Actions\DeleteAction::make(),
                     ])

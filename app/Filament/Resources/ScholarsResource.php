@@ -761,6 +761,59 @@ class ScholarsResource extends Resource
                     ->color(fn ($state) => $state ? 'primary' : 'gray')
                     ->formatStateUsing(fn ($state) => $state ?? 'Not Assigned'),
 
+                \Filament\Infolists\Components\TextEntry::make('status')
+                    ->label('Status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'active'       => 'success',
+                        'inactive'     => 'warning',
+                        'graduated'    => 'info',
+                        'discontinued' => 'danger',
+                        'revoked'      => 'danger',
+                        default        => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+
+                \Filament\Infolists\Components\TextEntry::make('term.school_year')
+                    ->label('Term')
+                    ->formatStateUsing(fn ($state, $record) => $record->term
+                        ? $record->term->school_year . ' — ' . $record->term->semester
+                        : '—')
+                    ->badge()
+                    ->color('gray'),
+
+                \Filament\Infolists\Components\TextEntry::make('type_of_scholarship')
+                    ->label('Scholarship Type')
+                    ->badge()
+                    ->color('success'),
+
+                \Filament\Infolists\Components\TextEntry::make('batch_no')
+                    ->label('Batch')
+                    ->badge()
+                    ->color(fn ($state) => $state ? 'warning' : 'gray')
+                    ->formatStateUsing(fn ($state) => $state ?? 'Not Set'),
+
+                \Filament\Infolists\Components\TextEntry::make('benefit')
+                    ->label('Benefit')
+                    ->formatStateUsing(function ($state): string {
+                        if (is_null($state)) return 'Not set';
+                        return \App\Models\ExamAttempt::resolveDiscount((int) $state)['label'];
+                    })
+                    ->badge()
+                    ->color(function ($state): string {
+                        if (is_null($state)) return 'gray';
+                        return \App\Models\ExamAttempt::resolveDiscount((int) $state)['color'];
+                    }),
+
+                \Filament\Infolists\Components\TextEntry::make('departmentHead.name')
+                    ->label('Department Head')
+                    ->placeholder('— Not Assigned —'),
+            ])
+            ->columns(4),
+
+        \Filament\Infolists\Components\Section::make('Personal Information')
+            ->icon('heroicon-o-user')
+            ->schema([
                 \Filament\Infolists\Components\TextEntry::make('first_name')
                     ->label('First Name'),
 
@@ -805,54 +858,6 @@ class ScholarsResource extends Resource
                     })
                     ->badge()
                     ->color('primary'),
-
-                \Filament\Infolists\Components\TextEntry::make('type_of_scholarship')
-                    ->label('Scholarship Type')
-                    ->badge()
-                    ->color('success'),
-
-                \Filament\Infolists\Components\TextEntry::make('batch_no')
-                    ->label('Batch')
-                    ->badge()
-                    ->color(fn ($state) => $state ? 'warning' : 'gray')
-                    ->formatStateUsing(fn ($state) => $state ?? 'Not Set'),
-
-                \Filament\Infolists\Components\TextEntry::make('benefit')
-                    ->label('Benefit')
-                    ->formatStateUsing(function ($state): string {
-                        if (is_null($state)) return 'Not set';
-                        return \App\Models\ExamAttempt::resolveDiscount((int) $state)['label'];
-                    })
-                    ->badge()
-                    ->color(function ($state): string {
-                        if (is_null($state)) return 'gray';
-                        return \App\Models\ExamAttempt::resolveDiscount((int) $state)['color'];
-                    }),
-
-                \Filament\Infolists\Components\TextEntry::make('status')
-                    ->label('Status')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'active'       => 'success',
-                        'inactive'     => 'warning',
-                        'graduated'    => 'info',
-                        'discontinued' => 'danger',
-                        'revoked'      => 'danger',
-                        default        => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state): string => ucfirst($state)),
-
-                \Filament\Infolists\Components\TextEntry::make('departmentHead.name')
-                    ->label('Department Head')
-                    ->placeholder('— Not Assigned —'),
-
-                \Filament\Infolists\Components\TextEntry::make('term.school_year')
-                    ->label('Term')
-                    ->formatStateUsing(fn ($state, $record) => $record->term
-                        ? $record->term->school_year . ' — ' . $record->term->semester
-                        : '—')
-                    ->badge()
-                    ->color('gray'),
             ])
             ->columns(4),
 
@@ -869,6 +874,24 @@ class ScholarsResource extends Resource
                         \Filament\Infolists\Components\TextEntry::make('office_assigned')
                             ->label('Office')
                             ->placeholder('—'),
+
+                        \Filament\Infolists\Components\TextEntry::make('total_hours')
+                            ->label('Total Hrs')
+                            ->numeric(2)
+                            ->suffix(' hrs')
+                            ->placeholder('—'),
+
+                        \Filament\Infolists\Components\TextEntry::make('status')
+                            ->badge()
+                            ->color(fn (string $state): string => match ($state) {
+                                'pending'   => 'warning',
+                                'approved'  => 'info',
+                                'submitted' => 'primary',
+                                'received'  => 'success',
+                                'rejected'  => 'danger',
+                                default     => 'gray',
+                            })
+                            ->formatStateUsing(fn (string $state): string => ucfirst($state)),
 
                         \Filament\Infolists\Components\TextEntry::make('am_in')
                             ->label('AM In')
@@ -893,24 +916,6 @@ class ScholarsResource extends Resource
                             ->formatStateUsing(fn ($state) => $state
                                 ? \Carbon\Carbon::parse($state)->format('h:i A')
                                 : '—'),
-
-                        \Filament\Infolists\Components\TextEntry::make('total_hours')
-                            ->label('Total Hrs')
-                            ->numeric(2)
-                            ->suffix(' hrs')
-                            ->placeholder('—'),
-
-                        \Filament\Infolists\Components\TextEntry::make('status')
-                            ->badge()
-                            ->color(fn (string $state): string => match ($state) {
-                                'pending'   => 'warning',
-                                'approved'  => 'info',
-                                'submitted' => 'primary',
-                                'received'  => 'success',
-                                'rejected'  => 'danger',
-                                default     => 'gray',
-                            })
-                            ->formatStateUsing(fn (string $state): string => ucfirst($state)),
                     ])
                     ->columns(4),
             ])

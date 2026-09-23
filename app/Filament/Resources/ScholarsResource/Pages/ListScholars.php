@@ -1584,49 +1584,48 @@ class ListScholars extends ListRecords
         && (auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
     )
     ->infolist(function (DailyTimeRecord $record) {
-        $scholarId = $record->scholar_id; // scalar only — never capture $record itself below
+    // Do ALL the work here, immediately — no nested closures below.
+    $scholarId = $record->scholar_id;
+    $scholarName = trim("{$record->scholar?->first_name} {$record->scholar?->last_name}");
 
-        return [
-            \Filament\Infolists\Components\Section::make('Entries That Will Be Submitted')
-                ->description(function () use ($scholarId) {
-                    $count = DailyTimeRecord::where('scholar_id', $scholarId)
-                        ->where('status', 'approved')
-                        ->whereNull('archived_at')
-                        ->count();
-                    return "These {$count} Approved DTR entrie(s) will all be sent to Admin/Scholarship together.";
-                })
-                ->icon('heroicon-o-clipboard-document-list')
-                ->schema([
-                    \Filament\Infolists\Components\RepeatableEntry::make('preview')
-                        ->label('')
-                        ->state(function () use ($scholarId) {
-                            return DailyTimeRecord::where('scholar_id', $scholarId)
-                                ->where('status', 'approved')
-                                ->whereNull('archived_at')
-                                ->orderBy('date')
-                                ->get()
-                                ->map(fn ($d) => [
-                                    'date'        => $d->date?->format('M d, Y'),
-                                    'office'      => $d->office_assigned ?? '—',
-                                    'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) . ' hrs' : '—',
-                                ])
-                                ->toArray();
-                        })
-                        ->schema([
-                            \Filament\Infolists\Components\TextEntry::make('date')
-                                ->label('Date')
-                                ->getStateUsing(fn ($state) => $state['date'] ?? '—'),
-                            \Filament\Infolists\Components\TextEntry::make('office')
-                                ->label('Office')
-                                ->getStateUsing(fn ($state) => $state['office'] ?? '—'),
-                            \Filament\Infolists\Components\TextEntry::make('total_hours')
-                                ->label('Total Hrs')
-                                ->getStateUsing(fn ($state) => $state['total_hours'] ?? '—'),
-                        ])
-                        ->columns(3),
-                ]),
-        ];
-    })
+    $entries = DailyTimeRecord::where('scholar_id', $scholarId)
+        ->where('status', 'approved')
+        ->whereNull('archived_at')
+        ->orderBy('date')
+        ->get()
+        ->map(fn ($d) => [
+            'date'        => $d->date?->format('M d, Y'),
+            'office'      => $d->office_assigned ?? '—',
+            'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) . ' hrs' : '—',
+        ])
+        ->toArray();
+
+    $count = count($entries);
+
+    // Everything passed below is now a plain string/array — no closures at all.
+    return [
+        \Filament\Infolists\Components\Section::make('Entries That Will Be Submitted')
+            ->description("These {$count} Approved DTR entrie(s) for {$scholarName} will all be sent to Admin/Scholarship together.")
+            ->icon('heroicon-o-clipboard-document-list')
+            ->schema([
+                \Filament\Infolists\Components\RepeatableEntry::make('preview')
+                    ->label('')
+                    ->state($entries)
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('date')
+                            ->label('Date')
+                            ->getStateUsing(static fn ($state) => $state['date'] ?? '—'),
+                        \Filament\Infolists\Components\TextEntry::make('office')
+                            ->label('Office')
+                            ->getStateUsing(static fn ($state) => $state['office'] ?? '—'),
+                        \Filament\Infolists\Components\TextEntry::make('total_hours')
+                            ->label('Total Hrs')
+                            ->getStateUsing(static fn ($state) => $state['total_hours'] ?? '—'),
+                    ])
+                    ->columns(3),
+            ]),
+    ];
+})
     ->action(function (DailyTimeRecord $record): void {
         $scholarId = $record->scholar_id;
 

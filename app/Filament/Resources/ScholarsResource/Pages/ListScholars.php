@@ -1583,31 +1583,48 @@ class ListScholars extends ListRecords
         $record->status === 'approved'
         && (auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
     )
-    ->modalContent(function (DailyTimeRecord $record) {           // 👈 REPLACE THIS WHOLE CLOSURE
-        $scholarId = $record->scholar_id;
-        $scholarName = trim("{$record->scholar?->first_name} {$record->scholar?->last_name}");
+    ->modalContent(function (DailyTimeRecord $record) {
+    $scholarId = $record->scholar_id;
+    $scholar = $record->scholar;
+    $scholarName = trim("{$scholar?->first_name} {$scholar?->last_name}");
 
-        $entries = DailyTimeRecord::where('scholar_id', $scholarId)
-            ->where('status', 'approved')
-            ->whereNull('archived_at')
-            ->orderBy('date')
-            ->get()
-            ->map(fn ($d) => [
-                'date'        => $d->date?->format('M d, Y'),
-                'am_in'       => $d->am_in ? \Carbon\Carbon::parse($d->am_in)->format('h:i A') : null,
-                'am_out'      => $d->am_out ? \Carbon\Carbon::parse($d->am_out)->format('h:i A') : null,
-                'pm_in'       => $d->pm_in ? \Carbon\Carbon::parse($d->pm_in)->format('h:i A') : null,
-                'pm_out'      => $d->pm_out ? \Carbon\Carbon::parse($d->pm_out)->format('h:i A') : null,
-                'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) : '—',
-                'remarks'     => $d->remarks,
-            ])
-            ->toArray();
+    $yearLabel = match ((string) $scholar?->year_level) {
+        '1' => '1st Year', '2' => '2nd Year', '3' => '3rd Year',
+        '4' => '4th Year', '5' => '5th Year', default => $scholar?->year_level,
+    };
+    $courseYear = trim("{$scholar?->program} - {$yearLabel}", ' -');
 
-        return view('filament.modals.dtr-submit-preview', [
-            'entries'     => $entries,
-            'scholarName' => $scholarName,
-        ]);
-    })
+    $records = DailyTimeRecord::where('scholar_id', $scholarId)
+        ->where('status', 'approved')
+        ->whereNull('archived_at')
+        ->orderBy('date')
+        ->get();
+
+    // If entries span more than one month, show the range; otherwise show the single month.
+    $months = $records->pluck('date')->filter()->map(fn ($d) => $d->format('F Y'))->unique();
+    $monthLabel = $months->count() > 1
+        ? $months->first() . ' – ' . $months->last()
+        : $months->first();
+
+    $entries = $records->map(fn ($d) => [
+        'date'        => $d->date?->format('M d, Y'),
+        'am_in'       => $d->am_in ? \Carbon\Carbon::parse($d->am_in)->format('h:i A') : null,
+        'am_out'      => $d->am_out ? \Carbon\Carbon::parse($d->am_out)->format('h:i A') : null,
+        'pm_in'       => $d->pm_in ? \Carbon\Carbon::parse($d->pm_in)->format('h:i A') : null,
+        'pm_out'      => $d->pm_out ? \Carbon\Carbon::parse($d->pm_out)->format('h:i A') : null,
+        'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) : '—',
+        'remarks'     => $d->remarks,
+    ])->toArray();
+
+    return view('filament.modals.dtr-submit-preview', [
+        'entries'        => $entries,
+        'scholarName'    => $scholarName,
+        'courseYear'     => $courseYear,
+        'monthLabel'     => $monthLabel,
+        'officeAssigned' => $records->first()?->office_assigned,
+        'totalHours'     => $records->sum('total_hours'),
+    ]);
+})
     ->action(function (DailyTimeRecord $record): void {
         $scholarId = $record->scholar_id;
         $scholarName = trim("{$record->scholar?->first_name} {$record->scholar?->last_name}");

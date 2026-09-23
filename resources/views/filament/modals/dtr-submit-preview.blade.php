@@ -4,8 +4,28 @@
             Entries That Will Be Submitted
         </h3>
         <p class="text-sm text-gray-500 dark:text-gray-400">
-            These {{ count($entries) }} Approved DTR entrie(s) for {{ $scholarName }} will all be sent to Admin/Scholarship together.
+            These {{ count($entries) }} Approved DTR entrie(s) will all be sent to Admin/Scholarship together.
         </p>
+    </div>
+
+    {{-- Name / Course & Year / Month / Office Assigned --}}
+    <div class="mb-4 grid grid-cols-2 gap-x-6 gap-y-2 rounded-lg bg-gray-50 p-3 text-xs ring-1 ring-gray-950/5 dark:bg-white/5 dark:ring-white/10">
+        <div>
+            <span class="font-semibold text-gray-600 dark:text-gray-300">Name:</span>
+            <span class="text-gray-800 dark:text-gray-100">{{ $scholarName }}</span>
+        </div>
+        <div>
+            <span class="font-semibold text-gray-600 dark:text-gray-300">Course &amp; Year:</span>
+            <span class="text-gray-800 dark:text-gray-100">{{ $courseYear ?: '—' }}</span>
+        </div>
+        <div>
+            <span class="font-semibold text-gray-600 dark:text-gray-300">Month:</span>
+            <span class="text-gray-800 dark:text-gray-100">{{ $monthLabel ?: '—' }}</span>
+        </div>
+        <div>
+            <span class="font-semibold text-gray-600 dark:text-gray-300">Office Assigned:</span>
+            <span class="text-gray-800 dark:text-gray-100">{{ $officeAssigned ?: '—' }}</span>
+        </div>
     </div>
 
     <div class="overflow-x-auto rounded-lg ring-1 ring-gray-950/5 dark:ring-white/10">
@@ -66,6 +86,19 @@
                     </tr>
                 @endforelse
             </tbody>
+            @if (count($entries) > 0)
+                <tfoot>
+                    <tr class="bg-gray-50 font-semibold dark:bg-white/5">
+                        <td colspan="5" class="border-t border-gray-200 px-3 py-2 text-right dark:border-white/10">
+                            Total Hours
+                        </td>
+                        <td class="border-t border-gray-200 px-3 py-2 text-center dark:border-white/10">
+                            {{ number_format($totalHours ?? 0, 2) }}
+                        </td>
+                        <td class="border-t border-gray-200 dark:border-white/10"></td>
+                    </tr>
+                </tfoot>
+            @endif
         </table>
     </div>
 </div>

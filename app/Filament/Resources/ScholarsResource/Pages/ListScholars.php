@@ -1583,7 +1583,7 @@ class ListScholars extends ListRecords
         $record->status === 'approved'
         && (auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
     )
-    ->modalContent(function (DailyTimeRecord $record) {
+    ->modalContent(function (DailyTimeRecord $record) {           // 👈 REPLACE THIS WHOLE CLOSURE
         $scholarId = $record->scholar_id;
         $scholarName = trim("{$record->scholar?->first_name} {$record->scholar?->last_name}");
 
@@ -1594,8 +1594,12 @@ class ListScholars extends ListRecords
             ->get()
             ->map(fn ($d) => [
                 'date'        => $d->date?->format('M d, Y'),
-                'office'      => $d->office_assigned ?? '—',
-                'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) . ' hrs' : '—',
+                'am_in'       => $d->am_in ? \Carbon\Carbon::parse($d->am_in)->format('h:i A') : null,
+                'am_out'      => $d->am_out ? \Carbon\Carbon::parse($d->am_out)->format('h:i A') : null,
+                'pm_in'       => $d->pm_in ? \Carbon\Carbon::parse($d->pm_in)->format('h:i A') : null,
+                'pm_out'      => $d->pm_out ? \Carbon\Carbon::parse($d->pm_out)->format('h:i A') : null,
+                'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) : '—',
+                'remarks'     => $d->remarks,
             ])
             ->toArray();
 

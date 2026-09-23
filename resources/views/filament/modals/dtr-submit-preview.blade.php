@@ -9,24 +9,60 @@
     </div>
 
     <div class="overflow-x-auto rounded-lg ring-1 ring-gray-950/5 dark:ring-white/10">
-        <table class="w-full text-left text-sm">
+        <table class="w-full text-left text-xs">
             <thead class="bg-gray-50 dark:bg-white/5">
                 <tr>
-                    <th class="px-4 py-2 font-medium text-gray-700 dark:text-gray-200">Date</th>
-                    <th class="px-4 py-2 font-medium text-gray-700 dark:text-gray-200">Office</th>
-                    <th class="px-4 py-2 font-medium text-gray-700 dark:text-gray-200">Total Hrs</th>
+                    <th rowspan="2" class="border-b border-r border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-white/10 dark:text-gray-200">
+                        Day
+                    </th>
+                    <th colspan="2" class="border-b border-r border-gray-200 px-3 py-1.5 text-center font-semibold text-gray-700 dark:border-white/10 dark:text-gray-200">
+                        AM
+                    </th>
+                    <th colspan="2" class="border-b border-r border-gray-200 px-3 py-1.5 text-center font-semibold text-gray-700 dark:border-white/10 dark:text-gray-200">
+                        PM
+                    </th>
+                    <th rowspan="2" class="border-b border-r border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-white/10 dark:text-gray-200">
+                        Total Hours
+                    </th>
+                    <th rowspan="2" class="border-b border-gray-200 px-3 py-2 text-center font-semibold text-gray-700 dark:border-white/10 dark:text-gray-200">
+                        Remarks
+                    </th>
+                </tr>
+                <tr>
+                    <th class="border-b border-r border-gray-200 px-3 py-1.5 text-center font-medium text-gray-600 dark:border-white/10 dark:text-gray-300">In</th>
+                    <th class="border-b border-r border-gray-200 px-3 py-1.5 text-center font-medium text-gray-600 dark:border-white/10 dark:text-gray-300">Out</th>
+                    <th class="border-b border-r border-gray-200 px-3 py-1.5 text-center font-medium text-gray-600 dark:border-white/10 dark:text-gray-300">In</th>
+                    <th class="border-b border-r border-gray-200 px-3 py-1.5 text-center font-medium text-gray-600 dark:border-white/10 dark:text-gray-300">Out</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100 dark:divide-white/5">
                 @forelse ($entries as $entry)
                     <tr>
-                        <td class="px-4 py-2 text-gray-700 dark:text-gray-200">{{ $entry['date'] }}</td>
-                        <td class="px-4 py-2 text-gray-700 dark:text-gray-200">{{ $entry['office'] }}</td>
-                        <td class="px-4 py-2 text-gray-700 dark:text-gray-200">{{ $entry['total_hours'] }}</td>
+                        <td class="border-r border-gray-100 px-3 py-2 text-center text-gray-700 dark:border-white/5 dark:text-gray-200">
+                            {{ $entry['date'] }}
+                        </td>
+                        <td class="border-r border-gray-100 px-3 py-2 text-center text-gray-700 dark:border-white/5 dark:text-gray-200">
+                            {{ $entry['am_in'] ?? '—' }}
+                        </td>
+                        <td class="border-r border-gray-100 px-3 py-2 text-center text-gray-700 dark:border-white/5 dark:text-gray-200">
+                            {{ $entry['am_out'] ?? '—' }}
+                        </td>
+                        <td class="border-r border-gray-100 px-3 py-2 text-center text-gray-700 dark:border-white/5 dark:text-gray-200">
+                            {{ $entry['pm_in'] ?? '—' }}
+                        </td>
+                        <td class="border-r border-gray-100 px-3 py-2 text-center text-gray-700 dark:border-white/5 dark:text-gray-200">
+                            {{ $entry['pm_out'] ?? '—' }}
+                        </td>
+                        <td class="border-r border-gray-100 px-3 py-2 text-center font-medium text-gray-700 dark:border-white/5 dark:text-gray-200">
+                            {{ $entry['total_hours'] }}
+                        </td>
+                        <td class="px-3 py-2 text-left text-gray-700 dark:text-gray-200">
+                            {{ $entry['remarks'] ?: '—' }}
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="3" class="px-4 py-3 text-center text-gray-400">No approved entries found.</td>
+                        <td colspan="7" class="px-4 py-3 text-center text-gray-400">No approved entries found.</td>
                     </tr>
                 @endforelse
             </tbody>

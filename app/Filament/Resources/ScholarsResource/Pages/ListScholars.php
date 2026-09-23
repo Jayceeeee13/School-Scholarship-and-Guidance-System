@@ -1574,33 +1574,66 @@ class ListScholars extends ListRecords
                             }),
 
                         Tables\Actions\Action::make('submit')
-                            ->label('Submit')
-                            ->icon('heroicon-o-paper-airplane')
-                            ->color('primary')
-                            ->requiresConfirmation()
-                            ->modalHeading('Submit DTR to Admin/Scholarship')
-                            ->modalDescription('This sends the approved entry onward. It will show as "Submitted" until Admin/Scholarship marks it Received.')
-                            ->modalSubmitActionLabel('Yes, Submit')
-                            ->visible(fn (DailyTimeRecord $record): bool =>
-                                $record->status === 'approved'
-                                && (auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
-                            )
-                            ->action(function (DailyTimeRecord $record): void {
-                                $record->update(['status' => 'submitted']);
+    ->label(fn (DailyTimeRecord $record): string => 'Submit All for ' . trim("{$record->scholar?->first_name} {$record->scholar?->last_name}"))
+    ->icon('heroicon-o-paper-airplane')
+    ->color('primary')
+    ->modalHeading(fn (DailyTimeRecord $record) => 'Submit DTR Entries — ' . trim("{$record->scholar?->first_name} {$record->scholar?->last_name}"))
+    ->modalSubmitActionLabel('Yes, Submit All')
+    ->visible(fn (DailyTimeRecord $record): bool =>
+        $record->status === 'approved'
+        && (auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
+    )
+    ->infolist(function (DailyTimeRecord $record) {
+        $entries = DailyTimeRecord::where('scholar_id', $record->scholar_id)
+            ->where('status', 'approved')
+            ->whereNull('archived_at')
+            ->orderBy('date')
+            ->get();
 
-                                $this->logCustomActivity(
-                                    $record,
-                                    'dtr',
-                                    'submitted',
-                                    "Submitted DTR for {$record->scholar?->first_name} {$record->scholar?->last_name} to Admin/Scholarship ({$record->date?->format('M d, Y')})"
-                                );
+        return [
+            \Filament\Infolists\Components\Section::make('Entries That Will Be Submitted')
+                ->description("These {$entries->count()} Approved DTR entrie(s) will all be sent to Admin/Scholarship together.")
+                ->icon('heroicon-o-clipboard-document-list')
+                ->schema([
+                    \Filament\Infolists\Components\RepeatableEntry::make('preview')
+                        ->label('')
+                        ->state($entries->map(fn ($d) => [
+                            'date'         => $d->date?->format('M d, Y'),
+                            'office'       => $d->office_assigned ?? '—',
+                            'total_hours'  => $d->total_hours ? number_format($d->total_hours, 2) . ' hrs' : '—',
+                        ])->toArray())
+                        ->schema([
+                            \Filament\Infolists\Components\TextEntry::make('date')->label('Date'),
+                            \Filament\Infolists\Components\TextEntry::make('office')->label('Office'),
+                            \Filament\Infolists\Components\TextEntry::make('total_hours')->label('Total Hrs'),
+                        ])
+                        ->columns(3),
+                ]),
+        ];
+    })
+    ->action(function (DailyTimeRecord $record): void {
+        $records = DailyTimeRecord::where('scholar_id', $record->scholar_id)
+            ->where('status', 'approved')
+            ->whereNull('archived_at')
+            ->get();
 
-                                Notification::make()
-                                    ->title('DTR Submitted')
-                                    ->success()
-                                    ->body('The DTR has been sent to Admin and Scholarship for receiving.')
-                                    ->send();
-                            }),
+        foreach ($records as $dtr) {
+            $dtr->update(['status' => 'submitted']);
+
+            $this->logCustomActivity(
+                $dtr,
+                'dtr',
+                'submitted',
+                "Submitted DTR for {$dtr->scholar?->first_name} {$dtr->scholar?->last_name} to Admin/Scholarship ({$dtr->date?->format('M d, Y')})"
+            );
+        }
+
+        Notification::make()
+            ->title('DTR Entries Submitted')
+            ->success()
+            ->body("{$records->count()} DTR entrie(s) for {$record->scholar?->first_name} {$record->scholar?->last_name} have been sent to Admin and Scholarship.")
+            ->send();
+    }),
 
                         Tables\Actions\Action::make('reject')
                             ->label('Reject')

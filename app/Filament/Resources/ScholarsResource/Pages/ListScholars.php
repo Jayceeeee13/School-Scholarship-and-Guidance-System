@@ -1058,15 +1058,16 @@ class ListScholars extends ListRecords
         }
 
                 if ($this->activeTab === 'dtr') {
-            return $table
-                ->query(function () {
-                    $query = DailyTimeRecord::query()
-                        ->whereNull('archived_at')
-                        ->with(['scholar', 'approvedBy', 'receivedBy']);
+    return $table
+        ->query(function () {
+            $query = DailyTimeRecord::query()
+                ->whereNull('archived_at')
+                ->with(['scholar', 'approvedBy', 'receivedBy']);
 
-                    return $this->scopeDtrQueryToRole($query);
-                })
-                ->recordUrl(null) 
+            return $this->scopeDtrQueryToRole($query);
+        })
+        ->recordUrl(null)
+         
                 ->columns([
                     Tables\Columns\TextColumn::make('scholar.full_name')
                         ->label('Name')

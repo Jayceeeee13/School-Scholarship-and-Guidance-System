@@ -1058,12 +1058,191 @@ class ListScholars extends ListRecords
         }
 
                 if ($this->activeTab === 'dtr') {
+ 
+    $isAdminOrScholarship = ! auth()->user()->isDepartmentHead()
+        && auth()->user()->hasAnyRole(['admin', 'scholarship']);
+ 
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN / SCHOLARSHIP VIEW: one row per scholar per month
+    // ─────────────────────────────────────────────────────────────
+    if ($isAdminOrScholarship) {
+        return $table
+            ->query(function () {
+                return DailyTimeRecord::query()
+                    ->select([
+                        'scholar_id',
+                        DB::raw("DATE_FORMAT(date, '%Y-%m') as period"),
+                        DB::raw("MIN(id) as id"), // Filament needs a stable "id" for the row key
+                        DB::raw("SUM(total_hours) as total_hours_sum"),
+                        DB::raw("COUNT(*) as entries_count"),
+                        DB::raw("MAX(office_assigned) as office_assigned"),
+                        DB::raw("MAX(status) as status"), // all rows in a submitted batch share status
+                        DB::raw("MAX(approved_by_id) as approved_by_id"),
+                        DB::raw("MAX(received_by_id) as received_by_id"),
+                    ])
+                    ->whereNull('archived_at')
+                    ->whereIn('status', ['submitted', 'received'])
+                    ->groupBy('scholar_id', DB::raw("DATE_FORMAT(date, '%Y-%m')"))
+                    ->with(['scholar', 'approvedBy', 'receivedBy']);
+            })
+            ->recordUrl(null)
+            ->columns([
+                Tables\Columns\TextColumn::make('scholar.full_name')
+                    ->label('Name')
+                    ->getStateUsing(fn ($record) => $record->scholar
+                        ? trim("{$record->scholar->first_name} {$record->scholar->last_name}")
+                        : '—')
+                    ->searchable(query: function (Builder $query, string $search) {
+                        return $query->whereHas('scholar', function ($q) use ($search) {
+                            $q->where('first_name', 'like', "%{$search}%")
+                              ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                    })
+                    ->sortable(),
+ 
+                Tables\Columns\TextColumn::make('office_assigned')
+                    ->label('Office Assigned')
+                    ->placeholder('—'),
+ 
+                Tables\Columns\TextColumn::make('period')
+                    ->label('Month')
+                    ->getStateUsing(fn ($record) => \Carbon\Carbon::parse($record->period . '-01')->format('F Y'))
+                    ->sortable(),
+ 
+                Tables\Columns\TextColumn::make('entries_count')
+                    ->label('Days Logged')
+                    ->badge()
+                    ->color('info'),
+ 
+                Tables\Columns\TextColumn::make('total_hours_sum')
+                    ->label('Total Hrs')
+                    ->numeric(2),
+ 
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'submitted' => 'primary',
+                        'received'  => 'success',
+                        default     => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                    ->sortable(),
+ 
+                Tables\Columns\TextColumn::make('approvedBy.name')
+                    ->label('Approved By')
+                    ->placeholder('—'),
+ 
+                Tables\Columns\TextColumn::make('receivedBy.name')
+                    ->label('Received By')
+                    ->placeholder('—'),
+            ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('status')
+                    ->options([
+                        'submitted' => 'Submitted',
+                        'received'  => 'Received',
+                    ]),
+            ])
+            ->actions([
+                Tables\Actions\ActionGroup::make([
+ 
+                    // "View All" opens a modal listing every daily entry in that scholar+month
+                    Tables\Actions\Action::make('viewMonthEntries')
+                        ->label('View Entries')
+                        ->icon('heroicon-o-eye')
+                        ->color('gray')
+                        ->modalHeading(fn ($record) => 'DTR Entries — '
+                            . trim("{$record->scholar?->first_name} {$record->scholar?->last_name}")
+                            . ' (' . \Carbon\Carbon::parse($record->period . '-01')->format('F Y') . ')')
+                        ->modalContent(function ($record) {
+                            $scholarId = $record->scholar_id;
+                            $period = $record->period;
+ 
+                            $start = \Carbon\Carbon::parse($period . '-01')->startOfMonth();
+                            $end = $start->copy()->endOfMonth();
+ 
+                            $entries = DailyTimeRecord::where('scholar_id', $scholarId)
+                                ->whereBetween('date', [$start, $end])
+                                ->orderBy('date')
+                                ->get()
+                                ->map(fn ($d) => [
+                                    'date'        => $d->date?->format('M d, Y'),
+                                    'am_in'       => $d->am_in ? \Carbon\Carbon::parse($d->am_in)->format('h:i A') : null,
+                                    'am_out'      => $d->am_out ? \Carbon\Carbon::parse($d->am_out)->format('h:i A') : null,
+                                    'pm_in'       => $d->pm_in ? \Carbon\Carbon::parse($d->pm_in)->format('h:i A') : null,
+                                    'pm_out'      => $d->pm_out ? \Carbon\Carbon::parse($d->pm_out)->format('h:i A') : null,
+                                    'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) : '—',
+                                    'remarks'     => $d->remarks,
+                                ])
+                                ->toArray();
+ 
+                            $scholar = \App\Models\Scholars::find($scholarId);
+                            $yearLabel = match ((string) $scholar?->year_level) {
+                                '1' => '1st Year', '2' => '2nd Year', '3' => '3rd Year',
+                                '4' => '4th Year', '5' => '5th Year', default => $scholar?->year_level,
+                            };
+ 
+                            return view('filament.modals.dtr-submit-preview', [
+                                'entries'        => $entries,
+                                'scholarName'    => trim("{$scholar?->first_name} {$scholar?->last_name}"),
+                                'courseYear'     => trim("{$scholar?->program} - {$yearLabel}", ' -'),
+                                'monthLabel'     => $start->format('F Y'),
+                                'officeAssigned' => $record->office_assigned,
+                                'totalHours'     => collect($entries)->sum(fn ($e) => (float) str_replace(',', '', $e['total_hours'])),
+                            ]);
+                        })
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Close'),
+ 
+                    Tables\Actions\Action::make('receive')
+                        ->label('Mark Received')
+                        ->icon('heroicon-o-inbox-arrow-down')
+                        ->color('info')
+                        ->requiresConfirmation()
+                        ->modalHeading('Mark DTR as Received')
+                        ->modalDescription('This finalizes every entry in this scholar\'s submitted batch for this month.')
+                        ->modalSubmitActionLabel('Yes, Mark Received')
+                        ->visible(fn ($record): bool => $record->status === 'submitted')
+                        ->action(function ($record): void {
+                            $start = \Carbon\Carbon::parse($record->period . '-01')->startOfMonth();
+                            $end = $start->copy()->endOfMonth();
+ 
+                            $updated = DailyTimeRecord::where('scholar_id', $record->scholar_id)
+                                ->whereBetween('date', [$start, $end])
+                                ->where('status', 'submitted')
+                                ->update([
+                                    'status'         => 'received',
+                                    'received_by_id' => auth()->id(),
+                                    'received_at'    => now(),
+                                ]);
+ 
+                            Notification::make()
+                                ->title('DTR Marked as Received')
+                                ->success()
+                                ->body("{$updated} entrie(s) marked as received.")
+                                ->send();
+ 
+                            $this->resetTable();
+                        }),
+                ])
+                ->label('Actions')
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->size('sm')
+                ->color('gray')
+                ->button(),
+            ])
+            ->defaultSort('period', 'desc');
+    }
+ 
+    // ─────────────────────────────────────────────────────────────
+    // DEPARTMENT HEAD VIEW: unchanged, individual daily rows
+    // ─────────────────────────────────────────────────────────────
     return $table
         ->query(function () {
             $query = DailyTimeRecord::query()
                 ->whereNull('archived_at')
                 ->with(['scholar', 'approvedBy', 'receivedBy']);
-
+ 
             return $this->scopeDtrQueryToRole($query);
         })
         ->recordUrl(null)

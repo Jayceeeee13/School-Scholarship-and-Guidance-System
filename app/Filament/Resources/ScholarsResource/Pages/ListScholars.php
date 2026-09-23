@@ -1584,46 +1584,58 @@ class ListScholars extends ListRecords
         && (auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
     )
     ->infolist(function (DailyTimeRecord $record) {
-        $entries = DailyTimeRecord::where('scholar_id', $record->scholar_id)
-            ->where('status', 'approved')
-            ->whereNull('archived_at')
-            ->orderBy('date')
-            ->get();
+        $scholarId = $record->scholar_id; // scalar only — never capture $record itself below
 
         return [
             \Filament\Infolists\Components\Section::make('Entries That Will Be Submitted')
-                ->description("These {$entries->count()} Approved DTR entrie(s) will all be sent to Admin/Scholarship together.")
+                ->description(function () use ($scholarId) {
+                    $count = DailyTimeRecord::where('scholar_id', $scholarId)
+                        ->where('status', 'approved')
+                        ->whereNull('archived_at')
+                        ->count();
+                    return "These {$count} Approved DTR entrie(s) will all be sent to Admin/Scholarship together.";
+                })
                 ->icon('heroicon-o-clipboard-document-list')
                 ->schema([
                     \Filament\Infolists\Components\RepeatableEntry::make('preview')
-    ->label('')
-    ->state($entries->map(fn ($d) => [
-        'date'        => $d->date?->format('M d, Y'),
-        'office'      => $d->office_assigned ?? '—',
-        'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) . ' hrs' : '—',
-    ])->toArray())
-    ->schema([
-        \Filament\Infolists\Components\TextEntry::make('date')
-            ->label('Date')
-            ->getStateUsing(fn ($state) => $state['date'] ?? '—'),
-
-        \Filament\Infolists\Components\TextEntry::make('office')
-            ->label('Office')
-            ->getStateUsing(fn ($state) => $state['office'] ?? '—'),
-
-        \Filament\Infolists\Components\TextEntry::make('total_hours')
-            ->label('Total Hrs')
-            ->getStateUsing(fn ($state) => $state['total_hours'] ?? '—'),
-    ])
-    ->columns(3),
+                        ->label('')
+                        ->state(function () use ($scholarId) {
+                            return DailyTimeRecord::where('scholar_id', $scholarId)
+                                ->where('status', 'approved')
+                                ->whereNull('archived_at')
+                                ->orderBy('date')
+                                ->get()
+                                ->map(fn ($d) => [
+                                    'date'        => $d->date?->format('M d, Y'),
+                                    'office'      => $d->office_assigned ?? '—',
+                                    'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) . ' hrs' : '—',
+                                ])
+                                ->toArray();
+                        })
+                        ->schema([
+                            \Filament\Infolists\Components\TextEntry::make('date')
+                                ->label('Date')
+                                ->getStateUsing(fn ($state) => $state['date'] ?? '—'),
+                            \Filament\Infolists\Components\TextEntry::make('office')
+                                ->label('Office')
+                                ->getStateUsing(fn ($state) => $state['office'] ?? '—'),
+                            \Filament\Infolists\Components\TextEntry::make('total_hours')
+                                ->label('Total Hrs')
+                                ->getStateUsing(fn ($state) => $state['total_hours'] ?? '—'),
+                        ])
+                        ->columns(3),
                 ]),
         ];
     })
     ->action(function (DailyTimeRecord $record): void {
-        $records = DailyTimeRecord::where('scholar_id', $record->scholar_id)
+        $scholarId = $record->scholar_id;
+
+        $records = DailyTimeRecord::where('scholar_id', $scholarId)
             ->where('status', 'approved')
             ->whereNull('archived_at')
             ->get();
+
+        $scholarName = trim("{$record->scholar?->first_name} {$record->scholar?->last_name}");
 
         foreach ($records as $dtr) {
             $dtr->update(['status' => 'submitted']);
@@ -1639,7 +1651,7 @@ class ListScholars extends ListRecords
         Notification::make()
             ->title('DTR Entries Submitted')
             ->success()
-            ->body("{$records->count()} DTR entrie(s) for {$record->scholar?->first_name} {$record->scholar?->last_name} have been sent to Admin and Scholarship.")
+            ->body("{$records->count()} DTR entrie(s) for {$scholarName} have been sent to Admin and Scholarship.")
             ->send();
     }),
 

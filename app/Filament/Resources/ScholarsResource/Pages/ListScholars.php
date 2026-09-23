@@ -1596,18 +1596,26 @@ class ListScholars extends ListRecords
                 ->icon('heroicon-o-clipboard-document-list')
                 ->schema([
                     \Filament\Infolists\Components\RepeatableEntry::make('preview')
-                        ->label('')
-                        ->state($entries->map(fn ($d) => [
-                            'date'         => $d->date?->format('M d, Y'),
-                            'office'       => $d->office_assigned ?? '—',
-                            'total_hours'  => $d->total_hours ? number_format($d->total_hours, 2) . ' hrs' : '—',
-                        ])->toArray())
-                        ->schema([
-                            \Filament\Infolists\Components\TextEntry::make('date')->label('Date'),
-                            \Filament\Infolists\Components\TextEntry::make('office')->label('Office'),
-                            \Filament\Infolists\Components\TextEntry::make('total_hours')->label('Total Hrs'),
-                        ])
-                        ->columns(3),
+    ->label('')
+    ->state($entries->map(fn ($d) => [
+        'date'        => $d->date?->format('M d, Y'),
+        'office'      => $d->office_assigned ?? '—',
+        'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) . ' hrs' : '—',
+    ])->toArray())
+    ->schema([
+        \Filament\Infolists\Components\TextEntry::make('date')
+            ->label('Date')
+            ->getStateUsing(fn ($state) => $state['date'] ?? '—'),
+
+        \Filament\Infolists\Components\TextEntry::make('office')
+            ->label('Office')
+            ->getStateUsing(fn ($state) => $state['office'] ?? '—'),
+
+        \Filament\Infolists\Components\TextEntry::make('total_hours')
+            ->label('Total Hrs')
+            ->getStateUsing(fn ($state) => $state['total_hours'] ?? '—'),
+    ])
+    ->columns(3),
                 ]),
         ];
     })

@@ -12,6 +12,7 @@ use App\Models\TypeOfScholarship;
 use App\Traits\LogsCustomActivity;
 use Filament\Actions;
 use Filament\Forms;
+use Illuminate\Support\Facades\DB;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Filament\Resources\Pages\ListRecords\Tab;

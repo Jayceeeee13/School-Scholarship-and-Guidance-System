@@ -367,13 +367,28 @@ class SubmittedRequirementsRelationManager extends RelationManager
                         ->successNotificationTitle('Requirement updated'),
 
                     Tables\Actions\Action::make('download')
-                        ->label('Download File')
-                        ->icon('heroicon-o-arrow-down-tray')
-                        ->color('info')
-                        ->action(fn ($record) => response()->download(
-                            storage_path('app/' . $record->pivot->file_path)
-                        ))
-                        ->visible(fn ($record) => !empty($record->pivot->file_path)),
+    ->label('Download File')
+    ->icon('heroicon-o-arrow-down-tray')
+    ->color('info')
+    ->action(function ($record) {
+        $path = $record->pivot->file_path;
+
+        // Try common disks in order — 'local' (storage/app) first, then 'public'.
+        foreach (['local', 'public'] as $disk) {
+            if (\Illuminate\Support\Facades\Storage::disk($disk)->exists($path)) {
+                return \Illuminate\Support\Facades\Storage::disk($disk)->download($path);
+            }
+        }
+
+        Notification::make()
+            ->title('File Not Found')
+            ->danger()
+            ->body('This requirement\'s file could no longer be located on the server. It may have been moved or deleted — please ask the applicant to re-upload it.')
+            ->send();
+
+        return null;
+    })
+    ->visible(fn ($record) => !empty($record->pivot->file_path)),
 
                     Tables\Actions\Action::make('toggle_status')
                         ->label(fn ($record) => $record->pivot->is_submitted ? 'Mark Pending' : 'Mark Submitted')

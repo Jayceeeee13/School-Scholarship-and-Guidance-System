@@ -254,6 +254,7 @@ th { font-weight: bold; text-align: center; }
   padding-left: 3px;
   padding-bottom: 2px;
   font-weight: bold;
+  font-size: 7.5pt; 
 }
 
 .footer { text-align: right; font-size: 7.5pt; margin-top: 10px; }

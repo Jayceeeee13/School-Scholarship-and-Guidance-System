@@ -36,11 +36,15 @@ class ExamResultSlipController extends Controller
                 ];
             });
 
+        // Whoever is logged in and printing this slip is recorded as the Evaluator.
+        $evaluatorName = auth()->user()?->name;
+
         return view('filament.pages.exam-result-slip', compact(
             'record',
             'percentage',
             'discount',
             'categoryScores',
+            'evaluatorName',
         ));
     }
 }

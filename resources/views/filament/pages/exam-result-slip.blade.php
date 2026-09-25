@@ -250,6 +250,12 @@ th { font-weight: bold; text-align: center; }
 .sig-label { font-size: 9.5pt; white-space: nowrap; }
 .sig-underline { flex: 0 0 180px; border-bottom: 1px solid #000; min-height: 13px; }
 
+.sig-filled {
+  padding-left: 3px;
+  padding-bottom: 2px;
+  font-weight: bold;
+}
+
 .footer { text-align: right; font-size: 7.5pt; margin-top: 10px; }
 
 @media print {
@@ -288,6 +294,7 @@ th { font-weight: bold; text-align: center; }
     'discount'       => $discount,
     'totalCorrect'   => $totalCorrect,
     'totalItems'     => $totalItems,
+    'evaluatorName'  => auth()->user()?->name,
   ];
 @endphp
 

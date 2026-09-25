@@ -66,7 +66,7 @@
   <div class="signature-section">
     <div class="sig-row">
       <span class="sig-label">Evaluator:</span>
-      <div class="sig-underline"></div>
+      <div class="sig-underline sig-filled">{{ $evaluatorName ?? '—' }}</div>
     </div>
     <div class="sig-row">
       <span class="sig-label">Date Released:</span>

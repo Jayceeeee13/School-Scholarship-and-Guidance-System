@@ -295,7 +295,7 @@ class CounselingAppointmentsResource extends Resource
                                             })
                                             ->dehydrated(),
 
-                                        Forms\Components\Textarea::make('concern')->label('Concern')->placeholder('Document session concerns...')->maxLength(500)->rows(2)->columnSpanFull(),
+                                        Forms\Components\Textarea::make('concern')->label('Concern')->placeholder('Document session concerns...')->required()->maxLength(500)->rows(2)->columnSpanFull(),
                                         Forms\Components\TextInput::make('remarks')->label('Remarks')->placeholder('Optional'),
 
                                         Forms\Components\Repeater::make('anecdotals')

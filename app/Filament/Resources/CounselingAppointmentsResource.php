@@ -95,6 +95,7 @@ class CounselingAppointmentsResource extends Resource
                                             ->label('Present Address')
                                             ->placeholder('Enter current address')
                                             ->maxLength(200)
+                                            ->required()
                                             ->rows(2)
                                             ->live()
                                             ->columnSpanFull()

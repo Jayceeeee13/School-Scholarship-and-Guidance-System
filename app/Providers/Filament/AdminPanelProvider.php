@@ -311,11 +311,18 @@ class AdminPanelProvider extends PanelProvider
             border-radius: 0.5rem !important;
         }
 
-        .fi-dropdown-panel * {
-            color: #1f2937 !important;
-            background-color: transparent !important;
-        }
+        .fi-dropdown-panel {
+    color: #1f2937 !important;
+}
 
+.fi-dropdown-panel > * {
+    color: #1f2937 !important;
+}
+
+.fi-dropdown-list-item,
+.fi-dropdown-list-item * {
+    background-color: transparent !important;
+}
         .fi-dropdown-list-item:hover {
             background-color: #f3f4f6 !important;
         }

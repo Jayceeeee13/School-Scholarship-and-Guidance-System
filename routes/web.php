@@ -203,6 +203,19 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/exam-attempts/{examAttempt}/print', [ExamResultSlipController::class, 'print'])
         ->name('exam-attempts.print');
+
+    Route::get('/reports/print/institutional', function () {
+        $schoolYear = request('school_year');
+
+        $page = new \App\Filament\Pages\ReportsPage();
+        $page->school_year_filter = $schoolYear;
+
+        $data = $page->getInstitutionalReportData();
+
+        return view('print.institutional-scholars-report', array_merge($data, [
+            'school_year' => $schoolYear,
+        ]));
+    })->name('reports.print.institutional');
 });
 
 // ─────────────────────────────────────────────────────────────

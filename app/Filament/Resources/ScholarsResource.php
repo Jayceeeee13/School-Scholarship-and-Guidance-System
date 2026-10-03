@@ -657,38 +657,75 @@ class ScholarsResource extends Resource
                         ->visible(fn () => ! static::isRestrictedToOwnScholars()),
 
                     Tables\Actions\Action::make('revoke')
-                        ->label('Revoke Scholarship')
-                        ->icon('heroicon-o-no-symbol')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->modalHeading('Revoke Scholarship')
-                        ->modalDescription('This will mark the scholar as revoked and free up their scholarship slot. This action can be reviewed later in the Revoked tab.')
-                        ->modalSubmitActionLabel('Yes, Revoke')
-                        ->form([
-                            Forms\Components\Textarea::make('revocation_reason')
-                                ->label('Reason for Discontinuance')
-                                ->required()
-                                ->rows(3)
-                                ->placeholder('e.g. Failure to meet GPA requirement, disciplinary action...'),
-                        ])
-                        ->action(function (Scholars $record, array $data) {
-                            $record->update([
-                                'status'            => 'revoked',
-                                'revocation_reason' => $data['revocation_reason'],
-                                'revoked_at'        => now(),
-                            ]);
+    ->label('Revoke Scholarship')
+    ->icon('heroicon-o-no-symbol')
+    ->color('danger')
+    ->requiresConfirmation()
+    ->modalWidth('2xl')
+    ->modalHeading('Notice of Scholarship Discontinuance')
+    ->modalDescription('This will mark the scholar as revoked and free up their scholarship slot. This action can be reviewed later in the Revoked tab.')
+    ->modalSubmitActionLabel('Yes, Revoke')
+    ->fillForm(fn (Scholars $record): array => [
+        'student_name'        => trim("{$record->first_name} {$record->middle_name} {$record->last_name} {$record->extension_name}"),
+        'course_and_year'     => trim("{$record->program} — " . match ((string) $record->year_level) {
+            '1' => '1st Year', '2' => '2nd Year', '3' => '3rd Year',
+            '4' => '4th Year', '5' => '5th Year', default => $record->year_level,
+        }),
+        'type_of_scholarship' => $record->type_of_scholarship,
+        'effectivity_date'    => now()->format('Y-m-d'),
+    ])
+    ->form([
+        Forms\Components\Grid::make(2)
+            ->schema([
+                Forms\Components\TextInput::make('student_name')
+                    ->label('Name of Student')
+                    ->disabled()
+                    ->dehydrated(false),
 
-                            $scholarshipType = TypeOfScholarship::where('name', $record->type_of_scholarship)->first();
-                            $scholarshipType?->increment('slots');
+                Forms\Components\TextInput::make('course_and_year')
+                    ->label('Course & Year')
+                    ->disabled()
+                    ->dehydrated(false),
+            ]),
 
-                            Notification::make()
-                                ->title('Scholarship Revoked')
-                                ->danger()
-                                ->body("{$record->first_name} {$record->last_name}'s scholarship has been revoked and the slot has been restored.")
-                                ->send();
-                        })
-                        ->visible(fn (Scholars $record): bool => $record->status !== 'revoked' && ! static::isRestrictedToOwnScholars()),
+        Forms\Components\TextInput::make('type_of_scholarship')
+            ->label('Type of Scholarship')
+            ->disabled()
+            ->dehydrated(false)
+            ->columnSpanFull(),
 
+        Forms\Components\Textarea::make('revocation_reason')
+            ->label('Reason for Discontinuance')
+            ->required()
+            ->rows(5)
+            ->placeholder('e.g. Failure to meet GPA requirement, disciplinary action...')
+            ->columnSpanFull(),
+
+        Forms\Components\DatePicker::make('effectivity_date')
+            ->label('Effectivity Date')
+            ->required()
+            ->native(false)
+            ->displayFormat('M d, Y')
+            ->columnSpanFull(),
+    ])
+    ->action(function (Scholars $record, array $data) {
+        $record->update([
+            'status'               => 'revoked',
+            'revocation_reason'    => $data['revocation_reason'],
+            'revoked_at'           => now(),
+            'discontinuance_effective_at' => $data['effectivity_date'],
+        ]);
+
+        $scholarshipType = TypeOfScholarship::where('name', $record->type_of_scholarship)->first();
+        $scholarshipType?->increment('slots');
+
+        Notification::make()
+            ->title('Scholarship Revoked')
+            ->danger()
+            ->body("{$record->first_name} {$record->last_name}'s scholarship has been revoked and the slot has been restored.")
+            ->send();
+    })
+    ->visible(fn (Scholars $record): bool => $record->status !== 'revoked' && ! static::isRestrictedToOwnScholars()),
                                         Tables\Actions\Action::make('assign_department_head')
                         ->label(fn (Scholars $record): string => $record->department_head_id
                             ? 'Reassign Department Head'

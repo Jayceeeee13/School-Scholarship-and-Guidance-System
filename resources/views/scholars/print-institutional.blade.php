@@ -321,22 +321,12 @@
                 <td>
                     <div class="sig-role">Prepared by:</div>
                     <div class="sig-line"></div>
-                    <div class="sig-title">Guidance and Scholarship Director</div>
+                    <div class="sig-title">Scholarship Officer</div>
                 </td>
                 <td>
                     <div class="sig-role">Reviewed by:</div>
                     <div class="sig-line"></div>
-                    <div class="sig-title">Dean for Support Services</div>
-                </td>
-                <td>
-                    <div class="sig-role">Recommending Approval:</div>
-                    <div class="sig-line"></div>
-                    <div class="sig-title">Vice President for Admin and Finance</div>
-                </td>
-                <td>
-                    <div class="sig-role">Approved by:</div>
-                    <div class="sig-line"></div>
-                    <div class="sig-title">President</div>
+                    <div class="sig-title">Guidance and Scholarship Director</div>
                 </td>
             </tr>
         </table>

@@ -223,7 +223,6 @@
         <tr>
             <td class="logo-cell">
                 <img src="{{ asset('images/logo.png') }}" alt="School Logo" onerror="this.style.display='none'">
-                <div class="iso">ISO 21001:2018</div>
             </td>
             <td style="text-align:center; vertical-align:middle; padding:0;">
                 <div style="padding: 6px 12px; border-bottom: 1px solid #000;">

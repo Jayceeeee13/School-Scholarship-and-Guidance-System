@@ -77,8 +77,10 @@
         .no-print a { color: #6b7280; font-size: 12px; text-decoration: none; }
 
         /* ─────────────────────────────────────────
-           HEADER TABLE — single row:
-           logo | school name / address / title / Semester A.Y.___
+           HEADER TABLE — logo (spans 3 rows) |
+           row 1: school name + address
+           row 2: document title
+           row 3: Semester A.Y. ___
         ───────────────────────────────────────── */
         .doc-header {
             width: 100%;
@@ -88,25 +90,26 @@
         }
 
         .doc-header td {
-            border: none;
             vertical-align: middle;
-            padding: 10px 14px;
         }
 
         .doc-header .logo-cell {
             width: 90px;
             text-align: center;
+            padding: 8px 10px;
             border-right: 1px solid #000;
         }
 
         .doc-header .logo-cell img {
-            width: 65px;
-            height: 65px;
+            width: 62px;
+            height: 62px;
             object-fit: contain;
         }
 
-        .doc-header .text-cell {
+        .doc-header .name-row td {
+            padding: 8px 12px 6px;
             text-align: center;
+            border-bottom: 1px solid #000;
         }
 
         .doc-header .school-name {
@@ -125,18 +128,25 @@
             margin-top: 1px;
         }
 
+        .doc-header .title-row td {
+            padding: 7px 12px;
+            text-align: center;
+            border-bottom: 1px solid #000;
+        }
+
         .doc-header .doc-title {
             font-size: 11pt;
             font-weight: bold;
             letter-spacing: 0.5px;
-            display: block;
-            margin-top: 6px;
+        }
+
+        .doc-header .term-row td {
+            padding: 7px 12px;
+            text-align: center;
         }
 
         .doc-header .term-line {
             font-size: 9.5pt;
-            display: block;
-            margin-top: 4px;
         }
 
         .doc-header .term-line .blank {
@@ -246,17 +256,25 @@
     <div class="page">
 
         {{-- ═══════════════════════════════════════════════════════════ --}}
-        {{--  Header: logo | school name + address / title / Semester A.Y.  --}}
+        {{--  Header: logo | name+address / title / Semester A.Y. ___    --}}
         {{-- ═══════════════════════════════════════════════════════════ --}}
         <table class="doc-header">
-            <tr>
-                <td class="logo-cell">
+            <tr class="name-row">
+                <td class="logo-cell" rowspan="3">
                     <img src="{{ asset('images/logo.png') }}" alt="GVCF Logo">
                 </td>
-                <td class="text-cell">
+                <td>
                     <span class="school-name">Green Valley College Foundation, Inc.</span>
                     <span class="school-address">Km. 2, Bo.2, Gensan Dr., Koronadal City, South Cotabato</span>
+                </td>
+            </tr>
+            <tr class="title-row">
+                <td>
                     <span class="doc-title">LOG FOR COUNSELING SERVICES</span>
+                </td>
+            </tr>
+            <tr class="term-row">
+                <td>
                     <span class="term-line">
                         Semester A.Y.<span class="blank">&nbsp;{{ $termLabel ?? '' }}</span>
                     </span>

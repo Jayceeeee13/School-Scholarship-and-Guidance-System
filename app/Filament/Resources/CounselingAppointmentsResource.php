@@ -235,7 +235,7 @@ class CounselingAppointmentsResource extends Resource
                             ]),
 
                         // ── TAB 3: COUNSELING RECORDS ─────────────────────────────
-                        Tabs\Tab::make('Records')
+                        Tabs\Tab::make('Logforms')
                             ->icon('heroicon-o-document-text')
                             ->badge(fn ($get) => count($get('logforms') ?? []))
                             ->badgeColor('success')

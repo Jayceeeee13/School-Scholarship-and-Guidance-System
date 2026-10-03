@@ -6,6 +6,7 @@ use App\Filament\Resources\CounselingLogformsResource\Pages;
 use App\Models\CounselingLogforms;
 use App\Models\Students;
 use App\Models\CounselingAppointments;
+use App\Models\Term;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -47,6 +48,13 @@ class CounselingLogformsResource extends Resource
                             })
                             ->native(false)
                             ->columnSpanFull(),
+
+                        // Auto-assigns the currently active Term on creation so every
+                        // logform is tagged with a School Year & Semester for filtering,
+                        // without requiring the user to pick it manually.
+                        Forms\Components\Hidden::make('term_id')
+                            ->default(fn () => Term::active()->first()?->id)
+                            ->dehydrated(true),
                     ]),
 
                 Forms\Components\Section::make('Student Information')
@@ -491,6 +499,20 @@ class CounselingLogformsResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('display_name')
                     ->label('Student Name'),
+            ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('term_id')
+                    ->label('School Year & Semester')
+                    ->options(function () {
+                        return Term::orderByDesc('is_active')
+                            ->orderByDesc('id')
+                            ->get()
+                            ->mapWithKeys(fn ($term) => [
+                                $term->id => $term->label . ($term->is_active ? ' (Active)' : ''),
+                            ]);
+                    })
+                    ->searchable()
+                    ->placeholder('All Terms'),
             ]);
     }
 

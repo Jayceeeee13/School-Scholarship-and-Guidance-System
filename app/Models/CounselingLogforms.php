@@ -23,6 +23,7 @@ class CounselingLogforms extends Model
         'walkin_student_id',
         'support_needed_id',
         'concern',
+        'term_id', 
         'remarks',
         'follow_up_required',
         'archived_at',
@@ -72,6 +73,11 @@ class CounselingLogforms extends Model
             'counseling_appointments_id'
         );
     }
+
+    public function term(): BelongsTo
+{
+    return $this->belongsTo(Term::class);
+}
 
     public function referral(): BelongsTo
     {

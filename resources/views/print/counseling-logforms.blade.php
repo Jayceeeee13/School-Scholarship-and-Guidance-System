@@ -77,12 +77,8 @@
         .no-print a { color: #6b7280; font-size: 12px; text-decoration: none; }
 
         /* ─────────────────────────────────────────
-           HEADER TABLE
-           +--------+-----------------------------+
-           |        | School Name + Address (r1)  |
-           |  Logo  +-----------------------------|
-           |        | Document Title       (r2)   |
-           +--------+-----------------------------+
+           HEADER TABLE — single row:
+           logo | school name / address / title / Semester A.Y.___
         ───────────────────────────────────────── */
         .doc-header {
             width: 100%;
@@ -92,66 +88,62 @@
         }
 
         .doc-header td {
-            border: 1px solid #000;
+            border: none;
             vertical-align: middle;
+            padding: 10px 14px;
         }
 
         .doc-header .logo-cell {
-            width: 80px;
+            width: 90px;
             text-align: center;
-            padding: 8px 10px;
-            vertical-align: middle;
+            border-right: 1px solid #000;
         }
 
         .doc-header .logo-cell img {
-            width: 60px;
-            height: 60px;
+            width: 65px;
+            height: 65px;
             object-fit: contain;
         }
 
-        .doc-header .name-cell {
-            padding: 8px 12px 6px;
+        .doc-header .text-cell {
             text-align: center;
-            border-bottom: 1px solid #000;
-            vertical-align: middle;
         }
 
-        .doc-header .name-cell .school-name {
+        .doc-header .school-name {
             font-size: 13pt;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #2d5a30;
+            letter-spacing: 0.3px;
             display: block;
         }
 
-        .doc-header .name-cell .office-name {
-            font-size: 9pt;
-            font-style: italic;
-            color: #444;
-            display: block;
-            margin-top: 2px;
-        }
-
-        .doc-header .title-cell {
-            padding: 8px 12px;
-            text-align: center;
-            vertical-align: middle;
-        }
-
-        .doc-header .title-cell .doc-title {
-            font-size: 12pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            display: block;
-        }
-
-        .doc-header .title-cell .doc-meta {
+        .doc-header .school-address {
             font-size: 8.5pt;
-            color: #444;
+            font-style: italic;
+            color: #333;
             display: block;
-            margin-top: 2px;
+            margin-top: 1px;
+        }
+
+        .doc-header .doc-title {
+            font-size: 11pt;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            display: block;
+            margin-top: 6px;
+        }
+
+        .doc-header .term-line {
+            font-size: 9.5pt;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .doc-header .term-line .blank {
+            display: inline-block;
+            border-bottom: 1px solid #000;
+            min-width: 160px;
+            margin-left: 4px;
         }
 
         /* ── Content box below header ── */
@@ -254,22 +246,20 @@
     <div class="page">
 
         {{-- ═══════════════════════════════════════════════════════════ --}}
-        {{--  Header: logo | school name+office / document title         --}}
+        {{--  Header: logo | school name + address / title / Semester A.Y.  --}}
         {{-- ═══════════════════════════════════════════════════════════ --}}
         <table class="doc-header">
             <tr>
-                <td class="logo-cell" rowspan="2">
+                <td class="logo-cell">
                     <img src="{{ asset('images/logo.png') }}" alt="GVCF Logo">
                 </td>
-                <td class="name-cell">
+                <td class="text-cell">
                     <span class="school-name">Green Valley College Foundation, Inc.</span>
-                    <span class="office-name">Guidance and Counseling Office</span>
-                </td>
-            </tr>
-            <tr>
-                <td class="title-cell">
-                    <span class="doc-title">Counseling Logforms</span>
-                    <span class="doc-meta">Total Records: {{ $logforms->count() }}</span>
+                    <span class="school-address">Km. 2, Bo.2, Gensan Dr., Koronadal City, South Cotabato</span>
+                    <span class="doc-title">LOG FOR COUNSELING SERVICES</span>
+                    <span class="term-line">
+                        Semester A.Y.<span class="blank">&nbsp;{{ $termLabel ?? '' }}</span>
+                    </span>
                 </td>
             </tr>
         </table>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CounselingLogforms;
+use App\Models\Term;
 use Illuminate\Http\Request;
 
 class CounselingLogformsPrintController extends Controller
@@ -21,6 +22,10 @@ class CounselingLogformsPrintController extends Controller
 
         $logforms = $query->get();
 
-        return view('print.counseling-logforms', compact('logforms'));
+        // Auto-fill "Semester A.Y." on the printed header from the currently active Term.
+        $activeTerm = Term::active()->first();
+        $termLabel  = $activeTerm?->label;
+
+        return view('print.counseling-logforms', compact('logforms', 'termLabel'));
     }
 }

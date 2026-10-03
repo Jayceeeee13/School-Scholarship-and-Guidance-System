@@ -24,7 +24,9 @@ class CounselingLogformsPrintController extends Controller
 
         // Auto-fill the "___ Semester A.Y. ___" header line from the active Term.
         $activeTerm     = Term::active()->first();
-        $semesterOnly   = $activeTerm?->semester;
+        $semesterOnly = $activeTerm?->semester
+    ? trim(str_ireplace('semester', '', $activeTerm->semester))
+    : null;
         $schoolYearOnly = $activeTerm?->school_year;
 
         return view('print.counseling-logforms', compact(

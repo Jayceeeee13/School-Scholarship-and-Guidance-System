@@ -115,7 +115,7 @@ class ReferralsResource extends Resource
                             ]),
 
                         // ── TAB 2: RECORDS ────────────────────────────────────────
-                        Tabs\Tab::make('Records')
+                        Tabs\Tab::make('Logforms')
                             ->icon('heroicon-o-document-text')
                             ->badge(fn ($get) => count($get('logforms') ?? []))
                             ->badgeColor('success')

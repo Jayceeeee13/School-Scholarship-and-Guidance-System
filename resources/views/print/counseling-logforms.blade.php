@@ -260,10 +260,10 @@
         {{-- ═══════════════════════════════════════════════════════════ --}}
         <table class="doc-header">
             <tr class="name-row">
-                <td class="logo-cell" rowspan="2">
-                    <img src="{{ asset('images/logo.png') }}" alt="GVCF Logo">
-                </td>
-                <td>
+    <td class="logo-cell" rowspan="3">
+        <img src="{{ asset('images/logo.png') }}" alt="GVCF Logo">
+    </td>
+    <td>
                     <span class="school-name">Green Valley College Foundation, Inc.</span>
                     <span class="school-address">Km. 2, Bo.2, Gensan Dr., Koronadal City, South Cotabato</span>
                 </td>

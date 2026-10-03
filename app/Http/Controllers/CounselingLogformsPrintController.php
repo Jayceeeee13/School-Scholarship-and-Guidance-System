@@ -22,10 +22,15 @@ class CounselingLogformsPrintController extends Controller
 
         $logforms = $query->get();
 
-        // Auto-fill "Semester A.Y." on the printed header from the currently active Term.
-        $activeTerm = Term::active()->first();
-        $termLabel  = $activeTerm?->label;
+        // Auto-fill the "___ Semester A.Y. ___" header line from the active Term.
+        $activeTerm     = Term::active()->first();
+        $semesterOnly   = $activeTerm?->semester;
+        $schoolYearOnly = $activeTerm?->school_year;
 
-        return view('print.counseling-logforms', compact('logforms', 'termLabel'));
+        return view('print.counseling-logforms', compact(
+            'logforms',
+            'semesterOnly',
+            'schoolYearOnly',
+        ));
     }
 }

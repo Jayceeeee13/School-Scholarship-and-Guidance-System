@@ -320,13 +320,26 @@ class ListCounselingLogforms extends ListRecords
                     ->toggleable(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('type')
-                    ->label('Type')
-                    ->options([
-                        'scheduled' => 'Scheduled',
-                        'walk_in'   => 'Walk-in',
-                    ]),
-            ])
+    Tables\Filters\SelectFilter::make('type')
+        ->label('Type')
+        ->options([
+            'scheduled' => 'Scheduled',
+            'walk_in'   => 'Walk-in',
+        ]),
+
+    Tables\Filters\SelectFilter::make('term_id')
+        ->label('School Year & Semester')
+        ->options(function () {
+            return \App\Models\Term::orderByDesc('is_active')
+                ->orderByDesc('id')
+                ->get()
+                ->mapWithKeys(fn ($term) => [
+                    $term->id => $term->label . ($term->is_active ? ' (Active)' : ''),
+                ]);
+        })
+        ->searchable()
+        ->placeholder('All Terms'),
+])
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\ViewAction::make(),

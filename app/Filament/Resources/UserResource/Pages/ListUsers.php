@@ -626,7 +626,7 @@ class ListUsers extends ListRecords
                             'filament.activity-log-modal',
                             ['properties' => $record->properties]
                         ))
-                        ->visible(fn (Activity $record): bool => $record->properties->isNotEmpty())
+                        ->visible(fn (Activity $record): bool => $record->properties?->isNotEmpty() ?? false)
                         ->modalSubmitAction(false)
                         ->modalCancelActionLabel('Close'),
                 ]);

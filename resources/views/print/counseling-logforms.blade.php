@@ -130,8 +130,7 @@
 
         .doc-header .title-row td {
             padding: 7px 12px;
-            text-align: center;
-            border-bottom: 1px solid #000;
+            text-align: center; 
         }
 
         .doc-header .doc-title {
@@ -274,12 +273,14 @@
                 </td>
             </tr>
             <tr class="term-row">
-                <td>
-                    <span class="term-line">
-                        Semester A.Y.<span class="blank">&nbsp;{{ $termLabel ?? '' }}</span>
-                    </span>
-                </td>
-            </tr>
+    <td>
+        <span class="term-line">
+            <span class="blank">&nbsp;{{ $semesterOnly ?? '' }}</span>
+            Semester A.Y.
+            <span class="blank">&nbsp;{{ $schoolYearOnly ?? '' }}</span>
+        </span>
+    </td>
+</tr>
         </table>
 
         {{-- ═══════════════════════════════════════════════════════════ --}}

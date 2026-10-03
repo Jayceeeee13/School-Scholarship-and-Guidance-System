@@ -2,8 +2,10 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\InstitutionalScholar;
 use App\Models\Scholars;
 use App\Models\Term;
+use App\Models\TypeOfScholarship;
 use Filament\Pages\Page;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -23,20 +25,26 @@ class ReportsPage extends Page implements HasForms
     protected static ?int    $navigationSort  = 99;
     protected static string  $view            = 'filament.pages.reports-page';
 
+    // ── Tab state ────────────────────────────────────────────────────────────
+    public string $activeTab = 'grantees';
+
     // ── Scholarship categories ──────────────────────────────────────────────
     public const SCHOLARSHIP_CATEGORIES = ['TES', 'TDP', 'CMSP'];
 
     // ── Filter state ────────────────────────────────────────────────────────
-    /** Selected school year string e.g. "2025-2026" */
     public ?string $school_year_filter = null;
 
     public function mount(): void
     {
-        // Default to the active term's school year
         $activeTerm = Term::where('is_active', true)->first();
         if ($activeTerm) {
             $this->school_year_filter = $activeTerm->school_year;
         }
+    }
+
+    public function setTab(string $tab): void
+    {
+        $this->activeTab = $tab;
     }
 
     public function form(Form $form): Form
@@ -50,7 +58,6 @@ class ReportsPage extends Page implements HasForms
                                 Select::make('school_year_filter')
                                     ->label('Filter by School Year')
                                     ->options(function () {
-                                        // Get distinct school years, sorted newest first
                                         return Term::query()
                                             ->select('school_year')
                                             ->distinct()
@@ -75,19 +82,10 @@ class ReportsPage extends Page implements HasForms
             ->statePath('');
     }
 
-    // ── Resolve term pair from selected school year ─────────────────────────
-
-    /**
-     * Returns [term1, term2] where:
-     *   term1 = 1st Semester of the selected school year
-     *   term2 = 2nd Semester of the selected school year
-     *
-     * Falls back gracefully if either semester doesn't exist.
-     */
+    // ── Resolve term pair ───────────────────────────────────────────────────
     public function getTermPair(): array
     {
         if (! $this->school_year_filter) {
-            // No filter — use active school year
             $activeYear = Term::where('is_active', true)->value('school_year');
             if (! $activeYear) {
                 return [null, null];
@@ -114,11 +112,7 @@ class ReportsPage extends Page implements HasForms
         return [$term1, $term2];
     }
 
-    // ── Stats builder ───────────────────────────────────────────────────────
-
-    /**
-     * Build stats for a single term, optionally filtered by scholarship category keyword.
-     */
+    // ── Grantees stats builder ──────────────────────────────────────────────
     public function getTermStats(?Term $term, ?string $scholarshipCategory = null): array
     {
         $empty = [
@@ -171,8 +165,7 @@ class ReportsPage extends Page implements HasForms
         ];
     }
 
-    // ── Main data builder ───────────────────────────────────────────────────
-
+    // ── Grantees report data ────────────────────────────────────────────────
     public function getReportData(): array
     {
         [$term1, $term2] = $this->getTermPair();
@@ -197,8 +190,62 @@ class ReportsPage extends Page implements HasForms
         ];
     }
 
-    // ── Navigation visibility ───────────────────────────────────────────────
+    // ── Institutional scholars report data ──────────────────────────────────
+    public function getInstitutionalReportData(): array
+    {
+        [$term1, $term2] = $this->getTermPair();
 
+        $scholarshipTypes = TypeOfScholarship::active()
+            ->orderBy('name')
+            ->pluck('name')
+            ->toArray();
+
+        $rows = [];
+
+        foreach ($scholarshipTypes as $type) {
+            $t1Count = $term1
+                ? InstitutionalScholar::where('term_id', $term1->id)
+                    ->where('status', '!=', 'revoked')
+                    ->whereRaw('LOWER(type_of_scholarship) LIKE ?', ['%' . strtolower($type) . '%'])
+                    ->count()
+                : 0;
+
+            $t2Count = $term2
+                ? InstitutionalScholar::where('term_id', $term2->id)
+                    ->where('status', '!=', 'revoked')
+                    ->whereRaw('LOWER(type_of_scholarship) LIKE ?', ['%' . strtolower($type) . '%'])
+                    ->count()
+                : 0;
+
+            $rows[] = [
+                'type'     => $type,
+                't1_count' => $t1Count,
+                't2_count' => $t2Count,
+            ];
+        }
+
+        $grandT1 = $term1
+            ? InstitutionalScholar::where('term_id', $term1->id)
+                ->where('status', '!=', 'revoked')
+                ->count()
+            : 0;
+
+        $grandT2 = $term2
+            ? InstitutionalScholar::where('term_id', $term2->id)
+                ->where('status', '!=', 'revoked')
+                ->count()
+            : 0;
+
+        return [
+            'term1'    => $term1,
+            'term2'    => $term2,
+            'rows'     => $rows,
+            'grand_t1' => $grandT1,
+            'grand_t2' => $grandT2,
+        ];
+    }
+
+    // ── Navigation visibility ───────────────────────────────────────────────
     public static function canAccess(): bool
     {
         return auth()->user()->hasAnyRole(['admin', 'scholarship']);

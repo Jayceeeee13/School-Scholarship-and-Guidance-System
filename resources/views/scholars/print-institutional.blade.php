@@ -218,12 +218,16 @@
                 <img src="{{ asset('images/logo.png') }}" alt="School Logo" onerror="this.style.display='none'">
                 <div class="iso">ISO 21001:2018</div>
             </td>
-            <td style="text-align:center; vertical-align:middle; padding:10px 12px;">
-                <div class="school-name">GREEN VALLEY COLLEGE FOUNDATION, INC.</div>
-                <div class="school-address">Km. 2, Bo.2, Gensan Dr., Koronadal City, South Cotabato</div>
-                <div class="doc-title">LIST OF INSTITUTIONAL SCHOLARS</div>
-                <div class="doc-subtitle">{!! $semOrdinal !!} Semester &nbsp; A.Y. {{ $ayLabel }}</div>
-            </td>
+            <td style="text-align:center; vertical-align:middle; padding:0;">
+    <div style="padding: 6px 12px; border-bottom: 1px solid #000;">
+        <div class="school-name">GREEN VALLEY COLLEGE FOUNDATION, INC.</div>
+        <div class="school-address">Km. 2, Bo.2, Gensan Dr., Koronadal City, South Cotabato</div>
+    </div>
+    <div style="padding: 8px 12px;">
+        <div class="doc-title">LIST OF INSTITUTIONAL SCHOLARS</div>
+        <div class="doc-subtitle">{!! $semOrdinal !!} Semester &nbsp; A.Y. {{ $ayLabel }}</div>
+    </div>
+</td>
         </tr>
     </table>
 

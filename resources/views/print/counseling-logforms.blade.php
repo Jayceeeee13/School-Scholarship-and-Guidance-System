@@ -151,7 +151,7 @@
         .doc-header .term-line .blank {
             display: inline-block;
             border-bottom: 1px solid #000;
-            min-width: 110px;
+            min-width: 65px;
             margin: 0 6px;
             text-align: center;
         }

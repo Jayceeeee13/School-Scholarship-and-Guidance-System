@@ -554,6 +554,8 @@ class ListUsers extends ListRecords
                         )
                         ->latest()
                 )
+                        ->recordUrl(null)
+
                 ->columns([
                     TextColumn::make('created_at')
                         ->label('When')
@@ -636,7 +638,6 @@ class ListUsers extends ListRecords
         // of whether it has a linked Personnels record.
         return $table
             ->query(User::query()->whereNull('archived_at')->with(['personnel', 'role', 'student']))
-            ->recordUrl(null) 
             ->columns([
                 TextColumn::make('name')
                     ->label('Name')

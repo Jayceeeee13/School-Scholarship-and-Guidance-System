@@ -38,6 +38,7 @@ class Applicant extends Model
         'interview',
         'benefit',
         'archived_at',
+        'rejection_reason',
     ];
 
     protected function casts(): array

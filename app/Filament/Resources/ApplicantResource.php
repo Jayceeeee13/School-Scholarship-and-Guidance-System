@@ -495,6 +495,13 @@ TextInput::make('age')
                     }),
                 // ── End requirements column ────────────────────────────────────
                 
+                TextColumn::make('rejection_reason')
+                    ->label('Rejection Reason')
+                    ->limit(40)
+                    ->tooltip(fn ($state) => $state)
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
@@ -703,30 +710,41 @@ TextInput::make('age')
     ->visible(fn (Applicant $record) => $record->status === 'pending'),
 
                     Tables\Actions\Action::make('reject')
-                        ->label('Reject')
-                        ->icon('heroicon-o-x-circle')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->modalHeading('Reject Application')
-                        ->modalDescription('Are you sure you want to reject this application?')
-                        ->modalSubmitActionLabel('Yes, Reject')
-                        ->action(function (Applicant $record) {
-                            $record->update(['status' => 'rejected']);
+    ->label('Reject')
+    ->icon('heroicon-o-x-circle')
+    ->color('danger')
+    ->requiresConfirmation()
+    ->modalHeading('Reject Application')
+    ->modalDescription('Please provide a reason for rejecting this application.')
+    ->modalSubmitActionLabel('Yes, Reject')
+    ->form([
+        Forms\Components\Textarea::make('rejection_reason')
+            ->label('Reason for Rejection')
+            ->required()
+            ->rows(3)
+            ->placeholder('e.g. Incomplete requirements, does not meet eligibility criteria...'),
+    ])
+    ->action(function (Applicant $record, array $data) {
+        $record->update([
+            'status'            => 'rejected',
+            'rejection_reason'  => $data['rejection_reason'],
+        ]);
 
-                            self::logCustomActivity(
-                                $record,
-                                'applicants',
-                                'rejected',
-                                "Rejected application for {$record->first_name} {$record->last_name}"
-                            );
+        self::logCustomActivity(
+            $record,
+            'applicants',
+            'rejected',
+            "Rejected application for {$record->first_name} {$record->last_name}",
+            ['reason' => $data['rejection_reason']]
+        );
 
-                            Notification::make()
-                                ->title('Application Rejected')
-                                ->danger()
-                                ->body("{$record->first_name} {$record->last_name}'s application has been rejected.")
-                                ->send();
-                        })
-                        ->visible(fn (Applicant $record) => $record->status === 'pending'),
+        Notification::make()
+            ->title('Application Rejected')
+            ->danger()
+            ->body("{$record->first_name} {$record->last_name}'s application has been rejected.")
+            ->send();
+    })
+    ->visible(fn (Applicant $record) => $record->status === 'pending'),
 
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
@@ -859,31 +877,43 @@ TextInput::make('age')
             ->send();
     }),
                     Tables\Actions\BulkAction::make('reject')
-                        ->label('Reject Selected')
-                        ->icon('heroicon-o-x-circle')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->action(function ($records) {
-                            $records->each(function ($record) {
-                                if ($record->status === 'pending') {
-                                    $record->update(['status' => 'rejected']);
+    ->label('Reject Selected')
+    ->icon('heroicon-o-x-circle')
+    ->color('danger')
+    ->requiresConfirmation()
+    ->modalHeading('Reject Selected Applications')
+    ->modalDescription('Please provide a reason — it will be applied to all selected applications.')
+    ->form([
+        Forms\Components\Textarea::make('rejection_reason')
+            ->label('Reason for Rejection')
+            ->required()
+            ->rows(3)
+            ->placeholder('e.g. Incomplete requirements, does not meet eligibility criteria...'),
+    ])
+    ->action(function ($records, array $data) {
+        $records->each(function ($record) use ($data) {
+            if ($record->status === 'pending') {
+                $record->update([
+                    'status'           => 'rejected',
+                    'rejection_reason' => $data['rejection_reason'],
+                ]);
 
-                                    self::logCustomActivity(
-                                        $record,
-                                        'applicants',
-                                        'rejected',
-                                        "Rejected application for {$record->first_name} {$record->last_name}"
-                                    );
-                                }
-                            });
+                self::logCustomActivity(
+                    $record,
+                    'applicants',
+                    'rejected',
+                    "Rejected application for {$record->first_name} {$record->last_name}",
+                    ['reason' => $data['rejection_reason']]
+                );
+            }
+        });
 
-                            Notification::make()
-                                ->title('Applications Rejected')
-                                ->danger()
-                                ->body('Selected applications have been rejected.')
-                                ->send();
-                        }),
-
+        Notification::make()
+            ->title('Applications Rejected')
+            ->danger()
+            ->body('Selected applications have been rejected.')
+            ->send();
+    }),
                     Tables\Actions\BulkAction::make('set_school_year_semester')
                         ->label('Set School Year & Semester')
                         ->icon('heroicon-o-calendar')

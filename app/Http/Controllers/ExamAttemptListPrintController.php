@@ -16,6 +16,12 @@ class ExamAttemptListPrintController extends Controller
         // and already reflect the search, filters and sort the user had applied.
         $payload = cache()->get('exam-attempts-print:' . auth()->id(), []);
 
+        // Older versions stored a plain list of IDs; newer ones store
+        // ['ids' => [...], 'columns' => [...]]. Accept both.
+        if (array_is_list($payload)) {
+            $payload = ['ids' => $payload];
+        }
+
         $ids = $payload['ids'] ?? [];
 
         // Columns the user left visible in the table's column toggle.

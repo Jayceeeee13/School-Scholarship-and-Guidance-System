@@ -564,11 +564,11 @@ TextInput::make('mothers_lastname')
 
     public static function canViewAny(): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'scholarship']);
+        return auth()->user()->hasAnyRole(['admin']);
     }
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'scholarship']);
+        return auth()->user()->hasAnyRole(['admin']);
     }
 }

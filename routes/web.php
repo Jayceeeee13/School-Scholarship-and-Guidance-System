@@ -50,67 +50,75 @@ Route::post('/guest', [GuestController::class, 'submitForm'])->name('guest.form.
 // Auth Routes
 // ─────────────────────────────────────────────────────────────
 
-Route::get('/login', function () {
-    return view('login');
-})->name('login');
+// Logged-in users are redirected away from these pages (see bootstrap/app.php),
+// so pressing Back after login never lands on the login form.
+Route::middleware('guest')->group(function () {
 
-Route::post('/login', function (Request $request) {
-    $credentials = $request->validate([
-        'email'    => ['required', 'email'],
-        'password' => ['required'],
-    ]);
+    Route::get('/login', function () {
+        return response()
+            ->view('login')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    })->name('login');
 
-    if (Auth::attempt($credentials)) {
-        $user = Auth::user();
+    Route::post('/login', function (Request $request) {
+        $credentials = $request->validate([
+            'email'    => ['required', 'email'],
+            'password' => ['required'],
+        ]);
 
-        // Block archived accounts from logging in, regardless of role.
-        if ($user->isArchived()) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+        if (Auth::attempt($credentials)) {
+            $user = Auth::user();
 
-            return back()->withErrors([
-                'email' => 'This account has been archived. Please contact the administrator.',
-            ])->onlyInput('email');
+            // Block archived accounts from logging in, regardless of role.
+            if ($user->isArchived()) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return back()->withErrors([
+                    'email' => 'This account has been archived. Please contact the administrator.',
+                ])->onlyInput('email');
+            }
+
+            $role = strtolower($user->role?->name ?? '');
+
+            // Only students and guests may log in through this portal.
+            // Admin, guidance, and scholarship accounts must use their own panels.
+            if (!in_array($role, ['student', 'guest'])) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return back()->withErrors([
+                    'email' => 'This login is for students only. Please use the appropriate portal for your account.',
+                ])->onlyInput('email');
+            }
+
+            $request->session()->regenerate();
+
+            if ($role === 'guest') {
+                return redirect()->route('referral');
+            }
+
+            return redirect()->route('gvc');
         }
 
-        $role = strtolower($user->role?->name ?? '');
+        return back()->withErrors([
+            'email' => 'The provided credentials do not match our records.',
+        ])->onlyInput('email');
+    })->name('login.post');
 
-        // Only students and guests may log in through this portal.
-        // Admin, guidance, and scholarship accounts must use their own panels.
-        if (!in_array($role, ['student', 'guest'])) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+    Route::get('/register', [RegisterController::class, 'show'])->name('register');
+    Route::post('/register', [RegisterController::class, 'store'])->name('register.post');
+});
 
-            return back()->withErrors([
-                'email' => 'This login is for students only. Please use the appropriate portal for your account.',
-            ])->onlyInput('email');
-        }
-
-        $request->session()->regenerate();
-
-        if ($role === 'guest') {
-            return redirect()->route('referral');
-        }
-
-        return redirect()->route('gvc');
-    }
-
-    return back()->withErrors([
-        'email' => 'The provided credentials do not match our records.',
-    ])->onlyInput('email');
-})->name('login.post');
-
+// Logout stays OUTSIDE the guest group so logged-in users can use it.
 Route::post('/logout', function (Request $request) {
     Auth::logout();
     $request->session()->invalidate();
     $request->session()->regenerateToken();
     return redirect()->route('login');
 })->name('logout');
-
-Route::get('/register', [RegisterController::class, 'show'])->name('register');
-Route::post('/register', [RegisterController::class, 'store'])->name('register.post');
 
 // Public referral form (for guests arriving via direct link before login)
 Route::get('/referral', [ReferralController::class, 'create'])->name('referral');

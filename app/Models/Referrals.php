@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Referrals extends Model
@@ -48,6 +49,11 @@ class Referrals extends Model
             'referral_id'
         );
     }
+
+    public function relationshipType(): BelongsTo
+{
+    return $this->belongsTo(RelationshipType::class, 'relationship_type_id');
+}
 
     /**
      * Latest follow-up appointment created for this referral.

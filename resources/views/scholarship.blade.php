@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,505 +7,397 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['DM Sans', 'system-ui', 'sans-serif'],
-                        display: ['Outfit', 'sans-serif']
-                    },
-                    colors: {
-                        gvc: {
-                            primary: '#14532d',
-                            dark: '#052e16',
-                            light: '#166534',
-                            pale: '#bbf7d0',
-                            mint: '#4ade80'
-                        }
-                    },
-                    backgroundImage: {
-                        'hero-gradient': 'linear-gradient(135deg, #022c22 0%, #14532d 30%, #166534 60%, #15803d 100%)',
-                        'hero-pattern': "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23014524' fill-opacity='0.07'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")"
-                    },
-                    boxShadow: {
-                        'card-hover': '0 25px 50px -12px rgba(15, 118, 110, 0.35)',
-                        'btn-glow':   '0 0 40px rgba(5,46,22,0.7), 0 10px 40px -10px rgba(20,83,45,0.6)'
-                    }
-                }
-            }
+            theme: { extend: {
+                fontFamily: { sans: ['DM Sans', 'system-ui', 'sans-serif'], display: ['Outfit', 'sans-serif'] },
+                colors: { gvc: { dark: '#052e16', primary: '#14532d', light: '#166534', pale: '#bbf7d0', mint: '#4ade80' } },
+                backgroundImage: {
+                    'hero-gradient': 'linear-gradient(135deg, #022c22 0%, #14532d 35%, #166534 65%, #15803d 100%)',
+                    'hero-pattern': "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2386efac' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E\")"
+                },
+                boxShadow: { 'card-hover': '0 25px 50px -12px rgba(22, 163, 74, 0.35)' }
+            } }
         }
     </script>
     <style>
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(28px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        .fade-up  { animation: fadeUp 0.65s cubic-bezier(.22,1,.36,1) both; }
-        .delay-1  { animation-delay: 0.10s; }
-        .delay-2  { animation-delay: 0.22s; }
-        .delay-3  { animation-delay: 0.34s; }
-        .delay-4  { animation-delay: 0.46s; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-up { animation: fadeUp .6s cubic-bezier(.22,1,.36,1) both; }
+        .delay-1 { animation-delay: .08s; } .delay-2 { animation-delay: .16s; } .delay-3 { animation-delay: .24s; }
 
-        @keyframes modalIn {
-            from { opacity: 0; transform: scale(0.95) translateY(12px); }
-            to   { opacity: 1; transform: scale(1)    translateY(0); }
-        }
-        .modal-box { animation: modalIn 0.25s cubic-bezier(.22,1,.36,1) both; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(.95) translateY(12px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .modal-box { animation: modalIn .25s cubic-bezier(.22,1,.36,1) both; }
 
-        @keyframes pulse-ring {
-            0%   { transform: scale(1);   opacity: 0.6; }
-            100% { transform: scale(2.2); opacity: 0; }
-        }
-        .pulse-dot::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            background: currentColor;
-            animation: pulse-ring 1.4s ease-out infinite;
-        }
-        .pulse-dot { position: relative; display: inline-block; }
+        @keyframes pulse-ring { 0% { transform: scale(1); opacity: .6; } 100% { transform: scale(2.4); opacity: 0; } }
+        .pulse-dot { position: relative; }
+        .pulse-dot::before { content: ''; position: absolute; inset: 0; border-radius: 9999px; background: currentColor; animation: pulse-ring 1.4s ease-out infinite; }
 
-        .step-line {
-            position: absolute;
-            left: 11px;
-            top: 24px;
-            bottom: -8px;
-            width: 2px;
-            background: #e2e8f0;
+        @media (prefers-reduced-motion: reduce) {
+            .fade-up, .modal-box, .pulse-dot::before { animation: none !important; }
         }
-        .step-line.done { background: #16a34a; }
     </style>
 </head>
 
-<body class="bg-emerald-950/5 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
-
 @php
+    /*
+    |--------------------------------------------------------------------------
+    | Data (unchanged logic)
+    |--------------------------------------------------------------------------
+    */
     $appPeriod = \App\Models\Period::scholarshipApplication();
     $reqPeriod = \App\Models\Period::scholarshipRequirement();
     $isStudent = auth()->user()->role && strtolower(auth()->user()->role->name) === 'student';
 
-    // A student may already hold a Scholars record without ever having gone
-    // through the Applicant flow (e.g. imported directly by the scholarship
-    // office), so "already applied" alone isn't enough to gate re-applying.
+    // A student may already hold a Scholars record without ever going through
+    // the Applicant flow (e.g. imported by the scholarship office), so
+    // "already applied" alone isn't enough to gate re-applying.
     $scholarRecord    = \App\Models\Scholars::forUser(auth()->user());
     $isAlreadyScholar = (bool) $scholarRecord;
+
+    // Heroicons (outline, v1) path data
+    $icons = [
+        'check-circle' => 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        'x-circle'     => 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+        'clock'        => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+        'check'        => 'M5 13l4 4L19 7',
+        'lock'         => 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
+        'clipboard'    => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
+        'document'     => 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+        'report'       => 'M9 17v-2a4 4 0 014-4h4m-4-4l4 4-4 4M3 21h18a2 2 0 002-2V7a2 2 0 00-2-2h-5.586a1 1 0 01-.707-.293l-1.414-1.414A1 1 0 0014.586 3H5a2 2 0 00-2 2v14a2 2 0 002 2z',
+        'chevron-r'    => 'M9 5l7 7-7 7',
+        'chevron-l'    => 'M15 19l-7-7 7-7',
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application status card
+    |--------------------------------------------------------------------------
+    */
+    if ($alreadyApplied && $applicant) {
+        $status = $applicant->status ?? 'pending';
+
+        $statusConfig = [
+            'pending' => [
+                'label' => 'Under Review', 'icon' => 'clock', 'pulse' => true,
+                'desc'  => 'Your application has been received and is currently being reviewed by the scholarship office.',
+                'head'  => 'bg-amber-50 border-amber-200',
+                'iconbox' => 'bg-amber-100 text-amber-600',
+                'pill'  => 'bg-amber-100 text-amber-800 border-amber-300',
+                'dot'   => 'bg-amber-400 text-amber-400',
+            ],
+            'approved' => [
+                'label' => 'Approved', 'icon' => 'check-circle', 'pulse' => false,
+                'desc'  => 'Congratulations! Your scholarship application has been approved.',
+                'head'  => 'bg-emerald-50 border-emerald-200',
+                'iconbox' => 'bg-emerald-100 text-emerald-600',
+                'pill'  => 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                'dot'   => 'bg-emerald-500 text-emerald-500',
+            ],
+            'rejected' => [
+                'label' => 'Not Approved', 'icon' => 'x-circle', 'pulse' => false,
+                'desc'  => 'Unfortunately your application was not approved. Please contact the scholarship office for more information.',
+                'head'  => 'bg-red-50 border-red-200',
+                'iconbox' => 'bg-red-100 text-red-500',
+                'pill'  => 'bg-red-100 text-red-800 border-red-300',
+                'dot'   => 'bg-red-500 text-red-500',
+            ],
+        ];
+        $cfg = $statusConfig[$status] ?? $statusConfig['pending'];
+
+        $steps = [
+            ['label' => 'Submitted',    'done' => true],
+            ['label' => 'Under Review', 'done' => in_array($status, ['pending', 'approved', 'rejected'])],
+            ['label' => 'Decision',     'done' => in_array($status, ['approved', 'rejected'])],
+            ['label' => 'Granted',      'done' => $status === 'approved'],
+        ];
+
+        $details = [
+            'Application Type' => $applicant->typeOfApplication->name ?? 'N/A',
+            'Scholarship Type' => $applicant->typeOfScholarship->name ?? 'N/A',
+            'Program'          => trim(($applicant->program->name ?? 'N/A') . ' ' . $applicant->year_level),
+            'Submitted On'     => $applicant->created_at ? $applicant->created_at->format('M d, Y') : '—',
+            'Last Updated'     => $applicant->updated_at ? $applicant->updated_at->format('M d, Y') : '—',
+        ];
+        if ($applicant->benefit) {
+            $details['Benefit'] = $applicant->benefit;
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Action cards
+    | state: link (clickable) | done (opens modal) | locked (period closed)
+    |--------------------------------------------------------------------------
+    */
+    $actions = [];
+
+    // Apply
+    if ($alreadyApplied || $isAlreadyScholar) {
+        $actions[] = [
+            'state' => 'done', 'icon' => 'check-circle', 'title' => 'Apply Scholarship',
+            'desc'  => $alreadyApplied
+                ? 'Your application has been submitted. Contact the scholarship office for any changes.'
+                : "You're already an active scholar. Contact the scholarship office if you need to make changes.",
+            'cta'   => $alreadyApplied ? 'Already Submitted' : 'Already a Scholar',
+        ];
+    } elseif ($appPeriod->is_open) {
+        $actions[] = [
+            'state' => 'link', 'icon' => 'clipboard', 'title' => 'Apply Scholarship',
+            'desc'  => 'Fill out and submit your scholarship application form to get started.',
+            'cta'   => 'Apply Now', 'href' => route('application_new.get'),
+        ];
+    } else {
+        $actions[] = [
+            'state' => 'locked', 'icon' => 'lock', 'title' => 'Apply Scholarship',
+            'desc'  => 'The application period is currently closed.'
+                . ($appPeriod->open_date ? ' Opens on ' . $appPeriod->opensOnLabel() . '.' : ''),
+            'cta'   => 'Period Closed',
+        ];
+    }
+
+    // Requirements
+    if ($reqPeriod->is_open) {
+        $actions[] = [
+            'state' => 'link', 'icon' => 'document', 'title' => 'Submit Requirements',
+            'desc'  => 'Upload and submit your scholarship requirements and letter of intent for processing.',
+            'cta'   => 'Submit Now', 'href' => route('requirements_submission.get'),
+        ];
+    } else {
+        $actions[] = [
+            'state' => 'locked', 'icon' => 'lock', 'title' => 'Submit Requirements',
+            'desc'  => 'The submission period is currently closed.'
+                . ($reqPeriod->open_date ? ' Opens on ' . $reqPeriod->opensOnLabel() . '.' : ''),
+            'cta'   => 'Period Closed',
+        ];
+    }
+
+    // Accomplishment reports (students only)
+    if ($isStudent) {
+        $actions[] = [
+            'state' => 'link', 'icon' => 'report', 'title' => 'Accomplishment Reports',
+            'desc'  => 'For Talents, SSG, and Sports scholars. Submit proof of accomplishments to maintain your scholarship.',
+            'cta'   => 'Go to Reports', 'href' => route('accomplishment_reports.get'),
+        ];
+    }
+
+    $btnNav = 'inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-medium text-white transition hover:bg-white/20 sm:text-sm';
 @endphp
 
+<body class="flex min-h-screen flex-col bg-emerald-50/60 font-sans text-slate-800 antialiased">
+
 {{-- ── ALREADY-APPLIED / ALREADY-A-SCHOLAR MODAL ── --}}
-<div id="already-applied-modal"
-     style="display:none;"
+<div id="already-applied-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="modal-title"
      class="fixed inset-0 z-50 flex items-center justify-center p-4"
-     onclick="if(event.target===this) closeModal()">
-    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
-    <div class="modal-box relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center z-10">
-        <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-5">
-            <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
-                <circle cx="15" cy="15" r="15" fill="#16a34a"/>
-                <path d="M8 15l5 5 9-9" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+     onclick="if (event.target === this || event.target.dataset.backdrop) closeModal()">
+    <div data-backdrop="1" class="absolute inset-0 bg-green-950/60 backdrop-blur-sm"></div>
+
+    <div class="modal-box relative z-10 w-full max-w-md rounded-[2rem] bg-white p-8 text-center shadow-2xl">
+        <div class="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+            <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons['check-circle'] }}"/>
             </svg>
         </div>
-        @if($alreadyApplied)
-            <h2 class="font-display text-xl font-bold text-slate-900 mb-2">Application Already Submitted</h2>
-            <p class="text-sm text-slate-500 leading-relaxed mb-6">
+
+        @if ($alreadyApplied)
+            <h2 id="modal-title" class="mb-2 font-display text-xl font-bold text-slate-900">Application Already Submitted</h2>
+            <p class="mb-6 text-sm leading-relaxed text-slate-500">
                 Our records show that you have already submitted a scholarship application.
                 Each account is allowed only <strong>one application</strong>. Please contact
                 the scholarship office if you need to make changes.
             </p>
         @else
-            <h2 class="font-display text-xl font-bold text-slate-900 mb-2">You're Already a Scholar</h2>
-            <p class="text-sm text-slate-500 leading-relaxed mb-6">
+            <h2 id="modal-title" class="mb-2 font-display text-xl font-bold text-slate-900">You're Already a Scholar</h2>
+            <p class="mb-6 text-sm leading-relaxed text-slate-500">
                 Our records show you already hold an active scholarship
                 ({{ $scholarRecord->type_of_scholarship ?? 'Institutional' }}). There's no need to
                 submit a new application. Please contact the scholarship office if you believe this is a mistake.
             </p>
         @endif
-        <button onclick="closeModal()"
-                class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm px-6 py-3 transition-colors">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
+        <button type="button" onclick="closeModal()"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-green-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons['chevron-l'] }}"/>
+            </svg>
             Got it, go back
         </button>
     </div>
 </div>
 
-{{-- ── NAVBAR ── --}}
-<header class="bg-green-800 border-b border-white sticky top-0 z-40 shadow-sm shadow-green-900/5">
-    <div class="max-w-8xl mx-auto px-6 py-3 flex flex-wrap justify-between items-center gap-4">
-        <a href="{{ url('/') }}" class="flex items-center gap-2 group flex-shrink-0">
-            <img src="{{ asset('images/logo.png') }}" alt="Green Valley College Foundation" class="w-10 h-10 rounded-lg object-contain flex-shrink-0">
-            <span class="font-display text-base md:text-lg font-bold text-white tracking-tight whitespace-nowrap">
-                Green Valley College Foundation Inc.
-            </span>
+{{-- ── NAVBAR (same as landing page) ── --}}
+<header class="sticky top-0 z-40 border-b border-white/10 bg-green-900/80 shadow-lg shadow-green-950/10 backdrop-blur-xl">
+    <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3">
+        <a href="{{ url('/gvc') }}" class="flex shrink-0 items-center gap-2.5">
+            <img src="{{ asset('images/logo.png') }}" alt="Green Valley College Foundation" class="h-10 w-10 rounded-xl bg-white/10 object-contain p-0.5 ring-1 ring-white/20">
+            <span class="hidden font-display text-base font-bold tracking-tight text-white sm:inline md:text-lg">Green Valley College Foundation Inc.</span>
         </a>
-        <nav class="flex items-center gap-2 sm:gap-3">
-            @guest
-            @else
-                <span class="hidden sm:inline text-xs sm:text-sm text-emerald-100 mr-2">
-                    Hello, <span class="font-semibold">{{ auth()->user()->name }}</span>
-                </span>
+
+        <div class="flex items-center gap-2 sm:gap-3">
+            @auth
+                <span class="hidden text-sm text-emerald-100 md:inline">Hello, <span class="font-semibold text-white">{{ auth()->user()->name }}</span></span>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit"
-                            class="inline-flex items-center rounded-full border border-emerald-200/70 bg-emerald-900/40 px-4 py-1.5 text-xs sm:text-sm font-medium text-emerald-50 hover:bg-emerald-800/80 hover:border-emerald-200 transition">
-                        Logout
-                    </button>
+                    <button type="submit" class="{{ $btnNav }}">Logout</button>
                 </form>
-            @endguest
-        </nav>
+            @endauth
+        </div>
     </div>
 </header>
 
 {{-- ── HERO ── --}}
-<section class="relative overflow-hidden py-20 md:py-28">
+<section class="relative overflow-hidden rounded-b-[2.5rem] py-20 md:py-28">
     <div class="absolute inset-0 bg-hero-gradient"></div>
     <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
-    <div class="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.10]"
-         style="background-image: url('{{ asset('images/gvc.png') }}');"></div>
-    <div class="relative max-w-3xl mx-auto px-6 text-center fade-up">
-        <span class="inline-block px-4 py-1.5 rounded-full bg-emerald-900/60 border border-emerald-400/30 text-emerald-300 text-sm font-semibold mb-5 tracking-wide">
+    <div class="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.12]" style="background-image: url('{{ asset('images/gvc.png') }}');"></div>
+    <div class="absolute -left-24 top-10 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl"></div>
+    <div class="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-lime-300/10 blur-3xl"></div>
+
+    <div class="fade-up relative mx-auto max-w-3xl px-6 text-center">
+        <span class="mb-5 inline-flex items-center rounded-full border border-emerald-300/30 bg-emerald-900/40 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-200">
             Scholarship Office
         </span>
-        <h1 class="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight mb-4 tracking-tight text-emerald-50 drop-shadow-md">
-            Scholarship <br><span class="text-gvc-pale">Services</span>
+        <h1 class="mb-4 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-emerald-50 drop-shadow-md sm:text-5xl md:text-6xl">
+            Scholarship <br>
+            <span class="bg-gradient-to-r from-gvc-pale via-gvc-mint to-emerald-300 bg-clip-text text-transparent">Services</span>
         </h1>
-        <p class="text-emerald-100/80 text-sm sm:text-base max-w-xl mx-auto">
+        <p class="mx-auto max-w-xl text-sm text-emerald-50/85 sm:text-base">
             Submit your requirements and track your scholarship application status here.
         </p>
     </div>
 </section>
 
 {{-- ── MAIN ── --}}
-<section class="flex-1 py-16 md:py-24 bg-gradient-to-b from-green-50/80 to-white">
-    <div class="max-w-4xl mx-auto px-6">
+<main class="flex-1 py-16 md:py-20">
+    <div class="mx-auto max-w-5xl px-6">
 
-        {{-- ════════════════════════════════════════════════════
-             APPLICATION STATUS CARD  (only when applied)
-        ════════════════════════════════════════════════════ --}}
-        @if($alreadyApplied && $applicant)
-        @php
-            $status = $applicant->status ?? 'pending';
+        {{-- APPLICATION STATUS (only when applied) --}}
+        @if ($alreadyApplied && $applicant)
+            <section class="fade-up mb-10 overflow-hidden rounded-3xl border border-green-200/60 bg-white shadow-sm" aria-label="Application status">
 
-            $statusConfig = [
-                'pending'  => [
-                    'label'   => 'Under Review',
-                    'desc'    => 'Your application has been received and is currently being reviewed by the scholarship office.',
-                    'bg'      => 'bg-amber-50',
-                    'border'  => 'border-amber-200',
-                    'pill_bg' => 'bg-amber-100',
-                    'pill_tx' => 'text-amber-800',
-                    'pill_br' => 'border-amber-300',
-                    'dot'     => 'bg-amber-400',
-                    'icon_bg' => 'bg-amber-100',
-                    'icon_tx' => 'text-amber-600',
-                    'pulse'   => true,
-                ],
-                'approved' => [
-                    'label'   => 'Approved',
-                    'desc'    => 'Congratulations! Your scholarship application has been approved.',
-                    'bg'      => 'bg-emerald-50',
-                    'border'  => 'border-emerald-200',
-                    'pill_bg' => 'bg-emerald-100',
-                    'pill_tx' => 'text-emerald-800',
-                    'pill_br' => 'border-emerald-300',
-                    'dot'     => 'bg-emerald-500',
-                    'icon_bg' => 'bg-emerald-100',
-                    'icon_tx' => 'text-emerald-600',
-                    'pulse'   => false,
-                ],
-                'rejected' => [
-                    'label'   => 'Not Approved',
-                    'desc'    => 'Unfortunately your application was not approved. Please contact the scholarship office for more information.',
-                    'bg'      => 'bg-red-50',
-                    'border'  => 'border-red-200',
-                    'pill_bg' => 'bg-red-100',
-                    'pill_tx' => 'text-red-800',
-                    'pill_br' => 'border-red-300',
-                    'dot'     => 'bg-red-500',
-                    'icon_bg' => 'bg-red-100',
-                    'icon_tx' => 'text-red-500',
-                    'pulse'   => false,
-                ],
-            ];
-            $cfg = $statusConfig[$status] ?? $statusConfig['pending'];
-
-            $appType  = $applicant->typeOfApplication->name ?? 'N/A';
-            $schType  = $applicant->typeOfScholarship->name ?? 'N/A';
-            $program  = $applicant->program->name           ?? 'N/A';
-            $initials = strtoupper(substr($applicant->first_name,0,1).substr($applicant->last_name,0,1));
-
-            $steps = [
-                ['label' => 'Application Submitted', 'done' => true],
-                ['label' => 'Under Review',           'done' => in_array($status, ['pending','approved','rejected'])],
-                ['label' => 'Decision Released',      'done' => in_array($status, ['approved','rejected'])],
-                ['label' => 'Scholarship Granted',    'done' => $status === 'approved'],
-            ];
-        @endphp
-
-        <div class="fade-up mb-8 rounded-2xl border {{ $cfg['border'] }} {{ $cfg['bg'] }} shadow-sm overflow-hidden">
-
-            {{-- Card top bar --}}
-            <div class="flex items-center justify-between gap-4 px-6 py-4 border-b {{ $cfg['border'] }} flex-wrap">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl {{ $cfg['icon_bg'] }} flex items-center justify-center flex-shrink-0">
-                        @if($status === 'approved')
-                            <svg class="w-5 h-5 {{ $cfg['icon_tx'] }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                {{-- Header --}}
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b px-6 py-5 {{ $cfg['head'] }}">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl {{ $cfg['iconbox'] }}">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons[$cfg['icon']] }}"/>
                             </svg>
-                        @elseif($status === 'rejected')
-                            <svg class="w-5 h-5 {{ $cfg['icon_tx'] }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                        @else
-                            <svg class="w-5 h-5 {{ $cfg['icon_tx'] }}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                        @endif
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Application Status</p>
+                            <p class="font-display text-base font-bold text-slate-900">{{ $applicant->first_name }} {{ $applicant->last_name }}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Application Status</p>
-                        <p class="font-display text-sm font-bold text-slate-800">{{ $applicant->first_name }} {{ $applicant->last_name }}</p>
-                    </div>
+
+                    <span class="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold tracking-wide {{ $cfg['pill'] }}">
+                        <span class="inline-block h-2 w-2 rounded-full {{ $cfg['dot'] }} {{ $cfg['pulse'] ? 'pulse-dot' : '' }}"></span>
+                        {{ $cfg['label'] }}
+                    </span>
                 </div>
 
-                <span class="inline-flex items-center gap-2 rounded-full {{ $cfg['pill_bg'] }} border {{ $cfg['pill_br'] }} px-4 py-1.5 text-xs font-bold {{ $cfg['pill_tx'] }} tracking-wide">
-                    <span class="relative inline-flex w-2 h-2 rounded-full {{ $cfg['dot'] }} {{ $cfg['pulse'] ? 'pulse-dot' : '' }}"></span>
-                    {{ $cfg['label'] }}
-                </span>
-            </div>
+                <div class="space-y-8 p-6 md:p-8">
+                    <p class="max-w-2xl text-sm leading-relaxed text-slate-600">{{ $cfg['desc'] }}</p>
 
-            {{-- Body --}}
-            <div class="p-6 grid md:grid-cols-3 gap-6">
-
-                <div class="md:col-span-2 flex flex-col gap-5">
-                    <p class="text-sm text-slate-600 leading-relaxed">{{ $cfg['desc'] }}</p>
-
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        <div class="bg-white/70 rounded-xl p-3 border border-white">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Application Type</p>
-                            <p class="text-sm font-semibold text-slate-700">{{ $appType }}</p>
-                        </div>
-                        <div class="bg-white/70 rounded-xl p-3 border border-white">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Scholarship Type</p>
-                            <p class="text-sm font-semibold text-slate-700">{{ $schType }}</p>
-                        </div>
-                        <div class="bg-white/70 rounded-xl p-3 border border-white">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Program</p>
-                            <p class="text-sm font-semibold text-slate-700">{{ $program }} {{ $applicant->year_level }}</p>
-                        </div>
-                        <div class="bg-white/70 rounded-xl p-3 border border-white">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Submitted On</p>
-                            <p class="text-sm font-semibold text-slate-700">
-                                {{ $applicant->created_at ? $applicant->created_at->format('M d, Y') : '—' }}
-                            </p>
-                        </div>
-                        <div class="bg-white/70 rounded-xl p-3 border border-white">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Last Updated</p>
-                            <p class="text-sm font-semibold text-slate-700">
-                                {{ $applicant->updated_at ? $applicant->updated_at->format('M d, Y') : '—' }}
-                            </p>
-                        </div>
-                        @if($applicant->benefit)
-                        <div class="bg-white/70 rounded-xl p-3 border border-white">
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Benefit</p>
-                            <p class="text-sm font-semibold text-slate-700">{{ $applicant->benefit }}</p>
-                        </div>
-                        @endif
-                    </div>
-                </div>
-
-                {{-- Timeline --}}
-                <div class="flex flex-col gap-0">
-                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Progress</p>
-                    <div class="flex flex-col gap-0">
-                        @foreach($steps as $i => $step)
-                        @php $isLast = $i === count($steps) - 1; @endphp
-                        <div class="flex items-start gap-3 relative" style="padding-bottom: {{ $isLast ? '0' : '20px' }};">
-                            @if(!$isLast)
-                                <div class="absolute left-[11px] top-6 bottom-0 w-0.5 {{ $step['done'] ? 'bg-emerald-400' : 'bg-slate-200' }}"></div>
-                            @endif
-                            <div class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center z-10
-                                {{ $step['done'] ? 'bg-emerald-500' : 'bg-white border-2 border-slate-300' }}">
-                                @if($step['done'])
-                                    <svg width="10" height="10" fill="none" viewBox="0 0 10 10">
-                                        <path d="M2 5l2.2 2.2 3.8-3.8" stroke="#fff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
+                    {{-- Progress stepper --}}
+                    <ol class="grid grid-cols-4" aria-label="Progress">
+                        @foreach ($steps as $i => $step)
+                            <li class="relative flex flex-col items-center text-center">
+                                @if ($i > 0)
+                                    <span class="absolute left-[-50%] top-3 h-0.5 w-full {{ $step['done'] ? 'bg-emerald-400' : 'bg-slate-200' }}" aria-hidden="true"></span>
                                 @endif
-                            </div>
-                            <div class="pt-0.5">
-                                <p class="text-xs font-semibold {{ $step['done'] ? 'text-emerald-700' : 'text-slate-400' }}">
-                                    {{ $step['label'] }}
-                                </p>
-                            </div>
-                        </div>
+                                <span class="relative z-10 flex h-6 w-6 items-center justify-center rounded-full
+                                    {{ $step['done'] ? 'bg-emerald-500 text-white' : 'border-2 border-slate-300 bg-white' }}">
+                                    @if ($step['done'])
+                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons['check'] }}"/>
+                                        </svg>
+                                    @endif
+                                </span>
+                                <span class="mt-2 text-xs font-semibold {{ $step['done'] ? 'text-emerald-700' : 'text-slate-400' }}">{{ $step['label'] }}</span>
+                            </li>
                         @endforeach
-                    </div>
-                </div>
+                    </ol>
 
-            </div>
-        </div>
+                    {{-- Details --}}
+                    <dl class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        @foreach ($details as $label => $value)
+                            <div class="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
+                                <dt class="text-[0.7rem] font-bold uppercase tracking-wider text-slate-400">{{ $label }}</dt>
+                                <dd class="mt-1 text-sm font-semibold text-slate-800">{{ $value }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                </div>
+            </section>
         @endif
 
-        {{-- ════════════════════════════════════════════════════
-             ACTION CARDS
-        ════════════════════════════════════════════════════ --}}
+        {{-- ACTION CARDS --}}
         <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach ($actions as $i => $a)
+                @php
+                    $tag    = $a['state'] === 'link' ? 'a' : ($a['state'] === 'done' ? 'button' : 'div');
+                    $locked = $a['state'] === 'locked';
+                @endphp
 
-            {{-- ── APPLY NOW CARD ── --}}
-            @if($alreadyApplied || $isAlreadyScholar)
-                <div onclick="openModal()"
-                     class="group relative bg-white rounded-2xl border border-green-200/60 shadow-sm p-10 flex flex-col items-center text-center transition-all duration-300 ease-in-out hover:-translate-y-2 hover:shadow-card-hover hover:border-emerald-300/60 fade-up delay-2 cursor-pointer">
-                    <div class="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center mb-6 group-hover:bg-emerald-200 transition-colors duration-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                    <h2 class="font-display text-xl font-bold text-slate-900 mb-2 group-hover:text-emerald-800 transition-colors">Apply Scholarship</h2>
-                    <p class="text-sm text-slate-500 leading-relaxed mb-6">
-                        @if($alreadyApplied)
-                            Your application has been submitted. Contact the scholarship office for any changes.
-                        @else
-                            You're already an active scholar. Contact the scholarship office if you need to make changes.
-                        @endif
-                    </p>
-                    <span class="inline-flex items-center gap-2 rounded-xl bg-emerald-100 border border-emerald-300 px-5 py-2.5 text-sm font-semibold text-emerald-700">
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                            <circle cx="7" cy="7" r="7" fill="#16a34a"/>
-                            <path d="M3.5 7l2.5 2.5 4.5-4.5" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        @if($alreadyApplied)
-                            Already Submitted
-                        @else
-                            Already a Scholar
-                        @endif
-                    </span>
-                </div>
-            @elseif($appPeriod->is_open)
-                <a href="{{ route('application_new.get') }}"
-                   class="group relative bg-white rounded-2xl border border-green-200/60 shadow-sm p-10 flex flex-col items-center text-center transition-all duration-300 ease-in-out hover:-translate-y-2 hover:shadow-card-hover hover:border-emerald-300/60 fade-up delay-2">
-                    <div class="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center mb-6 group-hover:bg-emerald-200 transition-colors duration-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-                        </svg>
-                    </div>
-                    <h2 class="font-display text-xl font-bold text-slate-900 mb-2 group-hover:text-emerald-800 transition-colors">Apply Scholarship</h2>
-                    <p class="text-sm text-slate-500 leading-relaxed mb-6">
-                        Fill out and submit your scholarship application form to get started.
-                    </p>
-                    <span class="inline-flex items-center gap-2 rounded-xl bg-emerald-900/80 border border-emerald-200/50 px-5 py-2.5 text-sm font-semibold text-emerald-50 group-hover:bg-emerald-800 transition-colors">
-                        Apply Now
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </span>
-                </a>
-            @else
-                <div class="group relative bg-white rounded-2xl border border-gray-200 shadow-sm p-10 flex flex-col items-center text-center fade-up delay-2 opacity-60 cursor-not-allowed">
-                    <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-6">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                        </svg>
-                    </div>
-                    <h2 class="font-display text-xl font-bold text-slate-900 mb-2">Apply Scholarship</h2>
-                    <p class="text-sm text-slate-500 leading-relaxed mb-6">
-                        The application period is currently closed.
-                        @if($appPeriod->open_date)
-                            Opens on {{ $appPeriod->opensOnLabel() }}.
-                        @endif
-                    </p>
-                    <span class="inline-flex items-center gap-2 rounded-xl bg-gray-100 border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-500">
-                        Period Closed
-                    </span>
-                </div>
-            @endif
+                <{{ $tag }}
+                    @if ($a['state'] === 'link') href="{{ $a['href'] }}" @endif
+                    @if ($a['state'] === 'done') type="button" onclick="openModal()" @endif
+                    class="group fade-up delay-{{ min($i + 1, 3) }} flex flex-col items-center rounded-3xl border p-8 text-center shadow-sm transition duration-300
+                        {{ $locked
+                            ? 'cursor-not-allowed border-slate-200 bg-white/70 opacity-70'
+                            : 'cursor-pointer border-green-200/60 bg-white hover:-translate-y-1.5 hover:border-emerald-300 hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700' }}">
 
-            {{-- ── SUBMIT REQUIREMENTS CARD ── --}}
-            @if($reqPeriod->is_open)
-                <a href="{{ route('requirements_submission.get') }}"
-                   class="group relative bg-white rounded-2xl border border-green-200/60 shadow-sm p-10 flex flex-col items-center text-center transition-all duration-300 ease-in-out hover:-translate-y-2 hover:shadow-card-hover hover:border-emerald-300/60 fade-up delay-1">
-                    <div class="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center mb-6 group-hover:bg-emerald-200 transition-colors duration-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    <div class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl transition-colors duration-300
+                        {{ $locked ? 'bg-slate-100 text-slate-400' : 'bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200' }}">
+                        <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons[$a['icon']] }}"/>
                         </svg>
                     </div>
-                    <h2 class="font-display text-xl font-bold text-slate-900 mb-2 group-hover:text-emerald-800 transition-colors">
-                        Submit Requirements
-                    </h2>
-                    <p class="text-sm text-slate-500 leading-relaxed mb-6">
-                        Upload and submit your scholarship requirements and letter of intent for processing.
-                    </p>
-                    <span class="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-white shadow-btn-glow group-hover:bg-emerald-400 transition-colors">
-                        Submit Now
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </span>
-                </a>
-            @else
-                <div class="group relative bg-white rounded-2xl border border-gray-200 shadow-sm p-10 flex flex-col items-center text-center fade-up delay-1 opacity-60 cursor-not-allowed">
-                    <div class="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-6">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                    </div>
-                    <h2 class="font-display text-xl font-bold text-slate-900 mb-2">Submit Requirements</h2>
-                    <p class="text-sm text-slate-500 leading-relaxed mb-6">
-                        The submission period is currently closed.
-                        @if($reqPeriod->open_date)
-                            Opens on {{ $reqPeriod->opensOnLabel() }}.
-                        @endif
-                    </p>
-                    <span class="inline-flex items-center gap-2 rounded-xl bg-gray-100 border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-500">
-                        Period Closed
-                    </span>
-                </div>
-            @endif
 
-            {{-- ── ACCOMPLISHMENT REPORTS CARD (students only) ── --}}
-            @if($isStudent)
-            <a href="{{ route('accomplishment_reports.get') }}"
-               class="group relative bg-white rounded-2xl border border-green-200/60 shadow-sm p-10 flex flex-col items-center text-center transition-all duration-300 ease-in-out hover:-translate-y-2 hover:shadow-card-hover hover:border-emerald-300/60 fade-up delay-3">
-                <div class="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center mb-6 group-hover:bg-emerald-200 transition-colors duration-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2a4 4 0 014-4h4m-4-4l4 4-4 4M3 21h18a2 2 0 002-2V7a2 2 0 00-2-2h-5.586a1 1 0 01-.707-.293l-1.414-1.414A1 1 0 0014.586 3H5a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                    </svg>
-                </div>
-                <h2 class="font-display text-xl font-bold text-slate-900 mb-2 group-hover:text-emerald-800 transition-colors">
-                    Accomplishment Reports
-                </h2>
-                <p class="text-sm text-slate-500 leading-relaxed mb-6">
-                    For Talents, SSG, and Sports scholars — submit proof of accomplishments to maintain your scholarship.
-                </p>
-                <span class="inline-flex items-center gap-2 rounded-xl bg-emerald-900/80 border border-emerald-200/50 px-5 py-2.5 text-sm font-semibold text-emerald-50 group-hover:bg-emerald-800 transition-colors">
-                    Go to Reports
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </span>
-            </a>
-            @endif
+                    <h2 class="mb-2 font-display text-xl font-bold text-slate-900 transition-colors {{ $locked ? '' : 'group-hover:text-emerald-800' }}">{{ $a['title'] }}</h2>
+                    <p class="mb-6 flex-1 text-sm leading-relaxed text-slate-500">{{ $a['desc'] }}</p>
 
-        </div>{{-- /grid --}}
+                    @if ($a['state'] === 'link')
+                        <span class="inline-flex items-center gap-2 rounded-full bg-green-900 px-5 py-2.5 text-sm font-semibold text-white transition group-hover:bg-green-800">
+                            {{ $a['cta'] }}
+                            <svg class="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons['chevron-r'] }}"/>
+                            </svg>
+                        </span>
+                    @elseif ($a['state'] === 'done')
+                        <span class="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-100 px-5 py-2.5 text-sm font-semibold text-emerald-700">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons['check'] }}"/>
+                            </svg>
+                            {{ $a['cta'] }}
+                        </span>
+                    @else
+                        <span class="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-500">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons['lock'] }}"/>
+                            </svg>
+                            {{ $a['cta'] }}
+                        </span>
+                    @endif
+                </{{ $tag }}>
+            @endforeach
+        </div>
 
         {{-- Back to Home --}}
-        <div class="text-center mt-12 fade-up delay-4">
-            <a href="{{ url('/gvc') }}" class="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-emerald-700 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+        <div class="fade-up delay-3 mt-12 text-center">
+            <a href="{{ url('/gvc') }}" class="inline-flex items-center gap-2 text-sm font-medium text-slate-400 transition-colors hover:text-emerald-700">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons['chevron-l'] }}"/>
                 </svg>
                 Back to Home
             </a>
         </div>
-
     </div>
-</section>
+</main>
 
-{{-- ── FOOTER ── --}}
-<footer class="py-10 bg-slate-800 border-t border-green-300/20">
-    <div class="max-w-6xl mx-auto px-6 text-center">
-        <p class="text-slate-400 text-sm">© {{ date('Y') }} Green Valley College Foundation Inc. All rights reserved.</p>
-    </div>
+{{-- ── FOOTER (same as landing page) ── --}}
+<footer class="border-t border-green-300/20 bg-slate-900 py-10">
+    <p class="text-center text-xs text-slate-400">&copy; {{ date('Y') }} Green Valley College Foundation Inc. All rights reserved.</p>
 </footer>
 
 <script>

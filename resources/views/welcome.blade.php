@@ -227,27 +227,48 @@
 
         @if ($scholarships->count())
         <div x-data="{
-                canPrev: false, canNext: true, timer: null, paused: false,
-                thumb: 100, progress: 0,
+                n: {{ $scholarships->count() }}, loop: false, active: 0,
+                timer: null, paused: false, settle: null,
+                step() { return this.$refs.track.firstElementChild.offsetWidth + 20; },
+                jump(delta) {
+                    const e = this.$refs.track;
+                    e.style.scrollBehavior = 'auto'; e.style.scrollSnapType = 'none';
+                    e.scrollLeft += delta;
+                    void e.offsetWidth;
+                    e.style.scrollBehavior = ''; e.style.scrollSnapType = '';
+                },
                 init() {
+                    const e = this.$refs.track, items = [...e.children];
+                    this.loop = this.n * this.step() > e.clientWidth + 4;
+                    if (this.loop) {
+                        const copy = (c) => {
+                            const k = c.cloneNode(true);
+                            k.setAttribute('aria-hidden', 'true');
+                            k.querySelectorAll('a, button').forEach(x => x.tabIndex = -1);
+                            return k;
+                        };
+                        const first = items[0];
+                        items.forEach(c => e.appendChild(copy(c)));
+                        items.forEach(c => e.insertBefore(copy(c), first));
+                        this.$nextTick(() => { this.jump(this.n * this.step() - e.scrollLeft); this.update(); });
+                        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+                            this.timer = setInterval(() => { if (!this.paused && !document.hidden) this.go(1); }, 3000);
+                    }
                     this.update();
-                    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-                        this.timer = setInterval(() => {
-                            if (this.paused || document.hidden) return;
-                            this.canNext ? this.go(1) : this.$refs.track.scrollTo({ left: 0, behavior: 'smooth' });
-                        }, 5000);
                 },
                 update() {
-                    const e = this.$refs.track, max = e.scrollWidth - e.clientWidth;
-                    this.canPrev = e.scrollLeft > 4;
-                    this.canNext = e.scrollLeft < max - 4;
-                    this.thumb = Math.min(100, (e.clientWidth / e.scrollWidth) * 100);
-                    this.progress = max > 0 ? e.scrollLeft / max : 0;
+                    const e = this.$refs.track, s = this.step(), i = Math.round(e.scrollLeft / s);
+                    this.active = this.loop ? ((i % this.n) + this.n) % this.n : Math.min(i, this.n - 1);
+                    if (!this.loop) return;
+                    clearTimeout(this.settle);
+                    this.settle = setTimeout(() => {
+                        const w = this.n * s;
+                        if (e.scrollLeft >= 2 * w - 4) this.jump(-w);
+                        else if (e.scrollLeft < w - 4) this.jump(w);
+                    }, 120);
                 },
-                go(dir) {
-                    const e = this.$refs.track;
-                    e.scrollBy({ left: dir * (e.firstElementChild.offsetWidth + 20), behavior: 'smooth' });
-                }
+                go(dir) { this.$refs.track.scrollBy({ left: dir * this.step(), behavior: 'smooth' }); },
+                goTo(i) { this.$refs.track.scrollTo({ left: (this.n + i) * this.step(), behavior: 'smooth' }); }
              }"
              @mouseenter="paused = true" @mouseleave="paused = false" @focusin="paused = true" @focusout="paused = false"
              role="region" aria-roledescription="carousel" aria-label="Scholarship programs">
@@ -259,20 +280,20 @@
                     <p class="mt-3 text-sm text-slate-500 sm:text-base">Explore our active scholarship programs available for qualified students.</p>
                 </div>
 
-                <div class="flex gap-2">
-                    <button @click="go(-1)" :disabled="!canPrev" aria-label="Previous scholarships"
-                            class="flex h-12 w-12 items-center justify-center rounded-full border border-green-900/15 bg-white text-green-900 transition hover:bg-green-900 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 disabled:pointer-events-none disabled:opacity-30">
+                <div class="flex gap-2" x-show="loop" x-cloak>
+                    <button @click="go(-1)" aria-label="Previous scholarships"
+                            class="flex h-12 w-12 items-center justify-center rounded-full border border-green-900/15 bg-white text-green-900 transition hover:bg-green-900 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.25"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     </button>
-                    <button @click="go(1)" :disabled="!canNext" aria-label="Next scholarships"
-                            class="flex h-12 w-12 items-center justify-center rounded-full bg-green-900 text-white transition hover:bg-green-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 disabled:pointer-events-none disabled:opacity-30">
+                    <button @click="go(1)" aria-label="Next scholarships"
+                            class="flex h-12 w-12 items-center justify-center rounded-full bg-green-900 text-white transition hover:bg-green-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.25"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
                     </button>
                 </div>
             </div>
 
             {{-- Track: cards bleed to the right edge so the next one peeks in --}}
-            <div x-ref="track" @scroll.throttle.50ms="update()"
+            <div x-ref="track" @scroll.throttle.60ms="update()"
                  class="-mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                  style="scroll-padding-inline: 1.5rem">
                 @foreach ($scholarships as $s)
@@ -313,10 +334,13 @@
                 @endforeach
             </div>
 
-            {{-- Scroll position indicator --}}
-            <div class="relative mt-6 h-1 overflow-hidden rounded-full bg-green-900/10" aria-hidden="true">
-                <div class="absolute inset-y-0 rounded-full bg-green-800 transition-[left] duration-200"
-                     :style="`width:${thumb}%; left:${progress * (100 - thumb)}%`"></div>
+            {{-- Position dots --}}
+            <div class="mt-6 flex justify-center gap-2" x-show="loop && n > 1" x-cloak role="group" aria-label="Choose scholarship">
+                @foreach ($scholarships as $s)
+                    <button @click="goTo({{ $loop->index }})" aria-label="Go to {{ $s->name }}"
+                            class="h-2 rounded-full transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700"
+                            :class="active === {{ $loop->index }} ? 'w-8 bg-green-800' : 'w-2 bg-green-900/20 hover:bg-green-900/40'"></button>
+                @endforeach
             </div>
         </div>
         @else

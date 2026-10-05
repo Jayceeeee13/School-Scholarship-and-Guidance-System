@@ -92,7 +92,7 @@
         <tr>
             <td class="logo-cell" rowspan="2">
                 {{-- Put your logo at public/images/gvc-logo.png (or change this path) --}}
-                <img src="{{ asset('images/gvc-logo.png') }}" alt="GVCFI Logo">
+                <img src="{{ asset('images/logo.png') }}" alt="GVCFI Logo">
             </td>
             <td class="school">
                 <div class="name">GREEN VALLEY COLLEGE FOUNDATION, INC.</div>

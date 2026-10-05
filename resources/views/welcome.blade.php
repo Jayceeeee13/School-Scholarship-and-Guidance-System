@@ -224,23 +224,51 @@
             <p class="mx-auto max-w-xl text-sm text-slate-500 sm:text-base">Explore our active scholarship programs available for qualified students.</p>
         </div>
 
-        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            @forelse ($scholarships as $s)
-                <div class="group rounded-3xl border border-green-200/60 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-emerald-300/60 hover:shadow-card-hover">
-                    <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-emerald-700 text-white shadow-md shadow-green-600/30">
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $cap }}"/></svg>
+        @if ($scholarships->count())
+        <div x-data="{
+                canPrev: false, canNext: true, timer: null, paused: false,
+                init() {
+                    this.update();
+                    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+                        this.timer = setInterval(() => { if (!this.paused && !document.hidden) this.canNext ? this.go(1) : this.$refs.track.scrollTo({ left: 0, behavior: 'smooth' }); }, 5000);
+                },
+                update() { const e = this.$refs.track; this.canPrev = e.scrollLeft > 4; this.canNext = e.scrollLeft + e.clientWidth < e.scrollWidth - 4; },
+                go(dir) { const e = this.$refs.track; e.scrollBy({ left: dir * (e.firstElementChild.offsetWidth + 24), behavior: 'smooth' }); }
+             }"
+             @mouseenter="paused = true" @mouseleave="paused = false" @focusin="paused = true" @focusout="paused = false"
+             role="region" aria-roledescription="carousel" aria-label="Scholarship programs">
+
+            <div x-ref="track" @scroll.throttle.100ms="update()"
+                 class="-mx-2 flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth px-2 pb-8 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                @foreach ($scholarships as $s)
+                    <div class="group w-[85%] shrink-0 snap-start rounded-3xl border border-green-200/60 bg-white p-8 shadow-sm transition-all duration-300 hover:border-emerald-300/60 hover:shadow-card-hover sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]">
+                        <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-emerald-700 text-white shadow-md shadow-green-600/30">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $cap }}"/></svg>
+                        </div>
+                        <h3 class="mb-3 font-display text-lg font-bold leading-snug text-slate-900">{{ $s->name }}</h3>
+                        @if (($s->status ?? 'active') === 'active')
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span> Active
+                            </span>
+                        @endif
                     </div>
-                    <h3 class="mb-3 font-display text-lg font-bold leading-snug text-slate-900">{{ $s->name }}</h3>
-                    @if (($s->status ?? 'active') === 'active')
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                            <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span> Active
-                        </span>
-                    @endif
-                </div>
-            @empty
-                <p class="col-span-full py-10 text-center text-sm text-slate-400">No scholarships available at this time.</p>
-            @endforelse
+                @endforeach
+            </div>
+
+            <div class="flex justify-center gap-3">
+                <button @click="go(-1)" :disabled="!canPrev" aria-label="Previous scholarships"
+                        class="flex h-12 w-12 items-center justify-center rounded-full border border-green-300 bg-white text-green-800 shadow-sm transition hover:bg-green-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-green-800">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <button @click="go(1)" :disabled="!canNext" aria-label="Next scholarships"
+                        class="flex h-12 w-12 items-center justify-center rounded-full bg-green-700 text-white shadow-md shadow-green-700/30 transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-30">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </button>
+            </div>
         </div>
+        @else
+            <p class="py-10 text-center text-sm text-slate-400">No scholarships available at this time.</p>
+        @endif
     </div>
 </section>
 

@@ -398,10 +398,9 @@
 <section id="contact" class="mx-auto max-w-7xl px-6 py-24">
     <h2 class="{{ $h2 }}">Contact info</h2>
     <dl class="mt-10 grid gap-5 sm:grid-cols-3">
-        {{-- TODO: replace placeholders with real details --}}
-        <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Address</dt><dd class="mt-2 font-medium">Green Valley College Foundation Inc.<br>Street, Barangay, City, Province</dd></div>
-        <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Phone</dt><dd class="mt-2 font-medium">(000) 000-0000</dd></div>
-        <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Email</dt><dd class="mt-2 font-medium"><a href="mailto:info@gvcfi.edu.ph" class="text-green-700 hover:underline">info@gvcfi.edu.ph</a></dd></div>
+        <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Address</dt><dd class="mt-2 font-medium">Km. 2, Bo.2, Gensan Dr., Koronadal City, South Cotabato</dd></div>
+        <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Facebook Page</dt><dd class="mt-2 break-words font-medium"><a href="https://www.facebook.com/GVCguidanceandscholarships2022" target="_blank" rel="noopener noreferrer" class="text-green-700 hover:underline">GVC Guidance and Scholarships</a></dd></div>
+        <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Email</dt><dd class="mt-2 font-medium"><a href="mailto:guidance@gvcfi.edu.ph" class="text-green-700 hover:underline">guidance@gvcfi.edu.ph</a></dd></div>
     </dl>
 </section>
 

@@ -355,23 +355,43 @@
 <!-- PERSONNELS -->
 <section id="personnels" class="bg-green-100/60 py-24">
     <div class="mx-auto max-w-7xl px-6">
-        <h2 class="{{ $h2 }}">Our personnel</h2>
-        <div class="mt-10 grid grid-cols-2 gap-6 md:grid-cols-4">
+        <div class="max-w-xl">
+            <h2 class="{{ $h2 }}">Meet our personnel</h2>
+            <p class="mt-3 text-sm text-slate-500 sm:text-base">The guidance and scholarship team here to support you.</p>
+        </div>
+
+        <div class="mt-12 grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
             @forelse ($personnels as $p)
-                <div class="rounded-3xl border border-green-200/60 bg-white p-5 text-center shadow-sm">
+                <figure class="group relative aspect-[4/5] overflow-hidden rounded-[2rem] bg-green-900 ring-1 ring-green-900/10">
+
                     @if (!empty($p->profile))
                         <img src="{{ asset('storage/'.$p->profile) }}" alt="{{ $p->full_name }}" loading="lazy"
-                             class="mx-auto h-24 w-24 rounded-full object-cover ring-4 ring-green-100">
+                             class="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105">
                     @else
-                        <div class="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-hero-gradient font-display text-3xl font-bold text-gvc-pale ring-4 ring-green-100">
+                        {{-- No photo: branded panel with initials --}}
+                        <div class="absolute inset-0 bg-hero-gradient"></div>
+                        <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
+                        <span class="absolute inset-0 flex items-center justify-center pb-10 font-display text-7xl font-extrabold text-emerald-100/80">
                             {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($p->first_name, 0, 1).\Illuminate\Support\Str::substr($p->last_name, 0, 1)) }}
-                        </div>
+                        </span>
                     @endif
-                    <h3 class="mt-4 font-display font-bold text-slate-900">{{ $p->full_name }}</h3>
-                    <p class="text-sm text-slate-500">{{ $p->position }}</p>
-                </div>
+
+                    {{-- Readability scrim --}}
+                    <div class="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-green-950/70 to-transparent"></div>
+
+                    {{-- Glass caption --}}
+                    <figcaption class="absolute inset-x-3 bottom-3 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 backdrop-blur-md sm:inset-x-4 sm:bottom-4">
+                        <h3 class="truncate font-display text-base font-bold text-white sm:text-lg">{{ $p->full_name }}</h3>
+                        @if (!empty($p->position))
+                            <p class="truncate text-xs text-emerald-100/90 sm:text-sm">{{ $p->position }}</p>
+                        @endif
+                    </figcaption>
+                </figure>
             @empty
-                <p class="col-span-full text-sm text-slate-500">Personnel list coming soon.</p>
+                <div class="col-span-full rounded-3xl border border-dashed border-green-300 bg-white/60 px-6 py-12 text-center">
+                    <p class="font-display text-lg font-bold text-slate-900">Our team will be listed here soon</p>
+                    <p class="mt-1 text-sm text-slate-500">Check back for the people who can help you.</p>
+                </div>
             @endforelse
         </div>
     </div>

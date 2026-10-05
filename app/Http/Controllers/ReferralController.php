@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Referrals;
 use App\Models\Students;
+use App\Models\RelationshipType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,13 +18,32 @@ class ReferralController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'date'            => 'required|date',
-            'name'            => 'required|string|max:500',
-            'course_and_year' => 'nullable|string|max:500',
-            'age'             => 'nullable|integer|min:1|max:99',
-            'case_presented'  => 'nullable|string',
-            'referred_by'     => 'nullable|string|max:100',
+            'date'                             => 'required|date',
+            'name'                              => 'required|string|max:500',
+            'course_and_year'                   => 'nullable|string|max:500',
+            'age'                                => 'nullable|integer|min:1|max:99',
+            'case_presented'                     => 'nullable|string',
+            'referred_by'                        => 'nullable|string|max:100',
+            'reason_for_referral'                => 'required|in:attendance,tardiness,academic,behavioral,peer_conflict,emotional_mental,family,personal,other',
+            'reason_for_referral_other'          => 'required_if:reason_for_referral,other|nullable|string|max:255',
+            'urgency_level'                      => 'required|integer|min:1|max:5',
+            'attempted_intervention'             => 'required|in:yes_improved,yes_no_change,no_direct',
+            'relationship_type_id'               => 'nullable|exists:relationship_types,id',
+            'relationship_with_student_other'    => 'nullable|string|max:255',
         ]);
+
+        // ── If the chosen relationship type is "Other", require the free-text field ──
+        if (!empty($validated['relationship_type_id'])) {
+            $relationshipType = RelationshipType::find($validated['relationship_type_id']);
+
+            if ($relationshipType?->isOther() && empty($validated['relationship_with_student_other'])) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'relationship_with_student_other' => 'Please specify your relationship with the student.',
+                    ]);
+            }
+        }
 
         // ── Determine if this user is enrolled ────────────────────────────
         // Unenrolled users (no linked student record) skip verification entirely.

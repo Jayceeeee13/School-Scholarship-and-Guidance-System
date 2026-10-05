@@ -167,6 +167,45 @@
             margin-top: 4px;
         }
 
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .radio-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 14px;
+            border: 1.5px solid var(--slate-border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+            font-size: 0.85rem;
+            color: var(--text-main);
+        }
+        .radio-option:hover {
+            border-color: var(--green-muted);
+            background: #f7fdf9;
+        }
+        .radio-option input[type="radio"] {
+            margin-top: 2px;
+            accent-color: var(--green-accent);
+            flex-shrink: 0;
+        }
+        .radio-inline-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .radio-inline-group .radio-option {
+            flex: 1;
+            min-width: 70px;
+            justify-content: center;
+            text-align: center;
+            align-items: center;
+        }
+
         .btn-back {
             display: inline-flex;
             align-items: center;
@@ -265,7 +304,7 @@
     </style>
 </head>
 
-<body>
+<body x-data="{ reason: '{{ old('reason_for_referral') }}', relationship: '{{ old('relationship_type_id') }}' }">
 
 {{-- ── NAVBAR ──────────────────────────────────────────────────────── --}}
 <header class="navbar shadow-sm">
@@ -441,7 +480,7 @@
                         </div>
 
                         {{-- Referred By --}}
-                        <div>
+                        <div style="grid-column: span 2;">
                             <label class="field-label">Referred By</label>
                             <input type="text" name="referred_by"
                                    value="{{ old('referred_by') }}"
@@ -452,6 +491,159 @@
                             @enderror
                         </div>
 
+                    </div>
+                </div>
+
+                {{-- SECTION 2 · Reason for Referral --}}
+                <div>
+                    <div class="section-header">
+                        <span class="section-num">2</span>
+                        <span class="section-title">Reason for Referral</span>
+                    </div>
+
+                    <div class="radio-group {{ $errors->has('reason_for_referral') ? 'is-invalid' : '' }}">
+                        @php
+                            $reasons = [
+                                'attendance'       => 'Attendance (3 or more absences)',
+                                'tardiness'        => 'Frequent Tardiness',
+                                'academic'         => 'Academic Concern (3 or more missing/unsubmitted activities or declining performance)',
+                                'behavioral'       => 'Behavioral Concern',
+                                'peer_conflict'    => 'Peer Conflict/Bullying',
+                                'emotional_mental' => 'Emotional or Mental Health Concern',
+                                'family'           => 'Family Concern',
+                                'personal'         => 'Personal Concern',
+                                'other'            => 'Other',
+                            ];
+                        @endphp
+                        @foreach($reasons as $value => $label)
+                            <label class="radio-option">
+                                <input type="radio" name="reason_for_referral" value="{{ $value }}"
+                                       x-model="reason"
+                                       {{ old('reason_for_referral') === $value ? 'checked' : '' }}>
+                                <span>{{ $label }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                    @error('reason_for_referral')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+
+                    <div x-show="reason === 'other'" x-cloak style="margin-top:12px;">
+                        <label class="field-label">Please specify</label>
+                        <input type="text" name="reason_for_referral_other"
+                               value="{{ old('reason_for_referral_other') }}"
+                               placeholder="Specify reason"
+                               class="field-input {{ $errors->has('reason_for_referral_other') ? 'is-invalid' : '' }}">
+                        @error('reason_for_referral_other')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                {{-- SECTION 3 · Urgency Level --}}
+                <div>
+                    <div class="section-header">
+                        <span class="section-num">3</span>
+                        <span class="section-title">Urgency Level</span>
+                    </div>
+                    <p class="field-hint" style="margin-bottom:10px;">
+                        On a scale of 1-5, how urgent is the need for guidance intervention for this student?
+                    </p>
+
+                    <div class="radio-inline-group">
+                        @foreach([1,2,3,4,5] as $level)
+                            <label class="radio-option">
+                                <input type="radio" name="urgency_level" value="{{ $level }}"
+                                       {{ old('urgency_level') == $level ? 'checked' : '' }}>
+                                <span>
+                                    {{ $level }}
+                                    @if($level === 1) <br><small>Non-urgent</small> @endif
+                                    @if($level === 5) <br><small>Critical</small> @endif
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+                    @error('urgency_level')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- SECTION 4 · Attempted Intervention --}}
+                <div>
+                    <div class="section-header">
+                        <span class="section-num">4</span>
+                        <span class="section-title">Attempted Intervention</span>
+                    </div>
+                    <p class="field-hint" style="margin-bottom:10px;">
+                        Have you already attempted any interventions or reached out to the student regarding this concern?
+                    </p>
+
+                    <div class="radio-group">
+                        @php
+                            $interventions = [
+                                'yes_improved'  => 'Yes, and there was improvement',
+                                'yes_no_change' => 'Yes, but there was no significant change',
+                                'no_direct'     => 'No, I am referring this directly',
+                            ];
+                        @endphp
+                        @foreach($interventions as $value => $label)
+                            <label class="radio-option">
+                                <input type="radio" name="attempted_intervention" value="{{ $value }}"
+                                       {{ old('attempted_intervention') === $value ? 'checked' : '' }}>
+                                <span>{{ $label }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                    @error('attempted_intervention')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- SECTION 5 · Relationship with the Student --}}
+                <div>
+                    <div class="section-header">
+                        <span class="section-num">5</span>
+                        <span class="section-title">Relationship with the Student</span>
+                    </div>
+
+                    <div>
+                        <label class="field-label">Your Relationship to the Student</label>
+                        <select name="relationship_type_id"
+                                x-model="relationship"
+                                class="field-input {{ $errors->has('relationship_type_id') ? 'is-invalid' : '' }}">
+                            <option value="">Select relationship</option>
+                            @foreach(\App\Models\RelationshipType::active()->get() as $type)
+                                <option value="{{ $type->id }}"
+                                    {{ (string) old('relationship_type_id') === (string) $type->id ? 'selected' : '' }}
+                                    data-is-other="{{ $type->isOther() ? '1' : '0' }}">
+                                    {{ $type->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('relationship_type_id')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div x-data="{ showOther: false }"
+                         x-init="
+                            const checkOther = () => {
+                                const sel = $root.closest('form').querySelector('[name=relationship_type_id]');
+                                const opt = sel.options[sel.selectedIndex];
+                                showOther = opt && opt.dataset.isOther === '1';
+                            };
+                            checkOther();
+                            $watch('relationship', checkOther);
+                         "
+                         x-show="showOther" x-cloak style="margin-top:12px;">
+                        <label class="field-label">Please specify</label>
+                        <input type="text" name="relationship_with_student_other"
+                               value="{{ old('relationship_with_student_other') }}"
+                               placeholder="Specify relationship"
+                               class="field-input {{ $errors->has('relationship_with_student_other') ? 'is-invalid' : '' }}">
+                        @error('relationship_with_student_other')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
 

@@ -16,10 +16,31 @@
             padding: 16px;
         }
 
-        .header { text-align: center; margin-bottom: 14px; }
-        .header h1 { font-size: 16px; margin: 0 0 2px; color: #047857; }
-        .header h2 { font-size: 13px; margin: 0 0 4px; }
-        .header p  { margin: 0; color: #6b7280; }
+        .letterhead {
+            width: 100%;
+            border: 1px solid #9ca3af;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+        .letterhead td { border: 0; padding: 0; }
+        .letterhead .logo-cell {
+            width: 110px;
+            text-align: center;
+            vertical-align: middle;
+            border-right: 1px solid #9ca3af;
+            padding: 6px;
+        }
+        .letterhead .logo-cell img { width: 78px; height: auto; display: block; margin: 0 auto; }
+        .letterhead .school {
+            text-align: center;
+            padding: 8px 10px 6px;
+            border-bottom: 1px solid #9ca3af;
+        }
+        .letterhead .school .name { font-size: 15px; font-weight: 700; color: #4b5563; letter-spacing: .2px; }
+        .letterhead .school .address { font-size: 8.5px; font-style: italic; color: #6b7280; margin-top: 1px; }
+        .letterhead .title-row { text-align: center; padding: 8px 10px; }
+        .letterhead .title-row .title { font-size: 12px; font-weight: 700; color: #4b5563; }
+        .letterhead .title-row .sub { font-size: 11px; color: #4b5563; margin-top: 3px; }
 
         .meta {
             display: flex;
@@ -67,11 +88,24 @@
         <button type="button" onclick="window.print()">Print</button>
     </div>
 
-    <div class="header">
-        <h1>Green Valley College Foundation Inc.</h1>
-        <h2>Examinees List</h2>
-        <p>Admission and Scholarship Test Results</p>
-    </div>
+    <table class="letterhead">
+        <tr>
+            <td class="logo-cell" rowspan="2">
+                {{-- Put your logo at public/images/gvc-logo.png (or change this path) --}}
+                <img src="{{ asset('images/gvc-logo.png') }}" alt="GVCFI Logo">
+            </td>
+            <td class="school">
+                <div class="name">GREEN VALLEY COLLEGE FOUNDATION, INC.</div>
+                <div class="address">Km. 2, Bo. 2, Gensan Dr., Koronadal City, South Cotabato</div>
+            </td>
+        </tr>
+        <tr>
+            <td class="title-row">
+                <div class="title">EXAMINEES LIST</div>
+                <div class="sub">Admission and Scholarship Test Results</div>
+            </td>
+        </tr>
+    </table>
 
     <div class="meta">
         <span>Total: <strong>{{ $attempts->count() }}</strong> &nbsp;|&nbsp; Passed: <strong>{{ $passedCount }}</strong> &nbsp;|&nbsp; Failed: <strong>{{ $attempts->count() - $passedCount }}</strong></span>

@@ -366,25 +366,23 @@
 
         <div class="mt-14 grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
             @forelse ($personnels as $p)
-                <article class="group rounded-[2rem] border border-white/15 bg-white/10 p-3 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-emerald-300/50 hover:bg-white/[0.14] hover:shadow-btn-glow">
+                <article class="group rounded-[2rem] border border-white/15 bg-white/10 px-5 py-7 text-center backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-emerald-300/50 hover:bg-white/[0.14] hover:shadow-btn-glow">
 
-                    <div class="relative aspect-square overflow-hidden rounded-3xl bg-green-950/40">
+                    <div class="mx-auto h-24 w-24 overflow-hidden rounded-full bg-green-950/40 ring-4 ring-white/20 transition duration-300 group-hover:ring-emerald-300/60 sm:h-28 sm:w-28">
                         @if (!empty($p->profile))
                             <img src="{{ asset('storage/'.$p->profile) }}" alt="{{ $p->full_name }}" loading="lazy"
-                                 class="h-full w-full object-cover transition duration-700 group-hover:scale-105">
+                                 class="h-full w-full object-cover">
                         @else
-                            <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-green-700 to-emerald-900 font-display text-5xl font-extrabold text-emerald-100/90">
+                            <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-green-700 to-emerald-900 font-display text-3xl font-extrabold text-emerald-100/90">
                                 {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($p->first_name, 0, 1).\Illuminate\Support\Str::substr($p->last_name, 0, 1)) }}
                             </div>
                         @endif
                     </div>
 
-                    <div class="px-2 pb-2 pt-4 text-center">
-                        <h3 class="font-display text-base font-bold leading-snug text-white sm:text-lg">{{ $p->full_name }}</h3>
-                        @if (!empty($p->position))
-                            <p class="mx-auto mt-2 inline-block max-w-full truncate rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-300/25">{{ $p->position }}</p>
-                        @endif
-                    </div>
+                    <h3 class="mt-5 font-display text-base font-bold leading-snug text-white sm:text-lg">{{ $p->full_name }}</h3>
+                    @if (!empty($p->position))
+                        <p class="mx-auto mt-2 inline-block max-w-full truncate rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-300/25">{{ $p->position }}</p>
+                    @endif
                 </article>
             @empty
                 <div class="col-span-full rounded-3xl border border-dashed border-white/25 bg-white/5 px-6 py-12 text-center">

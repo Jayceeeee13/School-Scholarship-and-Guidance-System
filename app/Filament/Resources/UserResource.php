@@ -18,6 +18,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Str;
 
 class UserResource extends Resource
 {
@@ -110,6 +111,14 @@ class UserResource extends Resource
                         $set('birthdate', $personnel->birthdate);
                         $set('address', $personnel->address);
                         $set('gender_id', $personnel->gender_id);
+
+                        // Auto-fill profile picture from personnel.
+                        // FileUpload state is an array of uuid => file path.
+                        if ($personnel->profile) {
+                            $set('avatar', [(string) Str::uuid() => $personnel->profile]);
+                        } else {
+                            $set('avatar', null);
+                        }
 
                         // Pre-fill password, still editable
                         $set('password', 'GVCFI@2026');

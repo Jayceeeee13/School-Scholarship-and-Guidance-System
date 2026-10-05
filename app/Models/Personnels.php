@@ -19,6 +19,8 @@ class Personnels extends Model
         'contact_no',
         'address',
         'email',
+        'position',
+        'profile',
         'archived_at',
     ];
 

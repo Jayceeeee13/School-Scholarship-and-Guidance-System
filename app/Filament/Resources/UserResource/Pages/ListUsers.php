@@ -19,6 +19,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables;
 use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -165,6 +166,19 @@ class ListUsers extends ListRecords
                 ->color('gray')
                 ->visible(fn (): bool => $this->activeTab === 'personnels')
                 ->form([
+                    Forms\Components\FileUpload::make('profile')
+                        ->label('Profile Picture')
+                        ->image()
+                        ->disk('public')
+                        ->directory('avatars')
+                        ->visibility('public')
+                        ->imageEditor()
+                        ->imageCropAspectRatio('1:1')
+                        ->imageResizeTargetWidth('200')
+                        ->imageResizeTargetHeight('200')
+                        ->maxSize(1024)
+                        ->nullable(),
+
                     Forms\Components\TextInput::make('first_name')
                         ->label('First Name')
                         ->required()
@@ -205,6 +219,14 @@ class ListUsers extends ListRecords
                             'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
                         ])
                         ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+
+                    Forms\Components\TextInput::make('position')
+                        ->label('Position')
+                        ->required()
+                        ->maxLength(100)
+                        ->extraInputAttributes([
+                            'style' => 'text-transform: capitalize;',
+                        ]),
 
                     Forms\Components\DatePicker::make('birthdate')
                         ->label('Date of Birth')
@@ -308,6 +330,12 @@ class ListUsers extends ListRecords
             return $table
                 ->query(Personnels::query()->whereNull('archived_at'))
                 ->columns([
+                    ImageColumn::make('profile')
+                        ->label('Profile')
+                        ->disk('public')
+                        ->circular()
+                        ->toggleable(),
+
                     TextColumn::make('first_name')
                         ->label('First Name')
                         ->searchable()
@@ -325,6 +353,13 @@ class ListUsers extends ListRecords
                         ->searchable()
                         ->sortable()
                         ->toggleable(),
+
+                    TextColumn::make('position')
+                        ->label('Position')
+                        ->searchable()
+                        ->sortable()
+                        ->toggleable()
+                        ->placeholder('—'),
 
                     TextColumn::make('age')
                         ->label('Age')
@@ -371,9 +406,11 @@ class ListUsers extends ListRecords
                             ->label('Edit')
                             ->icon('heroicon-o-pencil-square')
                             ->fillForm(fn (Personnels $record): array => [
+                                'profile'     => $record->profile,
                                 'first_name'  => $record->first_name,
                                 'middle_name' => $record->middle_name,
                                 'last_name'   => $record->last_name,
+                                'position'    => $record->position,
                                 'birthdate'   => $record->birthdate,
                                 'age'         => $record->age,
                                 'contact_no'  => $record->contact_no,
@@ -381,6 +418,19 @@ class ListUsers extends ListRecords
                                 'email'       => $record->email,
                             ])
                             ->form([
+                                Forms\Components\FileUpload::make('profile')
+                                    ->label('Profile Picture')
+                                    ->image()
+                                    ->disk('public')
+                                    ->directory('avatars')
+                                    ->visibility('public')
+                                    ->imageEditor()
+                                    ->imageCropAspectRatio('1:1')
+                                    ->imageResizeTargetWidth('200')
+                                    ->imageResizeTargetHeight('200')
+                                    ->maxSize(1024)
+                                    ->nullable(),
+
                                 Forms\Components\TextInput::make('first_name')
                                     ->label('First Name')
                                     ->required()
@@ -421,6 +471,14 @@ class ListUsers extends ListRecords
                                         'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
                                     ])
                                     ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+
+                                Forms\Components\TextInput::make('position')
+                                    ->label('Position')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->extraInputAttributes([
+                                        'style' => 'text-transform: capitalize;',
+                                    ]),
 
                                 Forms\Components\DatePicker::make('birthdate')
                                     ->label('Date of Birth')

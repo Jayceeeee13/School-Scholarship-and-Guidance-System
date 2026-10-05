@@ -176,18 +176,127 @@
 </section>
 
 <!-- ANNOUNCEMENT -->
-<section id="announcement" class="mx-auto max-w-7xl px-6 py-24">
-    <h2 class="{{ $h2 }}">Announcements</h2>
-    <div class="mt-10 grid gap-5 md:grid-cols-2">
-        @forelse ($announcements as $a)
-            <article class="rounded-3xl border border-green-200/60 bg-white p-7 shadow-sm transition hover:border-emerald-300 hover:shadow-card-hover">
-                <time class="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">{{ optional($a->created_at)->format('M d, Y') }}</time>
-                <h3 class="mt-3 font-display text-xl font-bold text-slate-900">{{ $a->title }}</h3>
-                <p class="mt-2 text-sm text-slate-600">{{ \Illuminate\Support\Str::limit($a->body ?? $a->content ?? '', 160) }}</p>
+<section id="announcement" class="mx-auto max-w-7xl px-6 py-24"
+         x-data="{ item: null }"
+         x-effect="document.body.classList.toggle('overflow-hidden', !!item)"
+         @keydown.escape.window="item = null">
+
+    {{-- Header --}}
+    <div class="mb-12 max-w-xl">
+        <span class="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-green-800">
+            <span class="relative flex h-2 w-2">
+                <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
+            </span>
+            Latest updates
+        </span>
+        <h2 class="{{ $h2 }} mt-4">Announcements</h2>
+        <p class="mt-3 text-sm text-slate-500 sm:text-base">Stay informed about the newest news, schedules, and reminders from the Scholarship and Guidance office.</p>
+    </div>
+
+    @if ($announcements->count())
+        @php
+            $featured = $announcements->first();
+            $others   = $announcements->skip(1);
+            $payload  = fn ($a) => [
+                'title' => $a->title,
+                'body'  => $a->body ?? $a->content ?? '',
+                'date'  => optional($a->created_at)->format('F d, Y'),
+            ];
+        @endphp
+
+        <div class="grid gap-6 lg:grid-cols-5">
+
+            {{-- Featured (latest) announcement --}}
+            <article class="relative flex min-h-[22rem] flex-col justify-between overflow-hidden rounded-[2rem] bg-hero-gradient p-8 text-white ring-1 ring-white/10 lg:col-span-3 md:p-10">
+                <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
+                <div class="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl"></div>
+                <svg class="pointer-events-none absolute -bottom-12 -right-8 h-72 w-72 text-white/[0.07]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="0.6" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/>
+                </svg>
+
+                <div class="relative flex flex-wrap items-center gap-3">
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-100">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span> Latest
+                    </span>
+                    <time class="text-sm font-medium text-emerald-100/80">{{ optional($featured->created_at)->format('F d, Y') }}</time>
+                </div>
+
+                <div class="relative mt-10">
+                    <h3 class="font-display text-3xl font-bold leading-tight md:text-4xl">{{ $featured->title }}</h3>
+                    <p class="mt-4 line-clamp-4 max-w-2xl text-emerald-50/80">{{ $featured->body ?? $featured->content ?? '' }}</p>
+
+                    <button type="button" @click="item = {{ \Illuminate\Support\Js::from($payload($featured)) }}"
+                            class="mt-7 inline-flex items-center gap-2 rounded-full bg-white/10 py-1.5 pl-5 pr-1.5 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur-md transition hover:bg-white hover:text-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
+                        Read full announcement
+                        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-emerald-950">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M9 7h8v8"/></svg>
+                        </span>
+                    </button>
+                </div>
             </article>
-        @empty
-            <p class="col-span-full text-sm text-slate-500">No announcements right now. Check back soon.</p>
-        @endforelse
+
+            {{-- Other announcements --}}
+            <div class="flex flex-col gap-4 lg:col-span-2">
+                @forelse ($others as $a)
+                    @php $isNew = $a->created_at && $a->created_at->gt(now()->subDays(7)); @endphp
+                    <button type="button" @click="item = {{ \Illuminate\Support\Js::from($payload($a)) }}"
+                            class="group flex w-full items-start gap-4 rounded-3xl border border-green-200/60 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
+
+                        {{-- Date block --}}
+                        <div class="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-green-50 text-green-800 ring-1 ring-green-200/70 transition group-hover:bg-green-900 group-hover:text-white group-hover:ring-green-900">
+                            <span class="text-[0.65rem] font-semibold uppercase tracking-wider opacity-70">{{ optional($a->created_at)->format('M') }}</span>
+                            <span class="font-display text-2xl font-extrabold leading-none">{{ optional($a->created_at)->format('d') }}</span>
+                        </div>
+
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="truncate font-display text-base font-bold text-slate-900">{{ $a->title }}</h3>
+                                @if ($isNew)
+                                    <span class="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-emerald-700">New</span>
+                                @endif
+                            </div>
+                            <p class="mt-1 line-clamp-2 text-sm text-slate-600">{{ $a->body ?? $a->content ?? '' }}</p>
+                        </div>
+
+                        <svg class="mt-1 h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-1 group-hover:text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                @empty
+                    <div class="flex h-full items-center justify-center rounded-3xl border border-dashed border-green-300 bg-white/60 p-8 text-center text-sm text-slate-500">
+                        That's the only announcement for now. More will appear here.
+                    </div>
+                @endforelse
+            </div>
+        </div>
+    @else
+        <div class="mx-auto max-w-md rounded-3xl border border-dashed border-green-300 bg-white/60 px-6 py-12 text-center">
+            <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+            </div>
+            <h3 class="font-display text-xl font-bold text-slate-900">No announcements right now</h3>
+            <p class="mt-2 text-sm text-slate-500">Check back soon for news and updates.</p>
+        </div>
+    @endif
+
+    {{-- Full announcement modal --}}
+    <div x-show="item" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" :aria-label="item ? item.title : ''">
+        <div x-show="item" x-transition.opacity class="absolute inset-0 bg-green-950/70 backdrop-blur-sm" @click="item = null"></div>
+
+        <div x-show="item" x-transition.scale.origin.center.90
+             class="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+            <div class="relative bg-hero-gradient px-7 py-6 text-white md:px-9">
+                <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
+                <button type="button" @click="item = null" aria-label="Close"
+                        class="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/25 transition hover:bg-white/25">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+                <time class="relative text-xs font-semibold uppercase tracking-wider text-emerald-100/80" x-text="item ? item.date : ''"></time>
+                <h3 class="relative mt-2 pr-10 font-display text-2xl font-bold leading-tight md:text-3xl" x-text="item ? item.title : ''"></h3>
+            </div>
+            <div class="overflow-y-auto px-7 py-6 md:px-9 md:py-8">
+                <p class="whitespace-pre-line text-slate-700" x-text="item ? item.body : ''"></p>
+            </div>
+        </div>
     </div>
 </section>
 

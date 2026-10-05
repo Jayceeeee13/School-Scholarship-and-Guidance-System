@@ -140,6 +140,7 @@ class ListExams extends ListRecords
                     TextColumn::make('status')
                         ->label('Result')
                         ->badge()
+                        ->toggleable()
                         ->getStateUsing(fn ($record) => $record->percentage >= 75 ? 'Passed' : 'Failed')
                         ->color(fn ($state) => match ($state) {
                             'Passed' => 'success',
@@ -158,6 +159,7 @@ class ListExams extends ListRecords
                         ->label('Violations')
                         ->sortable()
                         ->badge()
+                        ->toggleable()
                         ->getStateUsing(fn ($record) => (int) $record->getRawOriginal('violation_count') ?? (int) $record->violation_count)
                         ->color(fn ($state) => match (true) {
                             $state === 0 => 'success',
@@ -169,6 +171,7 @@ class ListExams extends ListRecords
                     TextColumn::make('completed_at')
                         ->label('Completed')
                         ->dateTime('M d, Y h:i A')
+                        ->toggleable()
                         ->sortable(),
                 ])
                 ->defaultSort('completed_at', 'desc')

@@ -353,37 +353,43 @@
 </section>
 
 <!-- PERSONNELS -->
-<section id="personnels" class="py-24">
-    <div class="mx-auto max-w-7xl px-6">
-        <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <h2 class="{{ $h2 }}">Meet our personnel</h2>
-            <p class="max-w-sm text-sm text-slate-500 sm:text-base">The guidance and scholarship team here to support you.</p>
+<section id="personnels" class="relative overflow-hidden bg-hero-gradient py-24 text-white md:py-28">
+    <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
+    <div class="absolute -left-32 top-0 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl"></div>
+    <div class="absolute -right-32 bottom-0 h-96 w-96 rounded-full bg-lime-300/10 blur-3xl"></div>
+
+    <div class="relative mx-auto max-w-7xl px-6">
+        <div class="mx-auto max-w-2xl text-center">
+            <h2 class="font-display text-3xl font-extrabold tracking-tight text-emerald-50 md:text-5xl">Meet our personnel</h2>
+            <p class="mt-4 text-sm text-emerald-50/80 sm:text-base">The guidance and scholarship team here to support you.</p>
         </div>
 
-        <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="mt-14 grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
             @forelse ($personnels as $p)
-                <article class="flex items-center gap-5 rounded-[1.75rem] border border-green-900/10 bg-white p-4 pr-6 shadow-sm">
+                <article class="group rounded-[2rem] border border-white/15 bg-white/10 p-3 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-emerald-300/50 hover:bg-white/[0.14] hover:shadow-btn-glow">
 
-                    @if (!empty($p->profile))
-                        <img src="{{ asset('storage/'.$p->profile) }}" alt="{{ $p->full_name }}" loading="lazy"
-                             class="h-24 w-24 shrink-0 rounded-3xl object-cover">
-                    @else
-                        <div class="flex h-24 w-24 shrink-0 items-center justify-center rounded-3xl bg-hero-gradient font-display text-3xl font-extrabold text-emerald-100">
-                            {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($p->first_name, 0, 1).\Illuminate\Support\Str::substr($p->last_name, 0, 1)) }}
-                        </div>
-                    @endif
+                    <div class="relative aspect-square overflow-hidden rounded-3xl bg-green-950/40">
+                        @if (!empty($p->profile))
+                            <img src="{{ asset('storage/'.$p->profile) }}" alt="{{ $p->full_name }}" loading="lazy"
+                                 class="h-full w-full object-cover transition duration-700 group-hover:scale-105">
+                        @else
+                            <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-green-700 to-emerald-900 font-display text-5xl font-extrabold text-emerald-100/90">
+                                {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($p->first_name, 0, 1).\Illuminate\Support\Str::substr($p->last_name, 0, 1)) }}
+                            </div>
+                        @endif
+                    </div>
 
-                    <div class="min-w-0">
-                        <h3 class="font-display text-lg font-bold leading-snug text-slate-900">{{ $p->full_name }}</h3>
+                    <div class="px-2 pb-2 pt-4 text-center">
+                        <h3 class="font-display text-base font-bold leading-snug text-white sm:text-lg">{{ $p->full_name }}</h3>
                         @if (!empty($p->position))
-                            <p class="mt-2 inline-block max-w-full truncate rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">{{ $p->position }}</p>
+                            <p class="mx-auto mt-2 inline-block max-w-full truncate rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-medium text-emerald-100 ring-1 ring-emerald-300/25">{{ $p->position }}</p>
                         @endif
                     </div>
                 </article>
             @empty
-                <div class="col-span-full rounded-3xl border border-dashed border-green-300 bg-white/60 px-6 py-12 text-center">
-                    <p class="font-display text-lg font-bold text-slate-900">Our team will be listed here soon</p>
-                    <p class="mt-1 text-sm text-slate-500">Check back for the people who can help you.</p>
+                <div class="col-span-full rounded-3xl border border-dashed border-white/25 bg-white/5 px-6 py-12 text-center">
+                    <p class="font-display text-lg font-bold">Our team will be listed here soon</p>
+                    <p class="mt-1 text-sm text-emerald-50/75">Check back for the people who can help you.</p>
                 </div>
             @endforelse
         </div>

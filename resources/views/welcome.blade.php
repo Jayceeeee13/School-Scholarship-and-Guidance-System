@@ -216,58 +216,114 @@
 </section>
 
 <!-- SCHOLARSHIPS -->
+@php
+    // Where the card button sends people: enrolled students go to the application page, guests to login.
+    $applyUrl = auth()->check()
+        ? (auth()->user()->isEnrolled() ? url('/scholarship') : '#home')
+        : route('login');
+@endphp
 <section id="scholarship" class="py-24">
-    <div class="mx-auto max-w-6xl px-6">
-        <div class="mb-14 text-center">
-            <span class="mb-4 inline-block rounded-full bg-green-100 px-4 py-1.5 text-sm font-semibold text-green-700">Scholarships</span>
-            <h2 class="{{ $h2 }} mb-4">What We Offer</h2>
-            <p class="mx-auto max-w-xl text-sm text-slate-500 sm:text-base">Explore our active scholarship programs available for qualified students.</p>
-        </div>
+    <div class="mx-auto max-w-7xl px-6">
 
         @if ($scholarships->count())
         <div x-data="{
                 canPrev: false, canNext: true, timer: null, paused: false,
+                thumb: 100, progress: 0,
                 init() {
                     this.update();
                     if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-                        this.timer = setInterval(() => { if (!this.paused && !document.hidden) this.canNext ? this.go(1) : this.$refs.track.scrollTo({ left: 0, behavior: 'smooth' }); }, 5000);
+                        this.timer = setInterval(() => {
+                            if (this.paused || document.hidden) return;
+                            this.canNext ? this.go(1) : this.$refs.track.scrollTo({ left: 0, behavior: 'smooth' });
+                        }, 5000);
                 },
-                update() { const e = this.$refs.track; this.canPrev = e.scrollLeft > 4; this.canNext = e.scrollLeft + e.clientWidth < e.scrollWidth - 4; },
-                go(dir) { const e = this.$refs.track; e.scrollBy({ left: dir * (e.firstElementChild.offsetWidth + 24), behavior: 'smooth' }); }
+                update() {
+                    const e = this.$refs.track, max = e.scrollWidth - e.clientWidth;
+                    this.canPrev = e.scrollLeft > 4;
+                    this.canNext = e.scrollLeft < max - 4;
+                    this.thumb = Math.min(100, (e.clientWidth / e.scrollWidth) * 100);
+                    this.progress = max > 0 ? e.scrollLeft / max : 0;
+                },
+                go(dir) {
+                    const e = this.$refs.track;
+                    e.scrollBy({ left: dir * (e.firstElementChild.offsetWidth + 20), behavior: 'smooth' });
+                }
              }"
              @mouseenter="paused = true" @mouseleave="paused = false" @focusin="paused = true" @focusout="paused = false"
              role="region" aria-roledescription="carousel" aria-label="Scholarship programs">
 
-            <div x-ref="track" @scroll.throttle.100ms="update()"
-                 class="-mx-2 flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth px-2 pb-8 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {{-- Header + controls --}}
+            <div class="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+                <div class="max-w-xl">
+                    <h2 class="{{ $h2 }}">What we offer</h2>
+                    <p class="mt-3 text-sm text-slate-500 sm:text-base">Explore our active scholarship programs available for qualified students.</p>
+                </div>
+
+                <div class="flex gap-2">
+                    <button @click="go(-1)" :disabled="!canPrev" aria-label="Previous scholarships"
+                            class="flex h-12 w-12 items-center justify-center rounded-full border border-green-900/15 bg-white text-green-900 transition hover:bg-green-900 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 disabled:pointer-events-none disabled:opacity-30">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.25"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button @click="go(1)" :disabled="!canNext" aria-label="Next scholarships"
+                            class="flex h-12 w-12 items-center justify-center rounded-full bg-green-900 text-white transition hover:bg-green-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 disabled:pointer-events-none disabled:opacity-30">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.25"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Track: cards bleed to the right edge so the next one peeks in --}}
+            <div x-ref="track" @scroll.throttle.50ms="update()"
+                 class="-mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                 style="scroll-padding-inline: 1.5rem">
                 @foreach ($scholarships as $s)
-                    <div class="group w-[85%] shrink-0 snap-start rounded-3xl border border-green-200/60 bg-white p-8 shadow-sm transition-all duration-300 hover:border-emerald-300/60 hover:shadow-card-hover sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)]">
-                        <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-emerald-700 text-white shadow-md shadow-green-600/30">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $cap }}"/></svg>
+                    <article class="relative flex min-h-[19rem] w-[82%] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-[2rem] bg-hero-gradient p-7 text-white ring-1 ring-white/10 sm:w-[calc(50%-10px)] lg:w-[calc(33.333%-14px)]">
+
+                        {{-- Oversized cap as a watermark --}}
+                        <svg class="pointer-events-none absolute -bottom-10 -right-10 h-64 w-64 text-white/[0.07]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="0.6" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="{{ $cap }}"/>
+                        </svg>
+
+                        <div class="relative flex items-start justify-between">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md">
+                                <svg class="h-6 w-6 text-emerald-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $cap }}"/></svg>
+                            </div>
+
+                            @if (($s->status ?? 'active') === 'active')
+                                <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-xs font-medium text-emerald-100">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span> Open for applications
+                                </span>
+                            @endif
                         </div>
-                        <h3 class="mb-3 font-display text-lg font-bold leading-snug text-slate-900">{{ $s->name }}</h3>
-                        @if (($s->status ?? 'active') === 'active')
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                                <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span> Active
-                            </span>
-                        @endif
-                    </div>
+
+                        <div class="relative mt-10">
+                            <h3 class="font-display text-2xl font-bold leading-tight text-white">{{ $s->name }}</h3>
+                            @if (!empty($s->description))
+                                <p class="mt-2 line-clamp-2 text-sm text-emerald-50/75">{{ $s->description }}</p>
+                            @endif
+
+                            <a href="{{ $applyUrl }}"
+                               class="mt-6 inline-flex items-center gap-2 rounded-full bg-white/10 py-1.5 pl-5 pr-1.5 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur-md transition hover:bg-white hover:text-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
+                                Apply now
+                                <span class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-emerald-950">
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M9 7h8v8"/></svg>
+                                </span>
+                            </a>
+                        </div>
+                    </article>
                 @endforeach
             </div>
 
-            <div class="flex justify-center gap-3">
-                <button @click="go(-1)" :disabled="!canPrev" aria-label="Previous scholarships"
-                        class="flex h-12 w-12 items-center justify-center rounded-full border border-green-300 bg-white text-green-800 shadow-sm transition hover:bg-green-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-green-800">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                </button>
-                <button @click="go(1)" :disabled="!canNext" aria-label="Next scholarships"
-                        class="flex h-12 w-12 items-center justify-center rounded-full bg-green-700 text-white shadow-md shadow-green-700/30 transition hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-30">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-                </button>
+            {{-- Scroll position indicator --}}
+            <div class="relative mt-6 h-1 overflow-hidden rounded-full bg-green-900/10" aria-hidden="true">
+                <div class="absolute inset-y-0 rounded-full bg-green-800 transition-[left] duration-200"
+                     :style="`width:${thumb}%; left:${progress * (100 - thumb)}%`"></div>
             </div>
         </div>
         @else
-            <p class="py-10 text-center text-sm text-slate-400">No scholarships available at this time.</p>
+            <div class="mx-auto max-w-md rounded-3xl border border-dashed border-green-300 bg-white/60 px-6 py-12 text-center">
+                <h2 class="font-display text-xl font-bold text-slate-900">No scholarships open right now</h2>
+                <p class="mt-2 text-sm text-slate-500">New programs are posted here as soon as they open. Check the announcements for updates.</p>
+            </div>
         @endif
     </div>
 </section>

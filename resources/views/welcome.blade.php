@@ -359,13 +359,16 @@
         <div class="mt-10 grid grid-cols-2 gap-6 md:grid-cols-4">
             @forelse ($personnels as $p)
                 <div class="rounded-3xl border border-green-200/60 bg-white p-5 text-center shadow-sm">
-                    @if (!empty($p->photo))
-                        <img src="{{ asset('storage/'.$p->photo) }}" alt="{{ $p->name }}" loading="lazy" class="mx-auto h-24 w-24 rounded-full object-cover ring-4 ring-green-100">
+                    @if (!empty($p->profile))
+                        <img src="{{ asset('storage/'.$p->profile) }}" alt="{{ $p->full_name }}" loading="lazy"
+                             class="mx-auto h-24 w-24 rounded-full object-cover ring-4 ring-green-100">
                     @else
-                        <div class="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-hero-gradient font-display text-3xl font-bold text-gvc-pale ring-4 ring-green-100">{{ \Illuminate\Support\Str::substr($p->name, 0, 1) }}</div>
+                        <div class="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-hero-gradient font-display text-3xl font-bold text-gvc-pale ring-4 ring-green-100">
+                            {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($p->first_name, 0, 1).\Illuminate\Support\Str::substr($p->last_name, 0, 1)) }}
+                        </div>
                     @endif
-                    <h3 class="mt-4 font-display font-bold text-slate-900">{{ $p->name }}</h3>
-                    <p class="text-sm text-slate-500">{{ $p->position ?? '' }}</p>
+                    <h3 class="mt-4 font-display font-bold text-slate-900">{{ $p->full_name }}</h3>
+                    <p class="text-sm text-slate-500">{{ $p->position }}</p>
                 </div>
             @empty
                 <p class="col-span-full text-sm text-slate-500">Personnel list coming soon.</p>

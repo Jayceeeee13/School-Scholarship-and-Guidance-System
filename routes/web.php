@@ -4,6 +4,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Models\Exam;
 use App\Models\Program;
+use App\Models\Personnels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -25,19 +26,20 @@ use App\Http\Controllers\AccomplishmentReportController;
 // Public Routes
 // ─────────────────────────────────────────────────────────────
 
-Route::get('/', function () {
+// Shared by "/" and "/gvc" so the landing page data lives in one place.
+$landing = function () {
     return view('welcome', [
-        'exam' => Exam::first(),
+        'exam'         => Exam::first(),
         'scholarships' => \App\Models\TypeOfScholarship::active()->orderBy('name')->get(),
+        'personnels'   => Personnels::active()
+            ->select('id', 'first_name', 'middle_name', 'last_name', 'position', 'profile')
+            ->orderBy('last_name')
+            ->get(),
     ]);
-});
+};
 
-Route::get('/gvc', function () {
-    return view('welcome', [
-        'exam' => Exam::first(),
-        'scholarships' => \App\Models\TypeOfScholarship::active()->orderBy('name')->get(),
-    ]);
-})->name('gvc');
+Route::get('/', $landing);
+Route::get('/gvc', $landing)->name('gvc');
 
 Route::get('/guest', [GuestController::class, 'showForm'])->name('guest.form');
 Route::post('/guest', [GuestController::class, 'submitForm'])->name('guest.form.post');

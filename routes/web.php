@@ -5,6 +5,7 @@ use App\Models\User;
 use App\Models\Exam;
 use App\Models\Program;
 use App\Models\Personnels;
+use App\Models\Announcement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -29,9 +30,10 @@ use App\Http\Controllers\AccomplishmentReportController;
 // Shared by "/" and "/gvc" so the landing page data lives in one place.
 $landing = function () {
     return view('welcome', [
-        'exam'         => Exam::first(),
-        'scholarships' => \App\Models\TypeOfScholarship::active()->orderBy('name')->get(),
-        'personnels'   => Personnels::active()
+        'exam'          => Exam::first(),
+        'announcements' => Announcement::latest()->take(6)->get(),
+        'scholarships'  => \App\Models\TypeOfScholarship::active()->orderBy('name')->get(),
+        'personnels'    => Personnels::active()
             ->select('id', 'first_name', 'middle_name', 'last_name', 'position', 'profile')
             ->orderBy('last_name')
             ->get(),

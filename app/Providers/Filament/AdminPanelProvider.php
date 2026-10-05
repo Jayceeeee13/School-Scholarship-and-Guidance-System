@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Livewire\Auth\ForgotPassword;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -9,10 +10,9 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\MenuItem;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\View\PanelsRenderHook;
-use Filament\Support\Facades\FilamentView;
-use Illuminate\Support\Facades\Blade;
 use Filament\Support\Colors\Color;
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -20,7 +20,6 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Saade\FilamentFullCalendar\FilamentFullCalendarPlugin;
-use App\Livewire\Auth\ForgotPassword;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -37,43 +36,47 @@ class AdminPanelProvider extends PanelProvider
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->passwordReset(ForgotPassword::class)
-           ->userMenuItems([
-    MenuItem::make()
-        ->label('Settings')
-        ->url(fn () => \App\Filament\Pages\ManageSettings::getUrl())
-        ->icon('heroicon-o-cog-6-tooth')
-        ->visible(fn () => ! auth()->user()->hasRole('Department Head') && ! auth()->user()->hasRole('department head')),
-    MenuItem::make()
-    ->label('Profile')
-    ->url(fn () => route('filament.admin.auth.profile'))
-    ->icon('heroicon-o-user-circle'),
-])
+
+            // FIX 1: use the 'profile' and 'logout' keys so these REPLACE the
+            // built-in items instead of adding duplicates.
+            ->userMenuItems([
+                'profile' => MenuItem::make()
+                    ->label('Profile')
+                    ->url(fn () => route('filament.admin.auth.profile'))
+                    ->icon('heroicon-o-user-circle'),
+
+                MenuItem::make()
+                    ->label('Settings')
+                    ->url(fn () => \App\Filament\Pages\ManageSettings::getUrl())
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->visible(fn () => ! auth()->user()->hasAnyRole(['Department Head', 'department head'])),
+
+                'logout' => MenuItem::make()
+                    ->label('Sign out')
+                    ->icon('heroicon-o-arrow-left-on-rectangle'),
+            ])
+
             ->colors([
                 'primary' => Color::Green,
             ])
-                        ->colors([
-                'primary' => Color::Green,
-            ])
-            ->theme(asset('css/filament/admin/theme.css')) 
-            ->sidebarCollapsibleOnDesktop()
+            ->theme(asset('css/filament/admin/theme.css'))
             ->sidebarCollapsibleOnDesktop()
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
-                // ✅ Use YOUR custom Dashboard, not Filament's built-in one
+                // Use YOUR custom Dashboard, not Filament's built-in one
                 \App\Filament\Pages\Dashboard::class,
             ])
             ->navigationGroups([
                 'Generals',
-    'Scholarship Management',
-    'Guidance Management',
-    'Exam Management', 
+                'Scholarship Management',
+                'Guidance Management',
+                'Exam Management',
             ])
-            // ✅ No widgets — everything is rendered in the custom blade
+            // No widgets: everything is rendered in the custom blade
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
-                ->widgets([
-                ])            
-                ->middleware([
+            ->widgets([])
+            ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
@@ -87,16 +90,17 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-            ->plugin(FilamentFullCalendarPlugin::make()
-            ->selectable(true)
+            ->plugin(
+                FilamentFullCalendarPlugin::make()
+                    ->selectable(true)
             );
     }
 
     public function boot(): void
-{
-    FilamentView::registerRenderHook(
-        'panels::body.end',
-        fn (): string => request()->is('admin*') ? '<style>
+    {
+        FilamentView::registerRenderHook(
+            'panels::body.end',
+            fn (): string => request()->is('admin*') ? '<style>
         /* ========================================
            SIDEBAR - MEDIUM GREEN BACKGROUND
            ======================================== */
@@ -304,25 +308,26 @@ class AdminPanelProvider extends PanelProvider
             color: white !important;
         }
 
+        /* ========================================
+           DROPDOWN PANELS (generic)
+           ======================================== */
         .fi-dropdown-panel {
             background-color: white !important;
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1) !important;
             border: 1px solid #e5e7eb !important;
             border-radius: 0.5rem !important;
+            color: #1f2937 !important;
         }
 
-        .fi-dropdown-panel {
-    color: #1f2937 !important;
-}
+        .fi-dropdown-panel > * {
+            color: #1f2937 !important;
+        }
 
-.fi-dropdown-panel > * {
-    color: #1f2937 !important;
-}
+        .fi-dropdown-list-item,
+        .fi-dropdown-list-item * {
+            background-color: transparent !important;
+        }
 
-.fi-dropdown-list-item,
-.fi-dropdown-list-item * {
-    background-color: transparent !important;
-}
         .fi-dropdown-list-item:hover {
             background-color: #f3f4f6 !important;
         }
@@ -336,6 +341,52 @@ class AdminPanelProvider extends PanelProvider
             border-color: #e5e7eb !important;
         }
 
+        /* ========================================
+           USER MENU DROPDOWN FIX
+           The dropdown lives inside .fi-topbar, so the white svg/button
+           rules above made its icons invisible. These are more specific
+           and restore readable colors.
+           ======================================== */
+        .fi-topbar .fi-dropdown-panel svg {
+            color: #4b5563 !important;
+        }
+
+        .fi-topbar .fi-dropdown-panel button,
+        .fi-topbar .fi-dropdown-panel a {
+            color: #1f2937 !important;
+        }
+
+        .fi-topbar .fi-dropdown-panel .fi-dropdown-list-item:hover svg {
+            color: #059669 !important;
+        }
+
+        /* Theme switcher (light / dark / system) */
+        .fi-topbar .fi-dropdown-panel .fi-theme-switcher-btn svg,
+        .fi-topbar .fi-dropdown-panel .fi-theme-switcher button svg {
+            color: #6b7280 !important;
+        }
+
+        .fi-topbar .fi-dropdown-panel .fi-theme-switcher-btn.fi-active,
+        .fi-topbar .fi-dropdown-panel .fi-theme-switcher-btn.fi-active svg,
+        .fi-topbar .fi-dropdown-panel button[class*="text-primary"],
+        .fi-topbar .fi-dropdown-panel button[class*="text-primary"] svg {
+            color: #059669 !important;
+        }
+
+        .fi-topbar .fi-dropdown-panel .fi-theme-switcher-btn:hover {
+            background-color: #f3f4f6 !important;
+        }
+
+        /* Sign out stays red, including its icon */
+        .fi-topbar .fi-dropdown-panel .fi-dropdown-list-item-color-danger,
+        .fi-topbar .fi-dropdown-panel .fi-dropdown-list-item-color-danger svg,
+        .fi-topbar .fi-dropdown-panel .fi-dropdown-list-item-color-danger span {
+            color: #dc2626 !important;
+        }
+
+        /* ========================================
+           LOGIN / SIMPLE LAYOUT
+           ======================================== */
         .fi-simple-layout {
             background-image: url("/images/gvc.png") !important;
             background-size: cover !important;
@@ -488,7 +539,7 @@ class AdminPanelProvider extends PanelProvider
                 const trigger = findLogoutTrigger(e.target);
                 if (!trigger) return;
 
-                // Already confirmed via our modal — let it through
+                // Already confirmed via our modal, let it through
                 if (trigger.dataset.signoutConfirmed === "true") {
                     delete trigger.dataset.signoutConfirmed;
                     return;
@@ -522,11 +573,12 @@ class AdminPanelProvider extends PanelProvider
             });
         })();
         </script>' : ''
-    );
+        );
 
-    FilamentView::registerRenderHook(
-        PanelsRenderHook::USER_MENU_BEFORE,  // 👈 this places it right before the JS avatar
-        fn (): \Illuminate\Contracts\View\View => view('filament.topbar-clock'),
-    );
-}
+        // Places the clock right before the user avatar
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::USER_MENU_BEFORE,
+            fn (): \Illuminate\Contracts\View\View => view('filament.topbar-clock'),
+        );
+    }
 }

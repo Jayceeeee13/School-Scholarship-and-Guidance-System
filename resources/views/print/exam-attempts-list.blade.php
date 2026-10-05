@@ -78,19 +78,27 @@
         <span>Printed {{ $printedAt->format('M d, Y h:i A') }} by {{ $printedBy }}</span>
     </div>
 
+    @php
+        $show = fn (string $key): bool => in_array($key, $columns, true);
+        $colCount = 1 + count(array_intersect($columns, [
+            'user.name', 'user.email', 'exam.title', 'score', 'percentage',
+            'status', 'scholarship_discount', 'violation_count', 'completed_at',
+        ]));
+    @endphp
+
     <table>
         <thead>
             <tr>
                 <th class="center" style="width:28px">#</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Exam</th>
-                <th class="center">Score</th>
-                <th class="center">%</th>
-                <th class="center">Result</th>
-                <th>Scholarship</th>
-                <th class="center">Violations</th>
-                <th>Completed</th>
+                @if ($show('user.name'))            <th>Name</th> @endif
+                @if ($show('user.email'))           <th>Email</th> @endif
+                @if ($show('exam.title'))           <th>Exam</th> @endif
+                @if ($show('score'))                <th class="center">Score</th> @endif
+                @if ($show('percentage'))           <th class="center">%</th> @endif
+                @if ($show('status'))               <th class="center">Result</th> @endif
+                @if ($show('scholarship_discount')) <th>Scholarship</th> @endif
+                @if ($show('violation_count'))      <th class="center">Violations</th> @endif
+                @if ($show('completed_at'))         <th>Completed</th> @endif
             </tr>
         </thead>
         <tbody>
@@ -98,19 +106,19 @@
                 @php $passed = $attempt->percentage >= 75; @endphp
                 <tr>
                     <td class="center">{{ $loop->iteration }}</td>
-                    <td>{{ $attempt->user?->name ?? '—' }}</td>
-                    <td>{{ $attempt->user?->email ?? '—' }}</td>
-                    <td>{{ $attempt->exam?->title ?? '—' }}</td>
-                    <td class="center">{{ $attempt->score }} / {{ $attempt->total_points }}</td>
-                    <td class="center">{{ $attempt->percentage }}%</td>
-                    <td class="center {{ $passed ? 'passed' : 'failed' }}">{{ $passed ? 'Passed' : 'Failed' }}</td>
-                    <td>{{ $attempt->print_scholarship }}</td>
-                    <td class="center">{{ $attempt->print_violations === 0 ? 'Clean' : $attempt->print_violations }}</td>
-                    <td>{{ $attempt->completed_at ? \Carbon\Carbon::parse($attempt->completed_at)->format('M d, Y h:i A') : '—' }}</td>
+                    @if ($show('user.name'))            <td>{{ $attempt->user?->name ?? '—' }}</td> @endif
+                    @if ($show('user.email'))           <td>{{ $attempt->user?->email ?? '—' }}</td> @endif
+                    @if ($show('exam.title'))           <td>{{ $attempt->exam?->title ?? '—' }}</td> @endif
+                    @if ($show('score'))                <td class="center">{{ $attempt->score }} / {{ $attempt->total_points }}</td> @endif
+                    @if ($show('percentage'))           <td class="center">{{ $attempt->percentage }}%</td> @endif
+                    @if ($show('status'))               <td class="center {{ $passed ? 'passed' : 'failed' }}">{{ $passed ? 'Passed' : 'Failed' }}</td> @endif
+                    @if ($show('scholarship_discount')) <td>{{ $attempt->print_scholarship }}</td> @endif
+                    @if ($show('violation_count'))      <td class="center">{{ $attempt->print_violations === 0 ? 'Clean' : $attempt->print_violations }}</td> @endif
+                    @if ($show('completed_at'))         <td>{{ $attempt->completed_at ? \Carbon\Carbon::parse($attempt->completed_at)->format('M d, Y h:i A') : '—' }}</td> @endif
                 </tr>
             @empty
                 <tr>
-                    <td colspan="10" class="center" style="padding:20px;color:#6b7280">No examinee records to print.</td>
+                    <td colspan="{{ $colCount }}" class="center" style="padding:20px;color:#6b7280">No examinee records to print.</td>
                 </tr>
             @endforelse
         </tbody>

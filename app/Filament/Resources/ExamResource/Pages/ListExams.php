@@ -76,9 +76,17 @@ class ListExams extends ListRecords
                         ->pluck($query->getModel()->getQualifiedKeyName())
                         ->all();
 
+                    // Only the columns currently shown in the table
+                    // (i.e. not hidden through the column toggle).
+                    $columns = collect($this->getTable()->getColumns())
+                        ->reject(fn ($column) => $column->isHidden() || $column->isToggledHidden())
+                        ->map(fn ($column) => $column->getName())
+                        ->values()
+                        ->all();
+
                     cache()->put(
                         'exam-attempts-print:' . auth()->id(),
-                        $ids,
+                        ['ids' => $ids, 'columns' => $columns],
                         now()->addMinutes(10)
                     );
 

@@ -353,40 +353,33 @@
 </section>
 
 <!-- PERSONNELS -->
-<section id="personnels" class="bg-green-100/60 py-24">
+<section id="personnels" class="py-24">
     <div class="mx-auto max-w-7xl px-6">
-        <div class="max-w-xl">
+        <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <h2 class="{{ $h2 }}">Meet our personnel</h2>
-            <p class="mt-3 text-sm text-slate-500 sm:text-base">The guidance and scholarship team here to support you.</p>
+            <p class="max-w-sm text-sm text-slate-500 sm:text-base">The guidance and scholarship team here to support you.</p>
         </div>
 
-        <div class="mt-12 grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
+        <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             @forelse ($personnels as $p)
-                <figure class="group relative aspect-[4/5] overflow-hidden rounded-[2rem] bg-green-900 ring-1 ring-green-900/10">
+                <article class="flex items-center gap-5 rounded-[1.75rem] border border-green-900/10 bg-white p-4 pr-6 shadow-sm">
 
                     @if (!empty($p->profile))
                         <img src="{{ asset('storage/'.$p->profile) }}" alt="{{ $p->full_name }}" loading="lazy"
-                             class="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105">
+                             class="h-24 w-24 shrink-0 rounded-3xl object-cover">
                     @else
-                        {{-- No photo: branded panel with initials --}}
-                        <div class="absolute inset-0 bg-hero-gradient"></div>
-                        <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
-                        <span class="absolute inset-0 flex items-center justify-center pb-10 font-display text-7xl font-extrabold text-emerald-100/80">
+                        <div class="flex h-24 w-24 shrink-0 items-center justify-center rounded-3xl bg-hero-gradient font-display text-3xl font-extrabold text-emerald-100">
                             {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($p->first_name, 0, 1).\Illuminate\Support\Str::substr($p->last_name, 0, 1)) }}
-                        </span>
+                        </div>
                     @endif
 
-                    {{-- Readability scrim --}}
-                    <div class="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-green-950/70 to-transparent"></div>
-
-                    {{-- Glass caption --}}
-                    <figcaption class="absolute inset-x-3 bottom-3 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 backdrop-blur-md sm:inset-x-4 sm:bottom-4">
-                        <h3 class="truncate font-display text-base font-bold text-white sm:text-lg">{{ $p->full_name }}</h3>
+                    <div class="min-w-0">
+                        <h3 class="font-display text-lg font-bold leading-snug text-slate-900">{{ $p->full_name }}</h3>
                         @if (!empty($p->position))
-                            <p class="truncate text-xs text-emerald-100/90 sm:text-sm">{{ $p->position }}</p>
+                            <p class="mt-2 inline-block max-w-full truncate rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">{{ $p->position }}</p>
                         @endif
-                    </figcaption>
-                </figure>
+                    </div>
+                </article>
             @empty
                 <div class="col-span-full rounded-3xl border border-dashed border-green-300 bg-white/60 px-6 py-12 text-center">
                     <p class="font-display text-lg font-bold text-slate-900">Our team will be listed here soon</p>

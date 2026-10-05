@@ -3,44 +3,35 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\RelationshipTypeResource\Pages;
+use App\Filament\Resources\RelationshipTypeResource\RelationManagers;
 use App\Models\RelationshipType;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Forms\Components\TextInput;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class RelationshipTypeResource extends Resource
 {
     protected static ?string $model = RelationshipType::class;
 
-    protected static ?string $navigationIcon = 'heroicon-s-users';
+    protected static ?string $navigationIcon = 'heroicon-o-users';
 
-    protected static ?string $navigationLabel = 'Relationship Types';
-
-    protected static ?string $navigationGroup = 'Guidance Management';
-
-    protected static ?int $navigationSort = 5;
+    protected static bool $shouldRegisterNavigation = false; // Hides from sidebar
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Relationship Type')
-                    ->schema([
-                        Forms\Components\TextInput::make('name')
-                            ->label('Name')
-                            ->required()
-                            ->unique(ignoreRecord: true)
-                            ->maxLength(100)
-                            ->placeholder('e.g., Dean, Faculty Member, Parent'),
-
-                        Forms\Components\Toggle::make('is_active')
-                            ->label('Active')
-                            ->helperText('Inactive types are hidden from the referral form but kept for historical records.')
-                            ->default(true),
-                    ])
-                    ->columns(1),
+                TextInput::make('name')->required(),
+                Forms\Components\Toggle::make('is_active')
+                    ->label('Active')
+                    ->default(true)
+                    ->helperText('Inactive items will not appear in dropdowns'),
             ]);
     }
 
@@ -48,59 +39,39 @@ class RelationshipTypeResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
-                    ->label('Name')
-                    ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\IconColumn::make('is_active')
+                TextColumn::make('name')->sortable()->searchable(),
+                Tables\Columns\ToggleColumn::make('is_active')
                     ->label('Active')
-                    ->boolean()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('referrals_count')
-                    ->label('Used In')
-                    ->counts('referrals')
-                    ->badge()
-                    ->color('info'),
-
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Created')
-                    ->dateTime('M d, Y')
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->onColor('success')
+                    ->offColor('danger'),
             ])
             ->filters([
-                Tables\Filters\TernaryFilter::make('is_active')
-                    ->label('Status'),
+                //
             ])
             ->actions([
-                Tables\Actions\ActionGroup::make([
-                    Tables\Actions\EditAction::make(),
-                    Tables\Actions\DeleteAction::make()
-                        ->requiresConfirmation()
-                        ->modalDescription('Referrals already using this relationship type will keep it on record, but it won\'t be selectable for new referrals once deleted.'),
-                ])
-                ->label('Actions')
-                ->icon('heroicon-m-ellipsis-vertical')
-                ->size('sm')
-                ->color('gray')
-                ->button(),
+                Tables\Actions\EditAction::make(),
             ])
-            ->defaultSort('name');
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
+            ]);
     }
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            //
+        ];
     }
 
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListRelationshipTypes::route('/'),
+            'index' => Pages\ListRelationshipTypes::route('/'),
             'create' => Pages\CreateRelationshipType::route('/create'),
-            'edit'   => Pages\EditRelationshipType::route('/{record}/edit'),
+            'edit' => Pages\EditRelationshipType::route('/{record}/edit'),
         ];
     }
 
@@ -126,6 +97,6 @@ class RelationshipTypeResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'guidance']);
+        return false; // Hidden, accessed via Settings
     }
 }

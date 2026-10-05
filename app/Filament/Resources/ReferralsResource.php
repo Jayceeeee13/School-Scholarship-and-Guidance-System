@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ReferralsResource\Pages;
 use App\Models\Referrals;
+use App\Models\RelationshipType;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -109,6 +110,75 @@ class ReferralsResource extends Resource
                                             ->placeholder('Describe the case or concern being referred...')
                                             ->columnSpanFull()
                                             ->live(),
+
+                                        Forms\Components\Radio::make('reason_for_referral')
+                                            ->label('Reason for Referral')
+                                            ->options([
+                                                'attendance'       => 'Attendance (3 or more absences)',
+                                                'tardiness'        => 'Frequent Tardiness',
+                                                'academic'         => 'Academic Concern (3 or more missing/unsubmitted activities or declining performance)',
+                                                'behavioral'       => 'Behavioral Concern',
+                                                'peer_conflict'    => 'Peer Conflict/Bullying',
+                                                'emotional_mental' => 'Emotional or Mental Health Concern',
+                                                'family'           => 'Family Concern',
+                                                'personal'         => 'Personal Concern',
+                                                'other'            => 'Other',
+                                            ])
+                                            ->required()
+                                            ->live()
+                                            ->columnSpanFull(),
+
+                                        Forms\Components\TextInput::make('reason_for_referral_other')
+                                            ->label('Please specify')
+                                            ->maxLength(255)
+                                            ->visible(fn (Get $get) => $get('reason_for_referral') === 'other')
+                                            ->required(fn (Get $get) => $get('reason_for_referral') === 'other')
+                                            ->columnSpanFull(),
+
+                                        Forms\Components\Radio::make('urgency_level')
+                                            ->label('On a scale of 1-5, how urgent is the need for guidance intervention for this student?')
+                                            ->options([
+                                                1 => '1 — Non-urgent/Routine',
+                                                2 => '2',
+                                                3 => '3',
+                                                4 => '4',
+                                                5 => '5 — Immediate/Critical',
+                                            ])
+                                            ->required()
+                                            ->inline()
+                                            ->columnSpanFull(),
+
+                                        Forms\Components\Radio::make('attempted_intervention')
+                                            ->label('Have you already attempted any interventions or reached out to the student regarding this concern?')
+                                            ->options([
+                                                'yes_improved'  => 'Yes, and there was improvement',
+                                                'yes_no_change' => 'Yes, but there was no significant change',
+                                                'no_direct'     => 'No, I am referring this directly',
+                                            ])
+                                            ->required()
+                                            ->columnSpanFull(),
+
+                                        Forms\Components\Select::make('relationship_type_id')
+                                            ->label('Relationship with the Student')
+                                            ->options(fn () => RelationshipType::active()->pluck('name', 'id'))
+                                            ->searchable()
+                                            ->preload()
+                                            ->native(false)
+                                            ->live()
+                                            ->columnSpanFull(),
+
+                                        Forms\Components\TextInput::make('relationship_with_student_other')
+                                            ->label('Please specify')
+                                            ->maxLength(255)
+                                            ->visible(function (Get $get) {
+                                                $type = RelationshipType::find($get('relationship_type_id'));
+                                                return $type?->isOther() ?? false;
+                                            })
+                                            ->required(function (Get $get) {
+                                                $type = RelationshipType::find($get('relationship_type_id'));
+                                                return $type?->isOther() ?? false;
+                                            })
+                                            ->columnSpanFull(),
                                     ])
                                     ->icon('heroicon-o-information-circle')
                                     ->compact(),
@@ -581,6 +651,7 @@ class ReferralsResource extends Resource
                 'endorsement.personnel',
                 'invitation.personnel',
                 'invitation.timeSlot',
+                'relationshipType',
             ])
             ->orderByDesc('date')
             ->get();
@@ -616,6 +687,46 @@ class ReferralsResource extends Resource
                     ->searchable()
                     ->badge()
                     ->color('info'),
+
+                Tables\Columns\TextColumn::make('reason_for_referral')
+                    ->label('Reason')
+                    ->formatStateUsing(fn ($state, $record) => $state === 'other'
+                        ? $record->reason_for_referral_other
+                        : match ($state) {
+                            'attendance'       => 'Attendance',
+                            'tardiness'        => 'Frequent Tardiness',
+                            'academic'         => 'Academic Concern',
+                            'behavioral'       => 'Behavioral Concern',
+                            'peer_conflict'    => 'Peer Conflict/Bullying',
+                            'emotional_mental' => 'Emotional/Mental Health',
+                            'family'           => 'Family Concern',
+                            'personal'         => 'Personal Concern',
+                            default            => ucfirst($state ?? ''),
+                        })
+                    ->badge()
+                    ->color('info')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('urgency_level')
+                    ->label('Urgency')
+                    ->badge()
+                    ->color(fn (?int $state): string => match (true) {
+                        $state >= 4 => 'danger',
+                        $state === 3 => 'warning',
+                        $state !== null => 'success',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn ($state) => $state ? "{$state}/5" : '—')
+                    ->sortable()
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('relationshipType.name')
+                    ->label('Referrer Relationship')
+                    ->formatStateUsing(fn ($state, $record) => $state === 'Other'
+                        ? $record->relationship_with_student_other
+                        : $state)
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
@@ -692,6 +803,24 @@ class ReferralsResource extends Resource
                         ->orderBy('referred_by')
                         ->pluck('referred_by', 'referred_by')
                         ->toArray()),
+
+                Tables\Filters\SelectFilter::make('reason_for_referral')
+                    ->label('Reason for Referral')
+                    ->options([
+                        'attendance'       => 'Attendance',
+                        'tardiness'        => 'Frequent Tardiness',
+                        'academic'         => 'Academic Concern',
+                        'behavioral'       => 'Behavioral Concern',
+                        'peer_conflict'    => 'Peer Conflict/Bullying',
+                        'emotional_mental' => 'Emotional/Mental Health Concern',
+                        'family'           => 'Family Concern',
+                        'personal'         => 'Personal Concern',
+                        'other'            => 'Other',
+                    ]),
+
+                Tables\Filters\SelectFilter::make('relationship_type_id')
+                    ->label('Referrer Relationship')
+                    ->options(fn () => RelationshipType::active()->pluck('name', 'id')),
 
                 Tables\Filters\TernaryFilter::make('has_invitation')
                     ->label('Has Invitation')

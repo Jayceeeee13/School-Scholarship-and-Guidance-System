@@ -17,7 +17,7 @@
                         </div>
                         <div>
                             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Counseling</h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">3 configurations</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">4 configurations</p>
                         </div>
                     </div>
                 </div>
@@ -39,6 +39,13 @@
                     <a href="{{ route('filament.admin.resources.counseling-time-slots.index') }}"
                        class="group flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
                         <span>Time Slots</span>
+                        <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
+                    <a href="{{ route('filament.admin.resources.relationship-types.index') }}"
+                       class="group flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                        <span>Relationship Types</span>
                         <svg class="w-4 h-4 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                         </svg>

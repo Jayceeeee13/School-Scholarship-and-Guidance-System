@@ -35,4 +35,11 @@ class CreateUser extends CreateRecord
     {
         return $this->getResource()::getUrl('index');
     }
+
+    protected function afterCreate(): void
+    {
+        $this->record->update([
+            'role_id' => $this->record->roles()->first()?->id,
+        ]);
+    }
 }

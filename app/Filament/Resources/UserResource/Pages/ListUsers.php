@@ -36,7 +36,7 @@ class ListUsers extends ListRecords
      * Each tab here queries a completely different model (User, Personnels,
      * Activity) with its own columns/actions. resetTable() clears Filament's
      * cached Table instance (columns/filters/actions) in addition to
-     * pagination/search — without it, the previous tab's cached table config
+     * pagination/search, without it, the previous tab's cached table config
      * renders against the new tab's rows on the first click, requiring a
      * second click to "catch up." See the same fix in ListApplicants,
      * ListExams, and ListCounselingLogforms.
@@ -68,7 +68,7 @@ class ListUsers extends ListRecords
             'accomplishment_reports' => 0,
         ];
 
-        // ── Linked Personnel profile — matched via users.personnel_id ──
+        // ── Linked Personnel profile, matched via users.personnel_id ──
         if ($user->personnel && ! $user->personnel->archived_at) {
             $user->personnel->update(['archived_at' => now()]);
 
@@ -82,7 +82,7 @@ class ListUsers extends ListRecords
             $summary['personnel'] = 1;
         }
 
-        // ── Scholars / Institutional Scholars — matched directly by user_id ──
+        // ── Scholars / Institutional Scholars, matched directly by user_id ──
         // IDs are kept per-model so DTR and Accomplishment Reports (which
         // are polymorphic/foreign-keyed to a specific scholar model) can
         // be matched correctly below.
@@ -103,7 +103,7 @@ class ListUsers extends ListRecords
                     'revoked_at'        => now(),
                 ]);
 
-                // Case-insensitive match — a mismatched-casing type name
+                // Case-insensitive match, a mismatched-casing type name
                 // (e.g. "talents" vs "Talents") would otherwise silently
                 // skip restoring the slot.
                 TypeOfScholarship::whereRaw('LOWER(name) = ?', [strtolower(trim($scholar->type_of_scholarship ?? ''))])
@@ -114,7 +114,7 @@ class ListUsers extends ListRecords
             }
         }
 
-        // ── Daily Time Records — matched via the scholar(s) tied to this user ──
+        // ── Daily Time Records, matched via the scholar(s) tied to this user ──
         foreach ($scholarIds as $ids) {
             if (empty($ids)) {
                 continue;
@@ -125,13 +125,13 @@ class ListUsers extends ListRecords
                 ->update(['archived_at' => now()]);
         }
 
-        // ── Counseling Appointments — matched via the linked Students record ──
+        // ── Counseling Appointments, matched via the linked Students record ──
         if ($student = $user->student) {
             $summary['appointments'] = CounselingAppointments::where('student_id', $student->id)
                 ->whereNull('archived_at')
                 ->update(['archived_at' => now()]);
 
-            // ── Referrals — no student_id column, matched by full name ──
+            // ── Referrals, no student_id column, matched by full name ──
             $fullName = trim("{$student->first_name} {$student->last_name}");
 
             if ($fullName !== '') {
@@ -141,7 +141,7 @@ class ListUsers extends ListRecords
             }
         }
 
-        // ── Accomplishment Reports — polymorphic (scholar_type + scholar_id) ──
+        // ── Accomplishment Reports, polymorphic (scholar_type + scholar_id) ──
         foreach ($scholarIds as $scholarModel => $ids) {
             if (empty($ids)) {
                 continue;
@@ -359,8 +359,8 @@ class ListUsers extends ListRecords
                         ->toggleable()
                         ->placeholder('— no account —'),
 
-                    TextColumn::make('user.role.name')
-                        ->label('Role')
+                    TextColumn::make('user.roles.name')
+                        ->label('Roles')
                         ->badge()
                         ->toggleable()
                         ->placeholder('—'),
@@ -554,8 +554,7 @@ class ListUsers extends ListRecords
                         )
                         ->latest()
                 )
-                        ->recordUrl(null)
-
+                ->recordUrl(null)
                 ->columns([
                     TextColumn::make('created_at')
                         ->label('When')
@@ -634,10 +633,10 @@ class ListUsers extends ListRecords
                 ]);
         }
 
-        // 'users' tab — shows EVERY non-archived user account, regardless
+        // 'users' tab, shows EVERY non-archived user account, regardless
         // of whether it has a linked Personnels record.
         return $table
-            ->query(User::query()->whereNull('archived_at')->with(['personnel', 'role', 'student']))
+            ->query(User::query()->whereNull('archived_at')->with(['personnel', 'roles', 'student']))
             ->columns([
                 TextColumn::make('name')
                     ->label('Name')
@@ -651,11 +650,10 @@ class ListUsers extends ListRecords
                     ->sortable()
                     ->toggleable(),
 
-                TextColumn::make('role.name')
-                    ->label('Role')
+                TextColumn::make('roles.name')
+                    ->label('Roles')
                     ->badge()
                     ->searchable()
-                    ->sortable()
                     ->toggleable()
                     ->placeholder('—'),
             ])

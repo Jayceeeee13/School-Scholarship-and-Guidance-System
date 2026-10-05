@@ -16,4 +16,11 @@ class EditUser extends EditRecord
             // Actions\DeleteAction::make(),
         ];
     }
+
+    protected function afterSave(): void
+    {
+        $this->record->update([
+            'role_id' => $this->record->roles()->first()?->id,
+        ]);
+    }
 }

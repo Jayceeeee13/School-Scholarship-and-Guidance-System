@@ -8,6 +8,7 @@ use App\Models\Students;
 use App\Traits\LogsAllActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -48,9 +49,16 @@ class User extends Authenticatable implements FilamentUser
 
     // ── Relationships ────────────────────────────────────────────────
 
+    /** Legacy "primary" role (kept so old code keeps working). */
     public function role()
     {
         return $this->belongsTo(Role::class);
+    }
+
+    /** All roles assigned to this user. */
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'role_user')->withTimestamps();
     }
 
     public function department(): BelongsTo
@@ -108,45 +116,70 @@ class User extends Authenticatable implements FilamentUser
             return false;
         }
 
-        return in_array(strtolower($this->role?->name), ['admin', 'guidance', 'scholarship', 'department head']);
+        return $this->hasAnyRole(['admin', 'guidance', 'scholarship', 'department head']);
     }
 
     // ── Role helpers ─────────────────────────────────────────────────
 
+    /**
+     * Lower-cased names of every role the user has
+     * (pivot roles + legacy role_id, de-duplicated).
+     */
+    public function roleNames(): array
+    {
+        return $this->roles
+            ->pluck('name')
+            ->push($this->role?->name)
+            ->filter()
+            ->map(fn ($name) => strtolower($name))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function isAdmin(): bool
     {
-        return $this->role && strtolower($this->role->name) === 'admin';
+        return $this->hasRole('admin');
     }
 
     public function isGuidance(): bool
     {
-        return $this->role && strtolower($this->role->name) === 'guidance';
+        return $this->hasRole('guidance');
     }
 
     public function isScholarship(): bool
     {
-        return $this->role && strtolower($this->role->name) === 'scholarship';
+        return $this->hasRole('scholarship');
     }
 
     public function isDepartmentHead(): bool
     {
-        return $this->role && strtolower($this->role->name) === 'department head';
+        return $this->hasRole('department head');
     }
 
     public function hasRole(string $roleName): bool
     {
-        return $this->role && strtolower($this->role->name) === strtolower($roleName);
+        return in_array(strtolower($roleName), $this->roleNames(), true);
     }
 
     public function hasAnyRole(array $roleNames): bool
     {
-        if (!$this->role) return false;
-        return in_array(strtolower($this->role->name), array_map('strtolower', $roleNames));
+        return count(array_intersect(
+            array_map('strtolower', $roleNames),
+            $this->roleNames()
+        )) > 0;
     }
 
+    /** Primary role name (first role), kept for backward compatibility. */
     public function getRoleName(): ?string
     {
-        return $this->role?->name;
+        return $this->roles->first()?->name ?? $this->role?->name;
+    }
+
+    /** Comma-separated list of all role names. */
+    public function getRoleNames(): string
+    {
+        return $this->roles->pluck('name')->implode(', ');
     }
 
     public function isEnrolled(): bool

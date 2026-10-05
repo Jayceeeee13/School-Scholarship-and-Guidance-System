@@ -13,7 +13,7 @@
         tailwind.config = {
             theme: { extend: {
                 fontFamily: { sans: ['Figtree', 'system-ui', 'sans-serif'], display: ['Bricolage Grotesque', 'sans-serif'] },
-                colors: { gvc: { 900: '#06281a', 800: '#0b3d27', 700: '#14532d', 500: '#22a35a', 300: '#86e0ac', 100: '#e6f6ec', sun: '#f5c451' } }
+                colors: { gvc: { 900: '#052e16', 800: '#064e2b', 700: '#15803d', 500: '#22c55e', 300: '#86efac', 100: '#dcfce7', 50: '#f0fdf4', sun: '#bef264' } }
             } }
         }
     </script>
@@ -36,16 +36,16 @@
     $scholarships  = $scholarships ?? collect();
 @endphp
 
-<body class="bg-white text-slate-800 font-sans antialiased">
+<body class="bg-gvc-50 text-slate-800 font-sans antialiased">
 
 {{-- NAVBAR --}}
-<header class="sticky top-0 z-50 border-b border-slate-200/70 bg-white/85 backdrop-blur-md"
+<header class="sticky top-0 z-50 border-b border-white/10 bg-gvc-900/90 backdrop-blur-md"
         x-data="{ menu: false }">
     <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3">
 
         <a href="{{ url('/gvc') }}" class="flex items-center gap-3 shrink-0">
             <img src="{{ asset('images/logo.png') }}" alt="" class="h-10 w-10 rounded-lg object-contain">
-            <span class="font-display text-base font-extrabold leading-tight text-gvc-800">
+            <span class="font-display text-base font-extrabold leading-tight text-white">
                 Green Valley College<br class="sm:hidden"> Foundation
             </span>
         </a>
@@ -54,7 +54,7 @@
         <nav class="hidden lg:flex items-center gap-1" aria-label="Main">
             @foreach ($links as $id => $label)
                 <a href="#{{ $id }}"
-                   class="rounded-full px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-gvc-100 hover:text-gvc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gvc-500">
+                   class="rounded-full px-3 py-1.5 text-sm font-medium text-emerald-100/80 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-gvc-500">
                     {{ $label }}
                 </a>
             @endforeach
@@ -62,10 +62,10 @@
 
         <div class="flex items-center gap-2">
             @guest
-                <a href="{{ route('login') }}" class="hidden sm:inline-flex rounded-full bg-gvc-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gvc-800">Log in</a>
-                <a href="/admin/login" class="hidden md:inline-flex rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-gvc-500">Admin</a>
+                <a href="{{ route('login') }}" class="hidden sm:inline-flex rounded-full bg-gvc-sun px-4 py-2 text-sm font-semibold text-gvc-900 transition hover:brightness-110">Log in</a>
+                <a href="/admin/login" class="hidden md:inline-flex rounded-full border border-white/25 px-4 py-2 text-sm font-medium text-emerald-50 transition hover:bg-white/10">Admin</a>
             @else
-                <span class="hidden xl:inline text-sm text-slate-500">Hello, <strong class="text-slate-800">{{ auth()->user()->name }}</strong></span>
+                <span class="hidden xl:inline text-sm text-emerald-100/70">Hello, <strong class="text-white">{{ auth()->user()->name }}</strong></span>
 
                 @php
                     $unreadCount = \App\Models\AppointmentNotification::where('user_id', auth()->id())->whereNull('read_at')->count();
@@ -101,7 +101,7 @@
                      x-init="setInterval(() => fetchNotifications(), 30000)">
 
                     <button @click="open = !open" @click.outside="open = false" aria-label="Notifications"
-                            class="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-gvc-100">
+                            class="relative grid h-10 w-10 place-items-center rounded-full border border-white/25 text-emerald-50 transition hover:bg-white/10">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/></svg>
                         <span x-show="unreadCount > 0" x-cloak x-text="unreadCount > 9 ? '9+' : unreadCount"
                               class="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"></span>
@@ -140,12 +140,12 @@
 
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-gvc-500 hover:text-gvc-700">Log out</button>
+                    <button class="rounded-full border border-white/25 px-4 py-2 text-sm font-medium text-emerald-50 transition hover:bg-white/10">Log out</button>
                 </form>
             @endguest
 
             {{-- Mobile toggle --}}
-            <button class="grid h-10 w-10 place-items-center rounded-full border border-slate-200 lg:hidden"
+            <button class="grid h-10 w-10 place-items-center rounded-full border border-white/25 text-white lg:hidden"
                     @click="menu = !menu" :aria-expanded="menu" aria-label="Toggle menu">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
@@ -153,21 +153,23 @@
     </div>
 
     {{-- Mobile menu --}}
-    <nav x-show="menu" x-cloak x-transition @click="menu = false" class="border-t border-slate-100 bg-white px-5 py-3 lg:hidden" aria-label="Mobile">
+    <nav x-show="menu" x-cloak x-transition @click="menu = false" class="border-t border-white/10 bg-gvc-900 px-5 py-3 lg:hidden" aria-label="Mobile">
         @foreach ($links as $id => $label)
-            <a href="#{{ $id }}" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-gvc-100">{{ $label }}</a>
+            <a href="#{{ $id }}" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-emerald-50 hover:bg-white/10">{{ $label }}</a>
         @endforeach
         @guest
-            <a href="{{ route('login') }}" class="block rounded-lg px-3 py-2.5 text-sm font-semibold text-gvc-700">Log in</a>
-            <a href="/admin/login" class="block rounded-lg px-3 py-2.5 text-sm text-slate-500">Admin login</a>
+            <a href="{{ route('login') }}" class="block rounded-lg px-3 py-2.5 text-sm font-semibold text-gvc-sun">Log in</a>
+            <a href="/admin/login" class="block rounded-lg px-3 py-2.5 text-sm text-emerald-100/60">Admin login</a>
         @endguest
     </nav>
 </header>
 
 {{-- HOME / HERO --}}
-<section id="home" class="relative overflow-hidden bg-gvc-900 text-white">
+<section id="home" class="relative overflow-hidden rounded-b-[2.5rem] bg-gvc-900 text-white">
     <div class="absolute inset-0 bg-cover bg-center opacity-15" style="background-image:url('{{ asset('images/gvc.png') }}')"></div>
-    <div class="absolute inset-0 bg-gradient-to-r from-gvc-900 via-gvc-900/90 to-gvc-800/60"></div>
+    <div class="absolute inset-0 bg-gradient-to-br from-gvc-900 via-gvc-800 to-gvc-700/90"></div>
+    <div class="absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-gvc-500/30 blur-3xl"></div>
+    <div class="absolute -bottom-32 left-1/3 h-80 w-80 rounded-full bg-gvc-sun/15 blur-3xl"></div>
 
     <div class="relative mx-auto max-w-7xl px-5 py-24 md:py-36">
         <h1 class="font-display max-w-3xl text-5xl font-extrabold leading-[1.02] tracking-tight sm:text-6xl md:text-7xl">
@@ -215,11 +217,11 @@
 
 {{-- ANNOUNCEMENT --}}
 <section id="announcement" class="mx-auto max-w-7xl px-5 py-20">
-    <h2 class="font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Announcements</h2>
-    <div class="mt-8 divide-y divide-slate-200 border-y border-slate-200">
+    <h2 class="border-l-4 border-gvc-500 pl-4 font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Announcements</h2>
+    <div class="mt-8 divide-y divide-gvc-100 rounded-3xl bg-white px-6 shadow-sm ring-1 ring-gvc-500/20">
         @forelse ($announcements as $a)
             <article class="grid gap-2 py-6 md:grid-cols-[10rem_1fr] md:gap-8">
-                <time class="text-sm font-medium text-slate-500">{{ optional($a->created_at)->format('M d, Y') }}</time>
+                <time class="text-sm font-semibold text-gvc-700">{{ optional($a->created_at)->format('M d, Y') }}</time>
                 <div>
                     <h3 class="font-display text-xl font-semibold text-slate-900">{{ $a->title }}</h3>
                     <p class="mt-1 max-w-2xl text-slate-600">{{ \Illuminate\Support\Str::limit($a->body ?? $a->content ?? '', 180) }}</p>
@@ -232,12 +234,12 @@
 </section>
 
 {{-- ACTIVITIES --}}
-<section id="activities" class="bg-gvc-100/60 py-20">
+<section id="activities" class="bg-gvc-100 py-20">
     <div class="mx-auto max-w-7xl px-5">
-        <h2 class="font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Activities</h2>
+        <h2 class="border-l-4 border-gvc-500 pl-4 font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Activities</h2>
         <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             @forelse ($activities as $act)
-                <article class="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
+                <article class="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gvc-500/20 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-gvc-500/20">
                     @if (!empty($act->image))
                         <img src="{{ asset('storage/'.$act->image) }}" alt="" class="aspect-[16/10] w-full object-cover" loading="lazy">
                     @else
@@ -257,14 +259,14 @@
 
 {{-- SCHOLARSHIP --}}
 <section id="scholarship" class="mx-auto max-w-7xl px-5 py-20">
-    <h2 class="font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Scholarships</h2>
+    <h2 class="border-l-4 border-gvc-500 pl-4 font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Scholarships</h2>
     <p class="mt-3 max-w-xl text-slate-600">Programs currently open to qualified students.</p>
     <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         @forelse ($scholarships as $s)
-            <div class="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 p-5 transition hover:border-gvc-500">
+            <div class="flex items-center justify-between gap-4 rounded-3xl bg-gradient-to-br from-gvc-700 to-gvc-800 p-6 text-white shadow-lg shadow-gvc-700/25 transition hover:-translate-y-1">
                 <h3 class="font-display text-lg font-semibold leading-snug">{{ $s->name }}</h3>
                 @if (($s->status ?? 'active') === 'active')
-                    <span class="shrink-0 rounded-full bg-gvc-100 px-2.5 py-1 text-xs font-semibold text-gvc-700">Open</span>
+                    <span class="shrink-0 rounded-full bg-gvc-sun px-2.5 py-1 text-xs font-semibold text-gvc-900">Open</span>
                 @endif
             </div>
         @empty
@@ -274,16 +276,16 @@
 </section>
 
 {{-- PERSONNELS --}}
-<section id="personnels" class="bg-gvc-100/60 py-20">
+<section id="personnels" class="bg-gvc-100 py-20">
     <div class="mx-auto max-w-7xl px-5">
-        <h2 class="font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Our personnel</h2>
+        <h2 class="border-l-4 border-gvc-500 pl-4 font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Our personnel</h2>
         <div class="mt-8 grid grid-cols-2 gap-6 md:grid-cols-4">
             @forelse ($personnels as $p)
                 <div>
                     @if (!empty($p->photo))
-                        <img src="{{ asset('storage/'.$p->photo) }}" alt="{{ $p->name }}" class="aspect-square w-full rounded-2xl object-cover" loading="lazy">
+                        <img src="{{ asset('storage/'.$p->photo) }}" alt="{{ $p->name }}" class="aspect-square w-full rounded-3xl object-cover" loading="lazy">
                     @else
-                        <div class="grid aspect-square w-full place-items-center rounded-2xl bg-gvc-700 font-display text-4xl font-extrabold text-gvc-300">{{ \Illuminate\Support\Str::substr($p->name, 0, 1) }}</div>
+                        <div class="grid aspect-square w-full place-items-center rounded-3xl bg-gradient-to-br from-gvc-700 to-gvc-900 font-display text-4xl font-extrabold text-gvc-300">{{ \Illuminate\Support\Str::substr($p->name, 0, 1) }}</div>
                     @endif
                     <h3 class="mt-3 font-semibold text-slate-900">{{ $p->name }}</h3>
                     <p class="text-sm text-slate-500">{{ $p->position ?? '' }}</p>
@@ -297,17 +299,17 @@
 
 {{-- CONTACT --}}
 <section id="contact" class="mx-auto max-w-7xl px-5 py-20">
-    <h2 class="font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Contact info</h2>
+    <h2 class="border-l-4 border-gvc-500 pl-4 font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Contact info</h2>
     <dl class="mt-8 grid gap-6 sm:grid-cols-3">
         {{-- TODO: replace placeholders with real details or config() values --}}
-        <div><dt class="text-sm font-medium text-slate-500">Address</dt><dd class="mt-1 font-semibold">Green Valley College Foundation Inc.<br>Street, Barangay, City, Province</dd></div>
-        <div><dt class="text-sm font-medium text-slate-500">Phone</dt><dd class="mt-1 font-semibold">(000) 000-0000</dd></div>
-        <div><dt class="text-sm font-medium text-slate-500">Email</dt><dd class="mt-1 font-semibold"><a href="mailto:info@gvcfi.edu.ph" class="text-gvc-700 hover:underline">info@gvcfi.edu.ph</a></dd></div>
+        <div class="rounded-3xl bg-gvc-100 p-6"><dt class="text-sm font-semibold text-gvc-700">Address</dt><dd class="mt-1 font-semibold">Green Valley College Foundation Inc.<br>Street, Barangay, City, Province</dd></div>
+        <div class="rounded-3xl bg-gvc-100 p-6"><dt class="text-sm font-semibold text-gvc-700">Phone</dt><dd class="mt-1 font-semibold">(000) 000-0000</dd></div>
+        <div class="rounded-3xl bg-gvc-100 p-6"><dt class="text-sm font-semibold text-gvc-700">Email</dt><dd class="mt-1 font-semibold"><a href="mailto:info@gvcfi.edu.ph" class="text-gvc-700 hover:underline">info@gvcfi.edu.ph</a></dd></div>
     </dl>
 </section>
 
 {{-- ABOUT --}}
-<section id="about" class="bg-gvc-900 py-20 text-white">
+<section id="about" class="bg-gradient-to-br from-gvc-900 via-gvc-800 to-gvc-700 py-20 text-white">
     <div class="mx-auto grid max-w-7xl gap-10 px-5 md:grid-cols-[1fr_1.4fr]">
         <h2 class="font-display text-3xl font-extrabold md:text-4xl">About us</h2>
         <div class="max-w-2xl space-y-4 text-emerald-50/80">

@@ -3,17 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scholarship and Guidance | Green Valley College Foundation</title>
+    <title>School Scholarship and Guidance Management | Green Valley College Foundation</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
         tailwind.config = {
             theme: { extend: {
-                fontFamily: { sans: ['Figtree', 'system-ui', 'sans-serif'], display: ['Bricolage Grotesque', 'sans-serif'] },
-                colors: { gvc: { 900: '#052e16', 800: '#064e2b', 700: '#15803d', 500: '#22c55e', 300: '#86efac', 100: '#dcfce7', 50: '#f0fdf4', sun: '#bef264' } }
+                fontFamily: { sans: ['DM Sans', 'system-ui', 'sans-serif'], display: ['Outfit', 'sans-serif'] },
+                colors: { gvc: { dark: '#052e16', primary: '#14532d', light: '#166534', pale: '#bbf7d0', mint: '#4ade80' } },
+                backgroundImage: {
+                    'hero-gradient': 'linear-gradient(135deg, #022c22 0%, #14532d 35%, #166534 65%, #15803d 100%)',
+                    'hero-pattern': "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%2386efac' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E\")"
+                },
+                boxShadow: {
+                    'btn-glow': '0 0 40px rgba(74, 222, 128, 0.35), 0 10px 30px -10px rgba(74, 222, 128, 0.6)',
+                    'card-hover': '0 25px 50px -12px rgba(22, 163, 74, 0.35)'
+                }
             } }
         }
     </script>
@@ -25,294 +33,256 @@
 </head>
 
 @php
-    $links = [
-        'home' => 'Home', 'announcement' => 'Announcement', 'activities' => 'Activities',
-        'scholarship' => 'Scholarship', 'personnels' => 'Personnels',
-        'contact' => 'Contact info', 'about' => 'About us',
-    ];
+    $links = ['home' => 'Home', 'announcement' => 'Announcement', 'activities' => 'Activities', 'scholarship' => 'Scholarship', 'personnels' => 'Personnels', 'contact' => 'Contact info', 'about' => 'About us'];
     $announcements = $announcements ?? collect();
     $activities    = $activities ?? collect();
     $personnels    = $personnels ?? collect();
     $scholarships  = $scholarships ?? collect();
+    $cap = 'M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422A12.083 12.083 0 0121 12c0 5.523-4.477 10-10 10S2 17.523 2 12c0-.538.043-1.065.125-1.578L12 14z';
+    $btnPrimary = 'inline-flex items-center justify-center gap-2 rounded-full bg-emerald-400 px-7 py-3.5 text-sm font-semibold text-emerald-950 shadow-btn-glow transition hover:-translate-y-0.5 hover:bg-emerald-300 sm:text-base';
+    $btnGlass   = 'inline-flex items-center justify-center gap-2 rounded-full border border-white/25 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white/20 sm:text-base';
+    $h2 = 'font-display text-3xl font-extrabold tracking-tight text-slate-900 md:text-5xl';
 @endphp
 
-<body class="bg-gvc-50 text-slate-800 font-sans antialiased">
+<body class="bg-emerald-50/60 font-sans text-slate-800 antialiased">
 
-{{-- NAVBAR --}}
-<header class="sticky top-0 z-50 border-b border-white/10 bg-gvc-900/90 backdrop-blur-md"
-        x-data="{ menu: false }">
+<!-- NAVBAR -->
+<header class="sticky top-0 z-50 border-b border-white/10 bg-green-900/80 shadow-lg shadow-green-950/10 backdrop-blur-xl" x-data="{ menu: false }">
     <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3">
 
-        <a href="{{ url('/gvc') }}" class="flex items-center gap-3 shrink-0">
-            <img src="{{ asset('images/logo.png') }}" alt="" class="h-10 w-10 rounded-lg object-contain">
-            <span class="font-display text-base font-extrabold leading-tight text-white">
-                Green Valley College<br class="sm:hidden"> Foundation
-            </span>
+        {{-- Logo --}}
+        <a href="{{ url('/gvc') }}" class="flex shrink-0 items-center gap-2.5">
+            <img src="{{ asset('images/logo.png') }}" alt="Green Valley College Foundation" class="h-10 w-10 rounded-xl bg-white/10 object-contain p-0.5 ring-1 ring-white/20">
+            <span class="hidden font-display text-base font-bold tracking-tight text-white sm:inline md:text-lg">Green Valley College Foundation Inc.</span>
         </a>
 
-        {{-- Desktop links --}}
-        <nav class="hidden lg:flex items-center gap-1" aria-label="Main">
+        {{-- Section links --}}
+        <nav class="hidden items-center gap-0.5 xl:flex" aria-label="Main">
             @foreach ($links as $id => $label)
-                <a href="#{{ $id }}"
-                   class="rounded-full px-3 py-1.5 text-sm font-medium text-emerald-100/80 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-gvc-500">
-                    {{ $label }}
-                </a>
+                <a href="#{{ $id }}" class="rounded-full px-3 py-1.5 text-sm font-medium text-emerald-100/80 transition hover:bg-white/10 hover:text-white">{{ $label }}</a>
             @endforeach
         </nav>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 sm:gap-3">
             @guest
-                <a href="{{ route('login') }}" class="hidden sm:inline-flex rounded-full bg-gvc-sun px-4 py-2 text-sm font-semibold text-gvc-900 transition hover:brightness-110">Log in</a>
-                <a href="/admin/login" class="hidden md:inline-flex rounded-full border border-white/25 px-4 py-2 text-sm font-medium text-emerald-50 transition hover:bg-white/10">Admin</a>
-            @else
-                <span class="hidden xl:inline text-sm text-emerald-100/70">Hello, <strong class="text-white">{{ auth()->user()->name }}</strong></span>
-
-                @php
-                    $unreadCount = \App\Models\AppointmentNotification::where('user_id', auth()->id())->whereNull('read_at')->count();
-                    $notifications = \App\Models\AppointmentNotification::where('user_id', auth()->id())
-                        ->latest()->take(10)->get()
-                        ->map(fn ($n) => [
-                            'id' => $n->id, 'type' => $n->type, 'message' => $n->message,
-                            'is_unread' => $n->isUnread(), 'time_ago' => $n->created_at->diffForHumans(),
-                        ]);
-                @endphp
-
-                {{-- Notification bell --}}
-                <div class="relative"
-                     x-data="{
-                        open: false, unreadCount: {{ $unreadCount }}, notifications: {{ Js::from($notifications) }},
-                        fetchNotifications() {
-                            if (document.hidden) return;
-                            fetch('{{ route('notifications.fetch') }}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                                .then(r => r.json())
-                                .then(d => { this.unreadCount = d.unread_count; this.notifications = d.notifications; })
-                                .catch(e => console.error('Notification fetch error:', e));
-                        },
-                        tone(type) {
-                            if (['approved','accepted'].includes(type)) return 'bg-green-100 text-green-700';
-                            if (type === 'referral_invitation') return 'bg-blue-100 text-blue-700';
-                            if (type === 'rescheduled') return 'bg-amber-100 text-amber-700';
-                            return 'bg-red-100 text-red-600';
-                        },
-                        label(type) {
-                            return { referral_invitation: 'Counseling invite', rescheduled: 'Rescheduled' }[type] ?? null;
-                        }
-                     }"
-                     x-init="setInterval(() => fetchNotifications(), 30000)">
-
-                    <button @click="open = !open" @click.outside="open = false" aria-label="Notifications"
-                            class="relative grid h-10 w-10 place-items-center rounded-full border border-white/25 text-emerald-50 transition hover:bg-white/10">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/></svg>
-                        <span x-show="unreadCount > 0" x-cloak x-text="unreadCount > 9 ? '9+' : unreadCount"
-                              class="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"></span>
+                {{-- Guest menu --}}
+                <div class="relative" x-data="{ open: false }">
+                    <button @click="open = !open" @click.outside="open = false" aria-label="Account menu"
+                            class="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 transition hover:bg-white/20">
+                        <svg class="h-[18px] w-[18px] text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                     </button>
-
                     <div x-show="open" x-cloak x-transition.origin.top.right
-                         class="absolute right-0 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-                        <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-4 py-3">
-                            <span class="text-sm font-semibold">Notifications</span>
-                            <form x-show="unreadCount > 0" action="{{ route('notifications.readAll') }}" method="POST">
-                                @csrf
-                                <button class="text-xs font-medium text-gvc-700 hover:underline">Mark all as read</button>
-                            </form>
-                        </div>
-                        <div class="max-h-80 divide-y divide-slate-100 overflow-y-auto">
-                            <p x-show="notifications.length === 0" class="px-4 py-10 text-center text-sm text-slate-400">No notifications yet.</p>
-                            <template x-for="n in notifications" :key="n.id">
-                                <form :action="`{{ url('notifications') }}/${n.id}/read`" method="POST">
-                                    @csrf
-                                    <button class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
-                                            :class="n.is_unread ? 'bg-gvc-100/60' : ''">
-                                        <span class="mt-1 h-2 w-2 shrink-0 rounded-full" :class="n.is_unread ? 'bg-gvc-500' : 'bg-transparent'"></span>
-                                        <span class="min-w-0 flex-1">
-                                            <span x-show="label(n.type)" x-text="label(n.type)" class="mb-1 inline-block rounded px-1.5 py-0.5 text-[11px] font-semibold" :class="tone(n.type)"></span>
-                                            <span class="block text-sm leading-snug text-slate-700" x-text="n.message"></span>
-                                            <span class="mt-1 block text-xs text-slate-400" x-text="n.time_ago"></span>
-                                        </span>
-                                    </button>
-                                </form>
-                            </template>
-                        </div>
-                        <a x-show="notifications.length > 0" href="{{ route('guidance') }}"
-                           class="block border-t border-slate-100 bg-slate-50 px-4 py-2.5 text-center text-xs font-medium text-gvc-700 hover:underline">Open guidance portal</a>
+                         class="absolute right-0 z-50 mt-3 w-52 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xl">
+                        <a href="/admin/login" class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 transition hover:bg-green-50 hover:text-green-800">
+                            <svg class="h-4 w-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                            Login as Admin
+                        </a>
                     </div>
                 </div>
+            @else
+                <span class="hidden text-sm text-emerald-100 2xl:inline">Hello, <span class="font-semibold text-white">{{ auth()->user()->name }}</span></span>
+
+                @include('partials.notification-bell')
 
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button class="rounded-full border border-white/25 px-4 py-2 text-sm font-medium text-emerald-50 transition hover:bg-white/10">Log out</button>
+                    <button class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-medium text-white transition hover:bg-white/20 sm:text-sm">Logout</button>
                 </form>
             @endguest
 
             {{-- Mobile toggle --}}
-            <button class="grid h-10 w-10 place-items-center rounded-full border border-white/25 text-white lg:hidden"
-                    @click="menu = !menu" :aria-expanded="menu" aria-label="Toggle menu">
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            <button @click="menu = !menu" :aria-expanded="menu" aria-label="Toggle menu"
+                    class="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white xl:hidden">
+                <svg class="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
         </div>
     </div>
 
-    {{-- Mobile menu --}}
-    <nav x-show="menu" x-cloak x-transition @click="menu = false" class="border-t border-white/10 bg-gvc-900 px-5 py-3 lg:hidden" aria-label="Mobile">
+    <nav x-show="menu" x-cloak x-transition @click="menu = false" class="border-t border-white/10 bg-green-950/95 px-5 py-3 xl:hidden" aria-label="Mobile">
         @foreach ($links as $id => $label)
-            <a href="#{{ $id }}" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-emerald-50 hover:bg-white/10">{{ $label }}</a>
+            <a href="#{{ $id }}" class="block rounded-xl px-3 py-2.5 text-sm font-medium text-emerald-50 hover:bg-white/10">{{ $label }}</a>
         @endforeach
-        @guest
-            <a href="{{ route('login') }}" class="block rounded-lg px-3 py-2.5 text-sm font-semibold text-gvc-sun">Log in</a>
-            <a href="/admin/login" class="block rounded-lg px-3 py-2.5 text-sm text-emerald-100/60">Admin login</a>
-        @endguest
     </nav>
 </header>
 
-{{-- HOME / HERO --}}
-<section id="home" class="relative overflow-hidden rounded-b-[2.5rem] bg-gvc-900 text-white">
-    <div class="absolute inset-0 bg-cover bg-center opacity-15" style="background-image:url('{{ asset('images/gvc.png') }}')"></div>
-    <div class="absolute inset-0 bg-gradient-to-br from-gvc-900 via-gvc-800 to-gvc-700/90"></div>
-    <div class="absolute -right-24 -top-24 h-[28rem] w-[28rem] rounded-full bg-gvc-500/30 blur-3xl"></div>
-    <div class="absolute -bottom-32 left-1/3 h-80 w-80 rounded-full bg-gvc-sun/15 blur-3xl"></div>
+<!-- HERO -->
+<section id="home" class="relative overflow-hidden rounded-b-[2.5rem] py-28 md:py-40">
+    <div class="absolute inset-0 bg-hero-gradient"></div>
+    <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
+    <div class="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.12]" style="background-image: url('{{ asset('images/gvc.png') }}');"></div>
+    <div class="absolute -left-24 top-10 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl"></div>
+    <div class="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-lime-300/10 blur-3xl"></div>
 
-    <div class="relative mx-auto max-w-7xl px-5 py-24 md:py-36">
-        <h1 class="font-display max-w-3xl text-5xl font-extrabold leading-[1.02] tracking-tight sm:text-6xl md:text-7xl">
-            Scholarships and guidance, in one place.
+    <div class="relative mx-auto max-w-4xl px-6 text-center">
+        <h1 class="mb-6 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-emerald-50 drop-shadow-md sm:text-6xl md:text-7xl">
+            GVCFI <br class="hidden sm:block">
+            <span class="bg-gradient-to-r from-gvc-pale via-gvc-mint to-emerald-300 bg-clip-text text-transparent">Scholarship and Guidance</span>
         </h1>
 
         @auth
-            <p class="mt-6 max-w-xl text-lg text-emerald-50/80">
+            <p class="mx-auto mb-8 max-w-2xl text-sm text-emerald-50/85 sm:text-base">
                 Welcome back, {{ auth()->user()->name }}.
                 @if (auth()->user()->isEnrolled())
-                    Apply for a scholarship or book a counseling appointment.
+                    Start a new scholarship application or make a counseling appointment.
                 @else
-                    Submit a referral or take the admission exam. Once you are enrolled, you can apply for a scholarship.
+                    You can submit a referral or take the admission exam below. Once enrolled, you'll be able to apply for a scholarship.
                 @endif
             </p>
 
-            <div class="mt-10 flex flex-wrap gap-3">
+            <div class="flex flex-col justify-center gap-4 sm:flex-row">
                 @if (auth()->user()->isEnrolled())
-                    <a href="{{ url('/scholarship') }}" class="rounded-full bg-gvc-sun px-7 py-3.5 font-semibold text-gvc-900 transition hover:brightness-110">Apply for a scholarship</a>
-                    <a href="{{ route('guidance') }}" class="rounded-full border border-white/40 px-7 py-3.5 font-semibold transition hover:bg-white/10">Book guidance</a>
+                    <a href="{{ url('/scholarship') }}" class="{{ $btnPrimary }}">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $cap }}"/></svg>
+                        Scholarship
+                    </a>
+                    <a href="{{ route('guidance') }}" class="{{ $btnGlass }}">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+                        Guidance
+                    </a>
                 @else
-                    <span title="You must be enrolled to access scholarship features" class="cursor-not-allowed select-none rounded-full border border-white/15 px-7 py-3.5 font-semibold text-white/40">Scholarship (enrolled students only)</span>
-                    <a href="{{ route('guidance_referrals.get') }}" class="rounded-full bg-gvc-sun px-7 py-3.5 font-semibold text-gvc-900 transition hover:brightness-110">Submit a referral</a>
+                    <span title="You must be enrolled to access scholarship features"
+                          class="inline-flex cursor-not-allowed select-none items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-400/20 px-7 py-3.5 text-sm font-semibold text-white/40 sm:text-base">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z"/></svg>
+                        Scholarship <span class="text-xs font-normal opacity-70">(Enrolled Only)</span>
+                    </span>
+                    <a href="{{ route('guidance_referrals.get') }}" class="{{ $btnPrimary }}">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                        Submit a Referral
+                    </a>
                 @endif
 
                 @if (isset($exam) && $exam)
-                    <a href="{{ route('exam.admission', $exam->id) }}" class="rounded-full border border-white/40 px-7 py-3.5 font-semibold transition hover:bg-white/10">Take the admission exam</a>
+                    <a href="{{ route('exam.admission', $exam->id) }}" class="{{ $btnGlass }}">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                        Admission Exam
+                    </a>
                 @endif
             </div>
 
             @unless (auth()->user()->isEnrolled())
-                <p class="mt-6 inline-block rounded-xl border border-amber-300/40 bg-amber-400/15 px-4 py-2.5 text-sm text-amber-100">
-                    You are not enrolled yet. Complete your enrollment to unlock scholarships.
-                </p>
+                <div class="mt-6 inline-flex items-center gap-2 rounded-2xl border border-amber-300/40 bg-amber-500/20 px-4 py-2.5 text-xs text-amber-100 backdrop-blur-sm sm:text-sm">
+                    <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                    You are not yet enrolled. Complete your enrollment to unlock scholarship features.
+                </div>
             @endunless
         @else
-            <p class="mt-6 max-w-xl text-lg text-emerald-50/80">Log in or register to apply for scholarships and manage your guidance appointments.</p>
-            <div class="mt-10 flex flex-wrap gap-3">
-                <a href="{{ route('login') }}" class="rounded-full bg-gvc-sun px-7 py-3.5 font-semibold text-gvc-900 transition hover:brightness-110">Log in</a>
-                <a href="{{ route('register') }}" class="rounded-full border border-white/40 px-7 py-3.5 font-semibold transition hover:bg-white/10">Create an account</a>
+            <p class="mx-auto mb-8 max-w-2xl text-sm text-emerald-50/85 sm:text-base">Login or register to apply for scholarships and manage your guidance appointments.</p>
+            <div class="flex flex-col justify-center gap-4 sm:flex-row">
+                <a href="{{ route('login') }}" class="{{ $btnPrimary }}">Login to Continue</a>
+                <a href="{{ route('register') }}" class="{{ $btnGlass }}">Create an Account</a>
             </div>
         @endauth
     </div>
 </section>
 
-{{-- ANNOUNCEMENT --}}
-<section id="announcement" class="mx-auto max-w-7xl px-5 py-20">
-    <h2 class="border-l-4 border-gvc-500 pl-4 font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Announcements</h2>
-    <div class="mt-8 divide-y divide-gvc-100 rounded-3xl bg-white px-6 shadow-sm ring-1 ring-gvc-500/20">
+<!-- ANNOUNCEMENT -->
+<section id="announcement" class="mx-auto max-w-7xl px-6 py-24">
+    <h2 class="{{ $h2 }}">Announcements</h2>
+    <div class="mt-10 grid gap-5 md:grid-cols-2">
         @forelse ($announcements as $a)
-            <article class="grid gap-2 py-6 md:grid-cols-[10rem_1fr] md:gap-8">
-                <time class="text-sm font-semibold text-gvc-700">{{ optional($a->created_at)->format('M d, Y') }}</time>
-                <div>
-                    <h3 class="font-display text-xl font-semibold text-slate-900">{{ $a->title }}</h3>
-                    <p class="mt-1 max-w-2xl text-slate-600">{{ \Illuminate\Support\Str::limit($a->body ?? $a->content ?? '', 180) }}</p>
-                </div>
+            <article class="rounded-3xl border border-green-200/60 bg-white p-7 shadow-sm transition hover:border-emerald-300 hover:shadow-card-hover">
+                <time class="inline-block rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">{{ optional($a->created_at)->format('M d, Y') }}</time>
+                <h3 class="mt-3 font-display text-xl font-bold text-slate-900">{{ $a->title }}</h3>
+                <p class="mt-2 text-sm text-slate-600">{{ \Illuminate\Support\Str::limit($a->body ?? $a->content ?? '', 160) }}</p>
             </article>
         @empty
-            <p class="py-10 text-slate-500">No announcements right now. Check back soon.</p>
+            <p class="col-span-full text-sm text-slate-500">No announcements right now. Check back soon.</p>
         @endforelse
     </div>
 </section>
 
-{{-- ACTIVITIES --}}
-<section id="activities" class="bg-gvc-100 py-20">
-    <div class="mx-auto max-w-7xl px-5">
-        <h2 class="border-l-4 border-gvc-500 pl-4 font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Activities</h2>
-        <div class="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+<!-- ACTIVITIES -->
+<section id="activities" class="bg-gradient-to-b from-green-100/70 to-emerald-50/0 py-24">
+    <div class="mx-auto max-w-7xl px-6">
+        <h2 class="{{ $h2 }}">Activities</h2>
+        <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             @forelse ($activities as $act)
-                <article class="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-gvc-500/20 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-gvc-500/20">
+                <article class="group overflow-hidden rounded-3xl border border-green-200/60 bg-white shadow-sm transition hover:-translate-y-1.5 hover:shadow-card-hover">
                     @if (!empty($act->image))
-                        <img src="{{ asset('storage/'.$act->image) }}" alt="" class="aspect-[16/10] w-full object-cover" loading="lazy">
+                        <img src="{{ asset('storage/'.$act->image) }}" alt="" loading="lazy" class="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-105">
                     @else
-                        <div class="aspect-[16/10] bg-gradient-to-br from-gvc-700 to-gvc-500"></div>
+                        <div class="aspect-[16/10] bg-hero-gradient"></div>
                     @endif
-                    <div class="p-5">
-                        <h3 class="font-display text-lg font-semibold">{{ $act->title }}</h3>
+                    <div class="p-6">
+                        <h3 class="font-display text-lg font-bold text-slate-900">{{ $act->title }}</h3>
                         <p class="mt-1 text-sm text-slate-600">{{ \Illuminate\Support\Str::limit($act->description ?? '', 110) }}</p>
                     </div>
                 </article>
             @empty
-                <p class="col-span-full text-slate-500">No activities posted yet.</p>
+                <p class="col-span-full text-sm text-slate-500">No activities posted yet.</p>
             @endforelse
         </div>
     </div>
 </section>
 
-{{-- SCHOLARSHIP --}}
-<section id="scholarship" class="mx-auto max-w-7xl px-5 py-20">
-    <h2 class="border-l-4 border-gvc-500 pl-4 font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Scholarships</h2>
-    <p class="mt-3 max-w-xl text-slate-600">Programs currently open to qualified students.</p>
-    <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        @forelse ($scholarships as $s)
-            <div class="flex items-center justify-between gap-4 rounded-3xl bg-gradient-to-br from-gvc-700 to-gvc-800 p-6 text-white shadow-lg shadow-gvc-700/25 transition hover:-translate-y-1">
-                <h3 class="font-display text-lg font-semibold leading-snug">{{ $s->name }}</h3>
-                @if (($s->status ?? 'active') === 'active')
-                    <span class="shrink-0 rounded-full bg-gvc-sun px-2.5 py-1 text-xs font-semibold text-gvc-900">Open</span>
-                @endif
-            </div>
-        @empty
-            <p class="col-span-full text-slate-500">No scholarships available at this time.</p>
-        @endforelse
+<!-- SCHOLARSHIPS -->
+<section id="scholarship" class="py-24">
+    <div class="mx-auto max-w-6xl px-6">
+        <div class="mb-14 text-center">
+            <span class="mb-4 inline-block rounded-full bg-green-100 px-4 py-1.5 text-sm font-semibold text-green-700">Scholarships</span>
+            <h2 class="{{ $h2 }} mb-4">What We Offer</h2>
+            <p class="mx-auto max-w-xl text-sm text-slate-500 sm:text-base">Explore our active scholarship programs available for qualified students.</p>
+        </div>
+
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            @forelse ($scholarships as $s)
+                <div class="group rounded-3xl border border-green-200/60 bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-1.5 hover:border-emerald-300/60 hover:shadow-card-hover">
+                    <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-green-500 to-emerald-700 text-white shadow-md shadow-green-600/30">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $cap }}"/></svg>
+                    </div>
+                    <h3 class="mb-3 font-display text-lg font-bold leading-snug text-slate-900">{{ $s->name }}</h3>
+                    @if (($s->status ?? 'active') === 'active')
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                            <span class="h-1.5 w-1.5 rounded-full bg-green-500"></span> Active
+                        </span>
+                    @endif
+                </div>
+            @empty
+                <p class="col-span-full py-10 text-center text-sm text-slate-400">No scholarships available at this time.</p>
+            @endforelse
+        </div>
     </div>
 </section>
 
-{{-- PERSONNELS --}}
-<section id="personnels" class="bg-gvc-100 py-20">
-    <div class="mx-auto max-w-7xl px-5">
-        <h2 class="border-l-4 border-gvc-500 pl-4 font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Our personnel</h2>
-        <div class="mt-8 grid grid-cols-2 gap-6 md:grid-cols-4">
+<!-- PERSONNELS -->
+<section id="personnels" class="bg-green-100/60 py-24">
+    <div class="mx-auto max-w-7xl px-6">
+        <h2 class="{{ $h2 }}">Our personnel</h2>
+        <div class="mt-10 grid grid-cols-2 gap-6 md:grid-cols-4">
             @forelse ($personnels as $p)
-                <div>
+                <div class="rounded-3xl border border-green-200/60 bg-white p-5 text-center shadow-sm">
                     @if (!empty($p->photo))
-                        <img src="{{ asset('storage/'.$p->photo) }}" alt="{{ $p->name }}" class="aspect-square w-full rounded-3xl object-cover" loading="lazy">
+                        <img src="{{ asset('storage/'.$p->photo) }}" alt="{{ $p->name }}" loading="lazy" class="mx-auto h-24 w-24 rounded-full object-cover ring-4 ring-green-100">
                     @else
-                        <div class="grid aspect-square w-full place-items-center rounded-3xl bg-gradient-to-br from-gvc-700 to-gvc-900 font-display text-4xl font-extrabold text-gvc-300">{{ \Illuminate\Support\Str::substr($p->name, 0, 1) }}</div>
+                        <div class="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-hero-gradient font-display text-3xl font-bold text-gvc-pale ring-4 ring-green-100">{{ \Illuminate\Support\Str::substr($p->name, 0, 1) }}</div>
                     @endif
-                    <h3 class="mt-3 font-semibold text-slate-900">{{ $p->name }}</h3>
+                    <h3 class="mt-4 font-display font-bold text-slate-900">{{ $p->name }}</h3>
                     <p class="text-sm text-slate-500">{{ $p->position ?? '' }}</p>
                 </div>
             @empty
-                <p class="col-span-full text-slate-500">Personnel list coming soon.</p>
+                <p class="col-span-full text-sm text-slate-500">Personnel list coming soon.</p>
             @endforelse
         </div>
     </div>
 </section>
 
-{{-- CONTACT --}}
-<section id="contact" class="mx-auto max-w-7xl px-5 py-20">
-    <h2 class="border-l-4 border-gvc-500 pl-4 font-display text-3xl font-extrabold text-gvc-800 md:text-4xl">Contact info</h2>
-    <dl class="mt-8 grid gap-6 sm:grid-cols-3">
-        {{-- TODO: replace placeholders with real details or config() values --}}
-        <div class="rounded-3xl bg-gvc-100 p-6"><dt class="text-sm font-semibold text-gvc-700">Address</dt><dd class="mt-1 font-semibold">Green Valley College Foundation Inc.<br>Street, Barangay, City, Province</dd></div>
-        <div class="rounded-3xl bg-gvc-100 p-6"><dt class="text-sm font-semibold text-gvc-700">Phone</dt><dd class="mt-1 font-semibold">(000) 000-0000</dd></div>
-        <div class="rounded-3xl bg-gvc-100 p-6"><dt class="text-sm font-semibold text-gvc-700">Email</dt><dd class="mt-1 font-semibold"><a href="mailto:info@gvcfi.edu.ph" class="text-gvc-700 hover:underline">info@gvcfi.edu.ph</a></dd></div>
+<!-- CONTACT -->
+<section id="contact" class="mx-auto max-w-7xl px-6 py-24">
+    <h2 class="{{ $h2 }}">Contact info</h2>
+    <dl class="mt-10 grid gap-5 sm:grid-cols-3">
+        {{-- TODO: replace placeholders with real details --}}
+        <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Address</dt><dd class="mt-2 font-medium">Green Valley College Foundation Inc.<br>Street, Barangay, City, Province</dd></div>
+        <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Phone</dt><dd class="mt-2 font-medium">(000) 000-0000</dd></div>
+        <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Email</dt><dd class="mt-2 font-medium"><a href="mailto:info@gvcfi.edu.ph" class="text-green-700 hover:underline">info@gvcfi.edu.ph</a></dd></div>
     </dl>
 </section>
 
-{{-- ABOUT --}}
-<section id="about" class="bg-gradient-to-br from-gvc-900 via-gvc-800 to-gvc-700 py-20 text-white">
-    <div class="mx-auto grid max-w-7xl gap-10 px-5 md:grid-cols-[1fr_1.4fr]">
-        <h2 class="font-display text-3xl font-extrabold md:text-4xl">About us</h2>
-        <div class="max-w-2xl space-y-4 text-emerald-50/80">
+<!-- ABOUT -->
+<section id="about" class="relative overflow-hidden bg-hero-gradient py-24 text-white">
+    <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
+    <div class="relative mx-auto grid max-w-7xl gap-10 px-6 md:grid-cols-[1fr_1.4fr]">
+        <h2 class="font-display text-3xl font-extrabold tracking-tight text-emerald-50 md:text-5xl">About us</h2>
+        <div class="max-w-2xl space-y-4 text-emerald-50/85">
             {{-- TODO: replace with the foundation's real history, mission, and vision --}}
             <p>Green Valley College Foundation Inc. supports students through scholarships and guidance services, so financial need and personal challenges do not stop anyone from finishing their studies.</p>
             <p>Our guidance office offers counseling, referrals, and appointments, and our scholarship programs are open to qualified, enrolled students.</p>
@@ -320,8 +290,9 @@
     </div>
 </section>
 
-<footer class="bg-gvc-900 border-t border-white/10 py-8 text-center text-xs text-emerald-100/50">
-    &copy; {{ date('Y') }} Green Valley College Foundation Inc. All rights reserved.
+<!-- FOOTER -->
+<footer class="border-t border-green-300/20 bg-slate-900 py-10">
+    <p class="text-center text-xs text-slate-400">&copy; {{ date('Y') }} Green Valley College Foundation Inc. All rights reserved.</p>
 </footer>
 
 </body>

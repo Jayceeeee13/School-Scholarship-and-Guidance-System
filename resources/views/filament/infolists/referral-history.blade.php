@@ -4,6 +4,23 @@
     $endorsed = $history->filter(fn ($r) => $r->endorsement !== null)->count();
     $invited = $history->filter(fn ($r) => $r->invitation !== null)->count();
     $latest = $history->first();
+
+    $reasonLabels = [
+        'attendance'       => 'Attendance (3 or more absences)',
+        'tardiness'        => 'Frequent Tardiness',
+        'academic'         => 'Academic Concern',
+        'behavioral'       => 'Behavioral Concern',
+        'peer_conflict'    => 'Peer Conflict/Bullying',
+        'emotional_mental' => 'Emotional or Mental Health Concern',
+        'family'           => 'Family Concern',
+        'personal'         => 'Personal Concern',
+    ];
+
+    $interventionLabels = [
+        'yes_improved'  => 'Yes, and there was improvement',
+        'yes_no_change' => 'Yes, but there was no significant change',
+        'no_direct'     => 'No, referring directly',
+    ];
 @endphp
 
 <div class="space-y-5">
@@ -75,6 +92,25 @@
                     $hasEndorsement = $referral->endorsement !== null;
                     $hasInvitation = $referral->invitation !== null;
                     $isLatest = $loop->first;
+
+                    // Referral information values
+                    $reason = $referral->reason_for_referral === 'other'
+                        ? ($referral->reason_for_referral_other ?: 'Other')
+                        : ($reasonLabels[$referral->reason_for_referral] ?? '—');
+
+                    $relationship = $referral->relationshipType?->name;
+                    if ($relationship && strcasecmp($relationship, 'Other') === 0) {
+                        $relationship = $referral->relationship_with_student_other ?: $relationship;
+                    }
+
+                    // urgency_level has no cast on the model, so normalise to int
+                    $urgency = $referral->urgency_level !== null ? (int) $referral->urgency_level : null;
+                    $urgencyChip = match (true) {
+                        $urgency === null => 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400',
+                        $urgency >= 4     => 'bg-danger-50 dark:bg-danger-500/10 text-danger-700 dark:text-danger-400',
+                        $urgency === 3    => 'bg-warning-50 dark:bg-warning-500/10 text-warning-700 dark:text-warning-400',
+                        default           => 'bg-success-50 dark:bg-success-500/10 text-success-700 dark:text-success-400',
+                    };
                 @endphp
 
                 <div
@@ -124,6 +160,50 @@
                         <div>
                             <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-1">Case Presented</p>
                             <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{{ $referral->case_presented ?: 'No case details recorded' }}</p>
+                        </div>
+
+                        {{-- ── Referral Information ───────────────────────── --}}
+                        <div class="rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 p-3.5">
+                            <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2.5 flex items-center gap-1.5">
+                                <x-heroicon-o-information-circle class="w-3.5 h-3.5" />
+                                Referral Information
+                            </p>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <p class="text-[11px] text-gray-400 mb-0.5">Reason for Referral</p>
+                                    <p class="text-gray-700 dark:text-gray-300">{{ $reason }}</p>
+                                </div>
+
+                                <div>
+                                    <p class="text-[11px] text-gray-400 mb-0.5">Urgency Level</p>
+                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium {{ $urgencyChip }}">
+                                        {{ $urgency ? "{$urgency}/5" : '—' }}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <p class="text-[11px] text-gray-400 mb-0.5">Referrer Relationship</p>
+                                    <p class="text-gray-700 dark:text-gray-300">{{ $relationship ?: '—' }}</p>
+                                </div>
+
+                                <div>
+                                    <p class="text-[11px] text-gray-400 mb-0.5">Follow-up Required</p>
+                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium
+                                        {{ $referral->follow_up_required
+                                            ? 'bg-warning-50 dark:bg-warning-500/10 text-warning-700 dark:text-warning-400'
+                                            : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400' }}">
+                                        {{ $referral->follow_up_required ? 'Yes' : 'No' }}
+                                    </span>
+                                </div>
+
+                                <div class="sm:col-span-2">
+                                    <p class="text-[11px] text-gray-400 mb-0.5">Attempted Intervention</p>
+                                    <p class="text-gray-700 dark:text-gray-300">
+                                        {{ $interventionLabels[$referral->attempted_intervention] ?? '—' }}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
                         @if ($hasSessions)

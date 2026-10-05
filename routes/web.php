@@ -17,6 +17,7 @@ use App\Http\Controllers\CounselingLogformsPrintController;
 use App\Http\Controllers\ReportsPrintController;
 use App\Http\Controllers\ExamController;
 use App\Http\Controllers\ExamResultSlipController;
+use App\Http\Controllers\ExamAttemptListPrintController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AccomplishmentReportController;
 
@@ -200,6 +201,12 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/scholars/print/institutional', [App\Http\Controllers\ScholarsController::class, 'printInstitutional'])
         ->name('scholars.print.institutional');
+
+    // Print the full (filtered) Examinees list. Defined BEFORE the
+    // {examAttempt} route below so the literal path is matched first.
+    // The controller itself restricts access to admin / scholarship roles.
+    Route::get('/exam-attempts/print-list', ExamAttemptListPrintController::class)
+        ->name('exam-attempts.print-list');
 
     Route::get('/exam-attempts/{examAttempt}/print', [ExamResultSlipController::class, 'print'])
         ->name('exam-attempts.print');

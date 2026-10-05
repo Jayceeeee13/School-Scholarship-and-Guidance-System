@@ -61,6 +61,30 @@ class ListExams extends ListRecords
             Actions\CreateAction::make()
                 ->label('New Exam')
                 ->visible(fn (): bool => $this->activeTab === 'exams'),
+
+            // Prints everything currently shown on the Examinees tab,
+            // respecting the active search, filters and sort order.
+            Actions\Action::make('print_list')
+                ->label('Print List')
+                ->icon('heroicon-o-printer')
+                ->color('gray')
+                ->visible(fn (): bool => $this->activeTab === 'examinees')
+                ->url(function (): string {
+                    $query = $this->getFilteredSortedTableQuery();
+
+                    $ids = $query
+                        ->pluck($query->getModel()->getQualifiedKeyName())
+                        ->all();
+
+                    cache()->put(
+                        'exam-attempts-print:' . auth()->id(),
+                        $ids,
+                        now()->addMinutes(10)
+                    );
+
+                    return route('exam-attempts.print-list');
+                })
+                ->openUrlInNewTab(),
         ];
     }
 

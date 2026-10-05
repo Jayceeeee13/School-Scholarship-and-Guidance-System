@@ -12,9 +12,15 @@ class ExamAttemptListPrintController extends Controller
     {
         abort_unless(auth()->user()?->hasAnyRole(['admin', 'scholarship']), 403);
 
-        // IDs were stored by the "Print List" header action on the Examinees tab
-        // and already reflect the search, filters and sort the user had applied.
-        $payload = cache()->get('exam-attempts-print:' . auth()->id(), []);
+        $cacheKey = 'exam-attempts-print:' . auth()->id();
+        $payload  = cache()->get($cacheKey, []);
+
+        // TEMPORARY DEBUG: delete this block once the list prints correctly
+        logger()->info('print-list payload', [
+            'key'     => $cacheKey,
+            'driver'  => config('cache.default'),
+            'payload' => $payload,
+        ]);
 
         // Older versions stored a plain list of IDs; newer ones store
         // ['ids' => [...], 'columns' => [...]]. Accept both.
@@ -24,13 +30,14 @@ class ExamAttemptListPrintController extends Controller
 
         $ids = $payload['ids'] ?? [];
 
-        // Columns the user left visible in the table's column toggle.
-        // Falls back to every column if nothing was stored.
         $allColumns = [
             'user.name', 'user.email', 'exam.title', 'score', 'percentage',
             'status', 'scholarship_discount', 'violation_count', 'completed_at',
         ];
-        $columns = $payload['columns'] ?? $allColumns;
+
+        // Use the stored columns, but fall back to all columns if the
+        // list is missing or empty (otherwise the table would have no data columns).
+        $columns = ! empty($payload['columns']) ? $payload['columns'] : $allColumns;
 
         $attempts = ExamAttempt::query()
             ->with(['user', 'exam'])

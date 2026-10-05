@@ -56,45 +56,45 @@ class ListExams extends ListRecords
     }
 
     protected function getHeaderActions(): array
-    {
-        return [
-            Actions\CreateAction::make()
-                ->label('New Exam')
-                ->visible(fn (): bool => $this->activeTab === 'exams'),
+{
+    return [
+        Actions\CreateAction::make()
+            ->label('New Exam')
+            ->visible(fn (): bool => $this->activeTab === 'exams'),
 
-            // Prints everything currently shown on the Examinees tab,
-            // respecting the active search, filters and sort order.
-            Actions\Action::make('print_list')
-                ->label('Print List')
-                ->icon('heroicon-o-printer')
-                ->color('gray')
-                ->visible(fn (): bool => $this->activeTab === 'examinees')
-                ->url(function (): string {
-                    $query = $this->getFilteredSortedTableQuery();
+        // Prints everything currently shown on the Examinees tab,
+        // respecting the active search, filters and sort order.
+        Actions\Action::make('print_list')
+            ->label('Print List')
+            ->icon('heroicon-o-printer')
+            ->color('gray')
+            ->visible(fn (): bool => $this->activeTab === 'examinees')
+            ->action(function (): void {
+                $query = $this->getFilteredSortedTableQuery();
 
-                    $ids = $query
-                        ->pluck($query->getModel()->getQualifiedKeyName())
-                        ->all();
+                $ids = $query
+                    ->pluck($query->getModel()->getQualifiedKeyName())
+                    ->all();
 
-                    // Only the columns currently shown in the table
-                    // (i.e. not hidden through the column toggle).
-                    $columns = collect($this->getTable()->getColumns())
-                        ->reject(fn ($column) => $column->isHidden() || $column->isToggledHidden())
-                        ->map(fn ($column) => $column->getName())
-                        ->values()
-                        ->all();
+                // Only the columns currently shown in the table
+                $columns = collect($this->getTable()->getColumns())
+                    ->reject(fn ($column) => $column->isHidden() || $column->isToggledHidden())
+                    ->map(fn ($column) => $column->getName())
+                    ->values()
+                    ->all();
 
-                    cache()->put(
-                        'exam-attempts-print:' . auth()->id(),
-                        ['ids' => $ids, 'columns' => $columns],
-                        now()->addMinutes(10)
-                    );
+                cache()->put(
+                    'exam-attempts-print:' . auth()->id(),
+                    ['ids' => $ids, 'columns' => $columns],
+                    now()->addMinutes(10)
+                );
 
-                    return route('exam-attempts.print-list');
-                })
-                ->openUrlInNewTab(),
-        ];
-    }
+                $url = route('exam-attempts.print-list');
+
+                $this->js('window.open(' . \Illuminate\Support\Js::from($url) . ', "_blank")');
+            }),
+    ];
+}
 
     public function getTabs(): array
     {

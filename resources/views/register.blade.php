@@ -129,11 +129,11 @@
                 <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
                     <button type="button" id="tab-enrolled" onclick="switchType('enrolled')"
                         class="tab-btn rounded-lg px-3 py-2 text-sm font-semibold text-white bg-emerald-700 shadow-sm transition">
-                        ✅ Enrolled Student
+                        ✅ Student
                     </button>
                     <button type="button" id="tab-unenrolled" onclick="switchType('unenrolled')"
                         class="tab-btn rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 transition">
-                        📋 Not Yet Enrolled
+                        📋 Visitors
                     </button>
                 </div>
                 <p id="type-hint-enrolled" class="mt-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">

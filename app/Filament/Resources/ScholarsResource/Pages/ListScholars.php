@@ -65,29 +65,33 @@ class ListScholars extends ListRecords
      * assignment should be notified.
      */
     protected function notifyAdminAndScholarship(string $title, string $body, ?string $icon = null): void
-    {
-        $recipients = \App\Models\User::whereNull('archived_at')
-            ->where(function ($query) {
-                $query->whereHas('role', fn ($q) => $q->whereRaw('LOWER(name) IN (?, ?)', ['admin', 'scholarship']))
-                    ->orWhereHas('roles', fn ($q) => $q->whereRaw('LOWER(name) IN (?, ?)', ['admin', 'scholarship']));
-            })
-            ->get()
-            ->unique('id');
+{
+    $recipients = \App\Models\User::query()
+        ->whereNull('archived_at')
+        ->with(['role', 'roles'])
+        ->get()
+        ->filter(fn ($user) => $user->hasAnyRole(['admin', 'scholarship']))
+        ->unique('id');
 
-        foreach ($recipients as $recipient) {
-            Notification::make()
-                ->title($title)
-                ->icon($icon ?? 'heroicon-o-bell')
-                ->body($body)
-                ->actions([
-                    \Filament\Notifications\Actions\Action::make('view')
-                        ->label('View DTR')
-                        ->url(ScholarsResource::getUrl('index', ['activeTab' => 'dtr']))
-                        ->button(),
-                ])
-                ->sendToDatabase($recipient);
-        }
+    if ($recipients->isEmpty()) {
+        \Illuminate\Support\Facades\Log::warning('DTR notification: no admin/scholarship recipients found.');
+        return;
     }
+
+    foreach ($recipients as $recipient) {
+        Notification::make()
+            ->title($title)
+            ->icon($icon ?? 'heroicon-o-bell')
+            ->body($body)
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label('View DTR')
+                    ->url(ScholarsResource::getUrl('index', ['activeTab' => 'dtr']))
+                    ->button(),
+            ])
+            ->sendToDatabase($recipient);
+    }
+}
 
     /**
      * Notifies a scholar's assigned Department Head that their submitted

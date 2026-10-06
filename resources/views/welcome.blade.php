@@ -39,11 +39,9 @@
     $personnels    = $personnels ?? collect();
     $scholarships  = $scholarships ?? collect();
     $cap = 'M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422A12.083 12.083 0 0121 12c0 5.523-4.477 10-10 10S2 17.523 2 12c0-.538.043-1.065.125-1.578L12 14z';
-    $arrowUR = 'M7 17L17 7M9 7h8v8';
-    $btnPrimary = 'inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-400 px-7 py-3.5 text-sm font-semibold text-emerald-950 shadow-btn-glow transition hover:-translate-y-0.5 hover:bg-emerald-300 sm:w-auto sm:text-base';
-    $btnGlass   = 'inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/25 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white/20 sm:w-auto sm:text-base';
-    $btnWrap    = 'flex flex-col flex-wrap items-stretch justify-center gap-3 sm:flex-row sm:items-center sm:gap-4';
-    $h2 = 'font-display text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl md:text-5xl';
+    $btnPrimary = 'inline-flex items-center justify-center gap-2 rounded-full bg-emerald-400 px-7 py-3.5 text-sm font-semibold text-emerald-950 shadow-btn-glow transition hover:-translate-y-0.5 hover:bg-emerald-300 sm:text-base';
+    $btnGlass   = 'inline-flex items-center justify-center gap-2 rounded-full border border-white/25 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white/20 sm:text-base';
+    $h2 = 'font-display text-3xl font-extrabold tracking-tight text-slate-900 md:text-5xl';
 
     // Mobile app installer
     $appQr   = 'images/app-qr.png';        // QR image: public/images/app-qr.png
@@ -59,12 +57,13 @@
 <header class="sticky top-0 z-50 border-b border-white/10 bg-green-900/80 shadow-lg shadow-green-950/10 backdrop-blur-xl" x-data="{ menu: false }">
     <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3">
 
+        {{-- Logo --}}
         <a href="{{ url('/gvc') }}" class="flex shrink-0 items-center gap-2.5">
             <img src="{{ asset('images/logo.png') }}" alt="Green Valley College Foundation" class="h-10 w-10 rounded-xl bg-white/10 object-contain p-0.5 ring-1 ring-white/20">
             <span class="hidden font-display text-base font-bold tracking-tight text-white sm:inline md:text-lg">Green Valley College Foundation Inc.</span>
-            <span class="font-display text-base font-bold text-white sm:hidden">GVCFI</span>
         </a>
 
+        {{-- Section links --}}
         <nav class="hidden items-center gap-0.5 xl:flex" aria-label="Main">
             @foreach ($links as $id => $label)
                 <a href="#{{ $id }}" class="rounded-full px-3 py-1.5 text-sm font-medium text-emerald-100/80 transition hover:bg-white/10 hover:text-white">{{ $label }}</a>
@@ -73,6 +72,7 @@
 
         <div class="flex items-center gap-2 sm:gap-3">
             @guest
+                {{-- Guest menu --}}
                 <div class="relative" x-data="{ open: false }">
                     <button @click="open = !open" @click.outside="open = false" aria-label="Account menu"
                             class="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 transition hover:bg-white/20">
@@ -97,6 +97,7 @@
                 </form>
             @endguest
 
+            {{-- Mobile toggle --}}
             <button @click="menu = !menu" :aria-expanded="menu" aria-label="Toggle menu"
                     class="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white xl:hidden">
                 <svg class="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -112,7 +113,7 @@
 </header>
 
 <!-- HERO -->
-<section id="home" class="relative overflow-hidden rounded-b-[2.5rem] py-20 sm:py-28 md:py-40">
+<section id="home" class="relative overflow-hidden rounded-b-[2.5rem] py-28 md:py-40">
     <div class="absolute inset-0 bg-hero-gradient"></div>
     <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
     <div class="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.12]" style="background-image: url('{{ asset('images/gvc.png') }}');"></div>
@@ -120,7 +121,7 @@
     <div class="absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-lime-300/10 blur-3xl"></div>
 
     <div class="relative mx-auto max-w-4xl px-6 text-center">
-        <h1 class="mb-6 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-emerald-50 drop-shadow-md sm:text-6xl md:text-7xl">
+        <h1 class="mb-6 font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-emerald-50 drop-shadow-md sm:text-6xl md:text-7xl">
             GVCFI <br class="hidden sm:block">
             <span class="bg-gradient-to-r from-gvc-pale via-gvc-mint to-emerald-300 bg-clip-text text-transparent">Scholarship and Guidance</span>
         </h1>
@@ -135,7 +136,7 @@
                 @endif
             </p>
 
-            <div class="{{ $btnWrap }}">
+            <div class="flex flex-col justify-center gap-4 sm:flex-row">
                 @if (auth()->user()->isEnrolled())
                     <a href="{{ url('/scholarship') }}" class="{{ $btnPrimary }}">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $cap }}"/></svg>
@@ -147,7 +148,7 @@
                     </a>
                 @else
                     <span title="You must be enrolled to access scholarship features"
-                          class="inline-flex w-full cursor-not-allowed select-none items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-400/20 px-7 py-3.5 text-sm font-semibold text-white/40 sm:w-auto sm:text-base">
+                          class="inline-flex cursor-not-allowed select-none items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-400/20 px-7 py-3.5 text-sm font-semibold text-white/40 sm:text-base">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z"/></svg>
                         Scholarship <span class="text-xs font-normal opacity-70">(Enrolled Only)</span>
                     </span>
@@ -173,7 +174,7 @@
             @endunless
         @else
             <p class="mx-auto mb-8 max-w-2xl text-sm text-emerald-50/85 sm:text-base">Login or register to apply for scholarships and manage your guidance appointments.</p>
-            <div class="{{ $btnWrap }}">
+            <div class="flex flex-col justify-center gap-4 sm:flex-row">
                 <a href="{{ route('login') }}" class="{{ $btnPrimary }}">Login to Continue</a>
                 <a href="{{ route('register') }}" class="{{ $btnGlass }}">Create an Account</a>
             </div>
@@ -191,10 +192,12 @@
                 <p class="mt-2 text-sm text-emerald-50/80 sm:text-base">Apply for scholarships, book counseling appointments, and track your requirements from your phone.</p>
 
                 <div class="mt-6 flex flex-col items-center gap-4 sm:flex-row md:justify-start">
+                    {{-- QR code (white backing keeps it scannable) --}}
                     <div class="shrink-0 rounded-2xl bg-white p-2 shadow-lg">
                         @if (file_exists(public_path($appQr)))
                             <img src="{{ asset($appQr) }}" alt="QR code to download the GVCFI mobile app" class="h-28 w-28 object-contain">
                         @else
+                            {{-- Placeholder shown until the QR image is uploaded --}}
                             <div class="flex h-28 w-28 flex-col items-center justify-center rounded-xl border-2 border-dashed border-green-300 text-center text-xs font-medium text-green-700">
                                 QR code<br>coming soon
                             </div>
@@ -221,7 +224,8 @@
                 </div>
             </div>
 
-            <div class="relative mx-auto h-[25rem] w-full max-w-[18rem]">
+            {{-- App screenshots in phone frames --}}
+            <div class="relative mx-auto h-[25rem] w-full max-w-[18rem]" aria-hidden="false">
                 <div class="absolute left-0 top-10 w-36 -rotate-6 rounded-[1.75rem] bg-slate-900 p-1.5 shadow-2xl shadow-green-950/40 ring-1 ring-white/20">
                     <img src="{{ asset('images/app-login.jpg') }}" alt="GVCFI mobile app login screen" loading="lazy" class="w-full rounded-[1.4rem]">
                 </div>
@@ -239,6 +243,7 @@
          x-effect="document.body.classList.toggle('overflow-hidden', !!item)"
          @keydown.escape.window="item = null">
 
+    {{-- Header --}}
     <div class="mb-12 max-w-xl">
         <span class="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-green-800">
             <span class="relative flex h-2 w-2">
@@ -264,7 +269,8 @@
 
         <div class="grid gap-6 lg:grid-cols-5">
 
-            <article class="relative flex min-h-[22rem] flex-col justify-between overflow-hidden rounded-[2rem] bg-hero-gradient p-6 text-white ring-1 ring-white/10 sm:p-8 md:p-10 lg:col-span-3">
+            {{-- Featured (latest) announcement --}}
+            <article class="relative flex min-h-[22rem] flex-col justify-between overflow-hidden rounded-[2rem] bg-hero-gradient p-8 text-white ring-1 ring-white/10 lg:col-span-3 md:p-10">
                 <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
                 <div class="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl"></div>
                 <svg class="pointer-events-none absolute -bottom-12 -right-8 h-72 w-72 text-white/[0.07]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="0.6" aria-hidden="true">
@@ -279,25 +285,27 @@
                 </div>
 
                 <div class="relative mt-10">
-                    <h3 class="font-display text-2xl font-bold leading-tight sm:text-3xl md:text-4xl">{{ $featured->title }}</h3>
+                    <h3 class="font-display text-3xl font-bold leading-tight md:text-4xl">{{ $featured->title }}</h3>
                     <p class="mt-4 line-clamp-4 max-w-2xl text-emerald-50/80">{{ $featured->body ?? $featured->content ?? '' }}</p>
 
                     <button type="button" @click="item = {{ \Illuminate\Support\Js::from($payload($featured)) }}"
                             class="mt-7 inline-flex items-center gap-2 rounded-full bg-white/10 py-1.5 pl-5 pr-1.5 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur-md transition hover:bg-white hover:text-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
                         Read full announcement
                         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-emerald-950">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $arrowUR }}"/></svg>
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M9 7h8v8"/></svg>
                         </span>
                     </button>
                 </div>
             </article>
 
+            {{-- Other announcements --}}
             <div class="flex flex-col gap-4 lg:col-span-2">
                 @forelse ($others as $a)
                     @php $isNew = $a->created_at && $a->created_at->gt(now()->subDays(7)); @endphp
                     <button type="button" @click="item = {{ \Illuminate\Support\Js::from($payload($a)) }}"
                             class="group flex w-full items-start gap-4 rounded-3xl border border-green-200/60 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
 
+                        {{-- Date block --}}
                         <div class="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl bg-green-50 text-green-800 ring-1 ring-green-200/70 transition group-hover:bg-green-900 group-hover:text-white group-hover:ring-green-900">
                             <span class="text-[0.65rem] font-semibold uppercase tracking-wider opacity-70">{{ optional($a->created_at)->format('M') }}</span>
                             <span class="font-display text-2xl font-extrabold leading-none">{{ optional($a->created_at)->format('d') }}</span>
@@ -337,7 +345,7 @@
         <div x-show="item" x-transition.opacity class="absolute inset-0 bg-green-950/70 backdrop-blur-sm" @click="item = null"></div>
 
         <div x-show="item" x-transition.scale.origin.center.90
-             class="relative flex max-h-[85dvh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+             class="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
             <div class="relative bg-hero-gradient px-7 py-6 text-white md:px-9">
                 <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
                 <button type="button" @click="item = null" aria-label="Close"
@@ -380,7 +388,7 @@
 
 <!-- SCHOLARSHIPS -->
 @php
-    // Enrolled students go to the application page, guests to login.
+    // Where the card button sends people: enrolled students go to the application page, guests to login.
     $applyUrl = auth()->check()
         ? (auth()->user()->isEnrolled() ? url('/scholarship') : '#home')
         : route('login');
@@ -433,10 +441,10 @@
                 go(dir) { this.$refs.track.scrollBy({ left: dir * this.step(), behavior: 'smooth' }); },
                 goTo(i) { this.$refs.track.scrollTo({ left: (this.n + i) * this.step(), behavior: 'smooth' }); }
              }"
-             @resize.window.debounce.250ms="if (loop) jump((n + active) * step() - $refs.track.scrollLeft)"
              @mouseenter="paused = true" @mouseleave="paused = false" @focusin="paused = true" @focusout="paused = false"
              role="region" aria-roledescription="carousel" aria-label="Scholarship programs">
 
+            {{-- Header + controls --}}
             <div class="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
                 <div class="max-w-xl">
                     <h2 class="{{ $h2 }}">What we offer</h2>
@@ -455,18 +463,20 @@
                 </div>
             </div>
 
+            {{-- Track: cards bleed to the right edge so the next one peeks in --}}
             <div x-ref="track" @scroll.throttle.60ms="update()"
                  class="-mx-6 flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                  style="scroll-padding-inline: 1.5rem">
                 @foreach ($scholarships as $s)
                     <article class="relative flex min-h-[19rem] w-[82%] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-[2rem] bg-hero-gradient p-7 text-white ring-1 ring-white/10 sm:w-[calc(50%-10px)] lg:w-[calc(33.333%-14px)]">
 
+                        {{-- Oversized cap as a watermark --}}
                         <svg class="pointer-events-none absolute -bottom-10 -right-10 h-64 w-64 text-white/[0.07]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="0.6" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="{{ $cap }}"/>
                         </svg>
 
-                        <div class="relative flex items-start justify-between gap-2">
-                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md">
+                        <div class="relative flex items-start justify-between">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md">
                                 <svg class="h-6 w-6 text-emerald-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $cap }}"/></svg>
                             </div>
 
@@ -487,7 +497,7 @@
                                class="mt-6 inline-flex items-center gap-2 rounded-full bg-white/10 py-1.5 pl-5 pr-1.5 text-sm font-semibold text-white ring-1 ring-white/25 backdrop-blur-md transition hover:bg-white hover:text-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
                                 Apply now
                                 <span class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-400 text-emerald-950">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $arrowUR }}"/></svg>
+                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M9 7h8v8"/></svg>
                                 </span>
                             </a>
                         </div>
@@ -495,6 +505,7 @@
                 @endforeach
             </div>
 
+            {{-- Position dots --}}
             <div class="mt-6 flex justify-center gap-2" x-show="loop && n > 1" x-cloak role="group" aria-label="Choose scholarship">
                 @foreach ($scholarships as $s)
                     <button @click="goTo({{ $loop->index }})" aria-label="Go to {{ $s->name }}"
@@ -520,17 +531,18 @@
 
     <div class="relative mx-auto max-w-7xl px-6">
         <div class="mx-auto max-w-2xl text-center">
-            <h2 class="font-display text-3xl font-extrabold tracking-tight text-emerald-50 sm:text-4xl md:text-5xl">Meet our personnel</h2>
+            <h2 class="font-display text-3xl font-extrabold tracking-tight text-emerald-50 md:text-5xl">Meet our personnel</h2>
             <p class="mt-4 text-sm text-emerald-50/80 sm:text-base">The guidance and scholarship team here to support you.</p>
         </div>
 
         <div class="mt-14 grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
             @forelse ($personnels as $p)
-                <article class="group rounded-[2rem] border border-white/15 bg-white/10 px-3 py-6 text-center backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-emerald-300/50 hover:bg-white/[0.14] hover:shadow-btn-glow sm:px-5 sm:py-7">
+                <article class="group rounded-[2rem] border border-white/15 bg-white/10 px-5 py-7 text-center backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-emerald-300/50 hover:bg-white/[0.14] hover:shadow-btn-glow">
 
                     <div class="mx-auto h-24 w-24 overflow-hidden rounded-full bg-green-950/40 ring-4 ring-white/20 transition duration-300 group-hover:ring-emerald-300/60 sm:h-28 sm:w-28">
                         @if (!empty($p->profile))
-                            <img src="{{ asset('storage/'.$p->profile) }}" alt="{{ $p->full_name }}" loading="lazy" class="h-full w-full object-cover">
+                            <img src="{{ asset('storage/'.$p->profile) }}" alt="{{ $p->full_name }}" loading="lazy"
+                                 class="h-full w-full object-cover">
                         @else
                             <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-green-700 to-emerald-900 font-display text-3xl font-extrabold text-emerald-100/90">
                                 {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($p->first_name, 0, 1).\Illuminate\Support\Str::substr($p->last_name, 0, 1)) }}
@@ -556,10 +568,10 @@
 <!-- CONTACT -->
 <section id="contact" class="mx-auto max-w-7xl px-6 py-24">
     <h2 class="{{ $h2 }}">Contact info</h2>
-    <dl class="mt-10 grid gap-5 md:grid-cols-3">
+    <dl class="mt-10 grid gap-5 sm:grid-cols-3">
         <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Address</dt><dd class="mt-2 font-medium">Km. 2, Bo.2, Gensan Dr., Koronadal City, South Cotabato</dd></div>
         <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Facebook Page</dt><dd class="mt-2 break-words font-medium"><a href="https://www.facebook.com/GVCguidanceandscholarships2022" target="_blank" rel="noopener noreferrer" class="text-green-700 hover:underline">GVC Guidance and Scholarships</a></dd></div>
-        <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Email</dt><dd class="mt-2 break-words font-medium"><a href="mailto:guidance@gvcfi.edu.ph" class="text-green-700 hover:underline">guidance@gvcfi.edu.ph</a></dd></div>
+        <div class="rounded-3xl border border-green-200/60 bg-white p-7"><dt class="text-sm font-semibold text-green-700">Email</dt><dd class="mt-2 font-medium"><a href="mailto:guidance@gvcfi.edu.ph" class="text-green-700 hover:underline">guidance@gvcfi.edu.ph</a></dd></div>
     </dl>
 </section>
 
@@ -567,7 +579,7 @@
 <section id="about" class="relative overflow-hidden bg-hero-gradient py-24 text-white">
     <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
     <div class="relative mx-auto grid max-w-7xl gap-10 px-6 md:grid-cols-[1fr_1.4fr]">
-        <h2 class="font-display text-3xl font-extrabold tracking-tight text-emerald-50 sm:text-4xl md:text-5xl">About us</h2>
+        <h2 class="font-display text-3xl font-extrabold tracking-tight text-emerald-50 md:text-5xl">About us</h2>
         <div class="max-w-2xl space-y-4 text-emerald-50/85">
             {{-- TODO: replace with the foundation's real history, mission, and vision --}}
             <p>Green Valley College Foundation Inc. supports students through scholarships and guidance services, so financial need and personal challenges do not stop anyone from finishing their studies.</p>
@@ -578,7 +590,7 @@
 
 <!-- FOOTER -->
 <footer class="border-t border-green-300/20 bg-slate-900 py-10">
-    <p class="px-6 text-center text-xs text-slate-400">&copy; {{ date('Y') }} Green Valley College Foundation Inc. All rights reserved.</p>
+    <p class="text-center text-xs text-slate-400">&copy; {{ date('Y') }} Green Valley College Foundation Inc. All rights reserved.</p>
 </footer>
 
 </body>

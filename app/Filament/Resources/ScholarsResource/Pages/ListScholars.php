@@ -1152,14 +1152,6 @@ class ListScholars extends ListRecords
                     ->label('Days Logged')
                     ->badge()
                     ->color('info'),
-                    
-                Tables\Columns\TextColumn::make('excused_reasons')
-    ->label('Excused Reasons')
-    ->placeholder('—')
-    ->wrap()
-    ->limit(60)
-    ->tooltip(fn ($state) => $state)
-    ->toggleable(),
  
                 Tables\Columns\TextColumn::make('total_hours_sum')
                     ->label('Total Hrs')

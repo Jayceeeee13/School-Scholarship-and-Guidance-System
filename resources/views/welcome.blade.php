@@ -177,37 +177,53 @@
             </div>
         @endauth
 
-        {{-- MOBILE APP QR --}}
-        <div class="mx-auto mt-14 flex max-w-xl flex-col items-center gap-6 rounded-[2rem] border border-white/20 bg-white/10 p-6 text-center shadow-2xl shadow-green-950/20 backdrop-blur-xl sm:flex-row sm:p-7 sm:text-left">
-
-            {{-- QR code (white backing keeps it scannable) --}}
-            <div class="shrink-0 rounded-2xl bg-white p-2.5 shadow-lg">
-                @if (file_exists(public_path($appQr)))
-                    <img src="{{ asset($appQr) }}" alt="QR code to download the GVCFI mobile app" class="h-32 w-32 object-contain sm:h-36 sm:w-36">
-                @else
-                    {{-- Placeholder shown until the QR image is uploaded --}}
-                    <div class="flex h-32 w-32 flex-col items-center justify-center rounded-xl border-2 border-dashed border-green-300 text-center text-xs font-medium text-green-700 sm:h-36 sm:w-36">
-                        <svg class="mb-1.5 h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5zM13.5 14.25h2.25v2.25H13.5zM17.25 17.25h2.25v2.25h-2.25zM17.25 13.5h2.25v.75h-2.25z"/></svg>
-                        QR code<br>coming soon
-                    </div>
-                @endif
-            </div>
+        {{-- MOBILE APP --}}
+        <div class="mx-auto mt-14 grid max-w-4xl items-center gap-10 overflow-hidden rounded-[2rem] border border-white/20 bg-white/10 p-6 text-center shadow-2xl shadow-green-950/20 backdrop-blur-xl md:grid-cols-[1.1fr_1fr] md:p-10 md:text-left">
 
             <div>
                 <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-100">
                     <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"/></svg>
                     Mobile app
                 </span>
-                <h2 class="mt-3 font-display text-xl font-bold text-white sm:text-2xl">Take GVCFI with you</h2>
-                <p class="mt-1.5 text-sm text-emerald-50/80">Scan the QR code with your phone's camera to download and install the app.</p>
+                <h2 class="mt-4 font-display text-2xl font-extrabold leading-tight text-white sm:text-3xl">Take GVCFI with you</h2>
+                <p class="mt-2 text-sm text-emerald-50/80 sm:text-base">Apply for scholarships, book counseling appointments, and track your requirements from your phone.</p>
 
-                @if (!empty($appUrl))
-                    <a href="{{ $appUrl }}" target="_blank" rel="noopener noreferrer"
-                       class="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:bg-white hover:text-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg>
-                        Or download directly
-                    </a>
-                @endif
+                <div class="mt-6 flex flex-col items-center gap-4 sm:flex-row md:justify-start">
+                    {{-- QR code (white backing keeps it scannable) --}}
+                    <div class="shrink-0 rounded-2xl bg-white p-2 shadow-lg">
+                        @if (file_exists(public_path($appQr)))
+                            <img src="{{ asset($appQr) }}" alt="QR code to download the GVCFI mobile app" class="h-28 w-28 object-contain">
+                        @else
+                            {{-- Placeholder shown until the QR image is uploaded --}}
+                            <div class="flex h-28 w-28 flex-col items-center justify-center rounded-xl border-2 border-dashed border-green-300 text-center text-xs font-medium text-green-700">
+                                QR code<br>coming soon
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="text-center sm:text-left">
+                        <p class="text-sm font-semibold text-white">Scan to install</p>
+                        <p class="mt-0.5 text-xs text-emerald-50/70">Point your phone's camera at the code.</p>
+
+                        @if (!empty($appUrl))
+                            <a href="{{ $appUrl }}" target="_blank" rel="noopener noreferrer"
+                               class="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:bg-white hover:text-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg>
+                                Or download directly
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            {{-- App screenshots in phone frames --}}
+            <div class="relative mx-auto h-[25rem] w-full max-w-[18rem]" aria-hidden="false">
+                <div class="absolute left-0 top-10 w-36 -rotate-6 rounded-[1.75rem] bg-slate-900 p-1.5 shadow-2xl shadow-green-950/40 ring-1 ring-white/20">
+                    <img src="{{ asset('images/app-login.jpg') }}" alt="GVCFI mobile app login screen" loading="lazy" class="w-full rounded-[1.4rem]">
+                </div>
+                <div class="absolute right-0 top-0 z-10 w-40 rotate-6 rounded-[1.75rem] bg-slate-900 p-1.5 shadow-2xl shadow-green-950/40 ring-1 ring-white/20">
+                    <img src="{{ asset('images/app-dashboard.jpg') }}" alt="GVCFI mobile app dashboard" loading="lazy" class="w-full rounded-[1.4rem]">
+                </div>
             </div>
         </div>
     </div>

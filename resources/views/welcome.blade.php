@@ -44,8 +44,11 @@
     $h2 = 'font-display text-3xl font-extrabold tracking-tight text-slate-900 md:text-5xl';
 
     // Mobile app installer
-    $appQr  = 'images/app-qr.png';   // put your QR image at public/images/app-qr.png
-    $appUrl = '';                    // optional: direct download link (APK, Play Store, etc.)
+    $appQr   = 'images/app-qr.png';        // QR image: public/images/app-qr.png
+    $appUrl  = '';                         // external link (Play Store, Google Drive, etc.). Leave empty to use the APK below.
+    $apkPath = 'downloads/gvcfi-app.apk';  // or upload your APK to public/downloads/gvcfi-app.apk
+
+    $downloadUrl = $appUrl ?: (file_exists(public_path($apkPath)) ? asset($apkPath) : null);
 @endphp
 
 <body class="bg-emerald-50/60 font-sans text-slate-800 antialiased">
@@ -205,12 +208,17 @@
                         <p class="text-sm font-semibold text-white">Scan to install</p>
                         <p class="mt-0.5 text-xs text-emerald-50/70">Point your phone's camera at the code.</p>
 
-                        @if (!empty($appUrl))
-                            <a href="{{ $appUrl }}" target="_blank" rel="noopener noreferrer"
-                               class="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2 text-sm font-semibold text-white ring-1 ring-white/25 transition hover:bg-white hover:text-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
-                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg>
-                                Or download directly
+                        @if ($downloadUrl)
+                            <a href="{{ $downloadUrl }}" @unless ($appUrl) download @else target="_blank" rel="noopener noreferrer" @endunless
+                               class="mt-3 inline-flex items-center gap-2 rounded-full bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-emerald-950 shadow-btn-glow transition hover:-translate-y-0.5 hover:bg-emerald-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.25"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg>
+                                Download the app
                             </a>
+                        @else
+                            <span class="mt-3 inline-flex cursor-not-allowed items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white/50">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg>
+                                Download link coming soon
+                            </span>
                         @endif
                     </div>
                 </div>

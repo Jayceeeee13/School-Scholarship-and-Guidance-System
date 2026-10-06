@@ -66,29 +66,15 @@ class ListScholars extends ListRecords
      */
     protected function notifyAdminAndScholarship(string $title, string $body, ?string $icon = null): void
 {
-    $recipients = \App\Models\User::query()
-        ->whereNull('archived_at')
-        ->with(['role', 'roles'])
+    $recipients = \App\Models\User::whereNull('archived_at')
         ->get()
-        ->filter(fn ($user) => $user->hasAnyRole(['admin', 'scholarship']))
-        ->unique('id');
-
-    if ($recipients->isEmpty()) {
-        \Illuminate\Support\Facades\Log::warning('DTR notification: no admin/scholarship recipients found.');
-        return;
-    }
+        ->filter(fn ($user) => $user->hasAnyRole(['admin', 'scholarship']));
 
     foreach ($recipients as $recipient) {
         Notification::make()
             ->title($title)
             ->icon($icon ?? 'heroicon-o-bell')
             ->body($body)
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('View DTR')
-                    ->url(ScholarsResource::getUrl('index', ['activeTab' => 'dtr']))
-                    ->button(),
-            ])
             ->sendToDatabase($recipient);
     }
 }
@@ -98,24 +84,18 @@ class ListScholars extends ListRecords
      * DTR has been received by Admin/Scholarship.
      */
     protected function notifyDepartmentHeadOfReceipt(\App\Models\User $departmentHead, string $scholarName, ?string $dateLabel = null): void
-    {
-        $body = $dateLabel
-            ? "The DTR for {$scholarName} ({$dateLabel}) has been received by Admin/Scholarship."
-            : "The DTR for {$scholarName} has been received by Admin/Scholarship.";
+{
+    $body = $dateLabel
+        ? "The DTR for {$scholarName} ({$dateLabel}) has been received by Admin/Scholarship."
+        : "The DTR for {$scholarName} has been received by Admin/Scholarship.";
 
-        Notification::make()
-            ->title('DTR Received')
-            ->icon('heroicon-o-inbox-arrow-down')
-            ->success()
-            ->body($body)
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('View DTR')
-                    ->url(ScholarsResource::getUrl('index', ['activeTab' => 'dtr']))
-                    ->button(),
-            ])
-            ->sendToDatabase($departmentHead);
-    }
+    Notification::make()
+        ->title('DTR Received')
+        ->icon('heroicon-o-inbox-arrow-down')
+        ->success()
+        ->body($body)
+        ->sendToDatabase($departmentHead);
+}
 
     /**
      * Finds the Scholars row that corresponds to a given InstitutionalScholar

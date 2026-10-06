@@ -52,21 +52,15 @@ class ScholarsResource extends Resource
      * action in ListScholars, so both stay consistent.
      */
     public static function notifyDepartmentHeadOfAssignment(\App\Models\User $departmentHead, Scholars $scholar): void
-    {
-        $scholarName = trim("{$scholar->first_name} {$scholar->last_name}");
+{
+    $scholarName = trim("{$scholar->first_name} {$scholar->last_name}");
 
-        Notification::make()
-            ->title('New Scholar Assigned to You')
-            ->icon('heroicon-o-user-plus')
-            ->body("{$scholarName} has been assigned to you as Department Head.")
-            ->actions([
-                \Filament\Notifications\Actions\Action::make('view')
-                    ->label('View Scholar')
-                    ->url(static::getUrl('edit', ['record' => $scholar->id]))
-                    ->button(),
-            ])
-            ->sendToDatabase($departmentHead);
-    }
+    Notification::make()
+        ->title('New Scholar Assigned to You')
+        ->icon('heroicon-o-user-plus')
+        ->body("{$scholarName} has been assigned to you as Department Head.")
+        ->sendToDatabase($departmentHead);
+}
 
     /**
      * Names of TypeOfScholarship records — used only for reference/filter

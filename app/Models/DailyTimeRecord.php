@@ -33,6 +33,7 @@ class DailyTimeRecord extends Model
         'total_hours',
         'status',
         'attendance_status',
+        'excused_reason',
         'attendance_notes',
         'remarks',
         'approved_by_id',

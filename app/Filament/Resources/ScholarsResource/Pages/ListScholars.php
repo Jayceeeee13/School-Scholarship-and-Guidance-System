@@ -1152,6 +1152,14 @@ class ListScholars extends ListRecords
                     ->label('Days Logged')
                     ->badge()
                     ->color('info'),
+                    
+                Tables\Columns\TextColumn::make('excused_reasons')
+    ->label('Excused Reasons')
+    ->placeholder('—')
+    ->wrap()
+    ->limit(60)
+    ->tooltip(fn ($state) => $state)
+    ->toggleable(),
  
                 Tables\Columns\TextColumn::make('total_hours_sum')
                     ->label('Total Hrs')
@@ -1393,6 +1401,14 @@ class ListScholars extends ListRecords
                         ->formatStateUsing(fn ($record) => $record->attendance_status_label)
                         ->placeholder('—'),
 
+                        Tables\Columns\TextColumn::make('excused_reason')
+    ->label('Excused Reason')
+    ->placeholder('—')
+    ->wrap()
+    ->limit(60)
+    ->tooltip(fn ($state) => $state)
+    ->toggleable(),
+
                     Tables\Columns\TextColumn::make('status')
                         ->badge()
                         ->color(fn (string $state): string => match ($state) {
@@ -1602,6 +1618,11 @@ class ListScholars extends ListRecords
                                             })
                                             ->formatStateUsing(fn ($record) => $record->attendance_status_label)
                                             ->placeholder('Not recorded'),
+
+                                            \Filament\Infolists\Components\TextEntry::make('excused_reason')
+            ->label('Excused Reason')
+            ->placeholder('—')
+            ->columnSpanFull(),
 
                                         \Filament\Infolists\Components\TextEntry::make('attendance_notes')
                                             ->label('Notes')

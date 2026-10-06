@@ -46,6 +46,29 @@ class ScholarsResource extends Resource
     }
 
     /**
+     * Sends a database notification to a Department Head when a scholar
+     * is assigned (or reassigned) to them. Shared between this resource's
+     * own assign action and the Institutional Scholars tab's equivalent
+     * action in ListScholars, so both stay consistent.
+     */
+    public static function notifyDepartmentHeadOfAssignment(\App\Models\User $departmentHead, Scholars $scholar): void
+    {
+        $scholarName = trim("{$scholar->first_name} {$scholar->last_name}");
+
+        Notification::make()
+            ->title('New Scholar Assigned to You')
+            ->icon('heroicon-o-user-plus')
+            ->body("{$scholarName} has been assigned to you as Department Head.")
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label('View Scholar')
+                    ->url(static::getUrl('edit', ['record' => $scholar->id]))
+                    ->button(),
+            ])
+            ->sendToDatabase($departmentHead);
+    }
+
+    /**
      * Names of TypeOfScholarship records — used only for reference/filter
      * options now. NOTE: "Institutional Scholars" as a tab no longer
      * filters the `scholars` table by these names — institutional
@@ -781,6 +804,11 @@ class ScholarsResource extends Resource
                                 ->body("{$record->first_name} {$record->last_name} is now assigned to {$headName}."
                                     . ($movedDtrCount > 0 ? " {$movedDtrCount} DTR record(s) moved to the new head." : ''))
                                 ->send();
+
+                            // Notify the newly assigned Department Head.
+                            if ($newHead = \App\Models\User::find($data['department_head_id'])) {
+                                static::notifyDepartmentHeadOfAssignment($newHead, $record);
+                            }
                         })
                         ->visible(fn (Scholars $record): bool =>
                             str_contains(strtolower(trim($record->type_of_scholarship ?? '')), 'student representative')

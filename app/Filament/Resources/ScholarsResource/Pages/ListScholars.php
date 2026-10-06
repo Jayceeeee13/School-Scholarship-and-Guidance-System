@@ -59,6 +59,61 @@ class ListScholars extends ListRecords
     }
 
     /**
+     * Notifies every Admin/Scholarship user via database notification.
+     * Matches both the legacy single `role_id` and the `roles` pivot,
+     * since User::hasAnyRole() checks both too — a recipient with either
+     * assignment should be notified.
+     */
+    protected function notifyAdminAndScholarship(string $title, string $body, ?string $icon = null): void
+    {
+        $recipients = \App\Models\User::whereNull('archived_at')
+            ->where(function ($query) {
+                $query->whereHas('role', fn ($q) => $q->whereRaw('LOWER(name) IN (?, ?)', ['admin', 'scholarship']))
+                    ->orWhereHas('roles', fn ($q) => $q->whereRaw('LOWER(name) IN (?, ?)', ['admin', 'scholarship']));
+            })
+            ->get()
+            ->unique('id');
+
+        foreach ($recipients as $recipient) {
+            Notification::make()
+                ->title($title)
+                ->icon($icon ?? 'heroicon-o-bell')
+                ->body($body)
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('view')
+                        ->label('View DTR')
+                        ->url(ScholarsResource::getUrl('index', ['activeTab' => 'dtr']))
+                        ->button(),
+                ])
+                ->sendToDatabase($recipient);
+        }
+    }
+
+    /**
+     * Notifies a scholar's assigned Department Head that their submitted
+     * DTR has been received by Admin/Scholarship.
+     */
+    protected function notifyDepartmentHeadOfReceipt(\App\Models\User $departmentHead, string $scholarName, ?string $dateLabel = null): void
+    {
+        $body = $dateLabel
+            ? "The DTR for {$scholarName} ({$dateLabel}) has been received by Admin/Scholarship."
+            : "The DTR for {$scholarName} has been received by Admin/Scholarship.";
+
+        Notification::make()
+            ->title('DTR Received')
+            ->icon('heroicon-o-inbox-arrow-down')
+            ->success()
+            ->body($body)
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('view')
+                    ->label('View DTR')
+                    ->url(ScholarsResource::getUrl('index', ['activeTab' => 'dtr']))
+                    ->button(),
+            ])
+            ->sendToDatabase($departmentHead);
+    }
+
+    /**
      * Finds the Scholars row that corresponds to a given InstitutionalScholar
      * record, so "Assign Department Head" on the Institutional Scholars tab
      * updates the same underlying scholar instead of creating duplicates.
@@ -608,12 +663,6 @@ class ListScholars extends ListRecords
                         // name+birthdate) and sets department_head_id on it.
                         // Carries user_id across so Daily Time Record and other
                         // features that key off scholars.user_id work correctly.
-                                                // ── Assign Department Head (Institutional Scholars tab) ──
-                        // Promotes/syncs this institutional scholar into the main
-                        // scholars table (matched by user_id -> student_id ->
-                        // name+birthdate) and sets department_head_id on it.
-                        // Carries user_id across so Daily Time Record and other
-                        // features that key off scholars.user_id work correctly.
                         Tables\Actions\Action::make('assign_department_head_institutional')
                             ->label(function (InstitutionalScholar $record): string {
                                 $existing = self::findMatchingScholar($record);
@@ -727,6 +776,11 @@ class ListScholars extends ListRecords
                                     ->body("{$record->first_name} {$record->last_name} is now assigned to {$headName}."
                                         . ($movedDtrCount > 0 ? " {$movedDtrCount} DTR record(s) moved to the new head." : ''))
                                     ->send();
+
+                                // Notify the newly assigned Department Head.
+                                if ($newHead = \App\Models\User::find($data['department_head_id'])) {
+                                    ScholarsResource::notifyDepartmentHeadOfAssignment($newHead, $scholar);
+                                }
                             }),
 
                         Tables\Actions\ViewAction::make()
@@ -1224,6 +1278,20 @@ class ListScholars extends ListRecords
                                 ->send();
  
                             $this->resetTable();
+
+                            // Notify the scholar's Department Head.
+                            $scholar = \App\Models\Scholars::find($record->scholar_id);
+
+                            if ($scholar?->departmentHead) {
+                                $scholarName = trim("{$scholar->first_name} {$scholar->last_name}");
+                                $monthLabel = $start->format('F Y');
+
+                                $this->notifyDepartmentHeadOfReceipt(
+                                    $scholar->departmentHead,
+                                    $scholarName,
+                                    $monthLabel
+                                );
+                            }
                         }),
                 ])
                 ->label('Actions')
@@ -1831,6 +1899,13 @@ class ListScholars extends ListRecords
             ->success()
             ->body("{$records->count()} DTR entrie(s) for {$scholarName} have been sent to Admin and Scholarship.")
             ->send();
+
+        // Notify every Admin/Scholarship user that DTR entries are awaiting receipt.
+        $this->notifyAdminAndScholarship(
+            'DTR Submitted for Review',
+            "{$records->count()} DTR entrie(s) for {$scholarName} have been submitted and are awaiting receipt.",
+            'heroicon-o-paper-airplane'
+        );
     }),
 
                         Tables\Actions\Action::make('reject')
@@ -1901,6 +1976,17 @@ class ListScholars extends ListRecords
                                     ->title('DTR Marked as Received')
                                     ->success()
                                     ->send();
+
+                                // Notify the scholar's Department Head.
+                                if ($departmentHead = $record->scholar?->departmentHead) {
+                                    $scholarName = trim("{$record->scholar->first_name} {$record->scholar->last_name}");
+
+                                    $this->notifyDepartmentHeadOfReceipt(
+                                        $departmentHead,
+                                        $scholarName,
+                                        $record->date?->format('M d, Y')
+                                    );
+                                }
                             }),
 
                         // Tables\Actions\DeleteAction::make(),

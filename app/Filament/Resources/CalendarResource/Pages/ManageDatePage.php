@@ -35,6 +35,14 @@ class ManageDatePage extends Page
         $this->loadData();
     }
 
+    /**
+     * Used by the Blade view to hide the add form and delete buttons.
+     */
+    public function isReadOnly(): bool
+    {
+        return CalendarResource::isReadOnlyForCurrentUser();
+    }
+
     public function loadData(): void
     {
         $this->events = InactiveDate::getEventsForDate($this->date);
@@ -48,8 +56,10 @@ class ManageDatePage extends Page
 
     public function addEvent(): void
     {
+        abort_if($this->isReadOnly(), 403);
+
         $this->validate([
-            'newTitle' => 'required|string|max:255',
+            'newTitle'  => 'required|string|max:255',
             'newReason' => 'nullable|string|max:255',
         ]);
 
@@ -71,6 +81,8 @@ class ManageDatePage extends Page
 
     public function deleteEvent(int $eventId): void
     {
+        abort_if($this->isReadOnly(), 403);
+
         InactiveDate::where('id', $eventId)->delete();
         $this->loadData();
 

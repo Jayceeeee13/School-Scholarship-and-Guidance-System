@@ -30,71 +30,76 @@
                                     @endif
                                 </div>
                             </div>
-                            <button
-                                wire:click="deleteEvent({{ $event->id }})"
-                                wire:confirm="Remove this event?"
-                                style="background:#fee2e2;color:#dc2626;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;flex-shrink:0;"
-                                onmouseover="this.style.background='#fecaca'"
-                                onmouseout="this.style.background='#fee2e2'">
-                                Remove
-                            </button>
+
+                            @unless ($this->isReadOnly())
+                                <button
+                                    wire:click="deleteEvent({{ $event->id }})"
+                                    wire:confirm="Remove this event?"
+                                    style="background:#fee2e2;color:#dc2626;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;flex-shrink:0;"
+                                    onmouseover="this.style.background='#fecaca'"
+                                    onmouseout="this.style.background='#fee2e2'">
+                                    Remove
+                                </button>
+                            @endunless
                         </div>
                     @endforeach
                 </div>
             @else
-                <div style="text-align:center;padding:24px 0;color:#9ca3af;margin-bottom:20px;">
+                <div style="text-align:center;padding:24px 0;color:#9ca3af;margin-bottom:{{ $this->isReadOnly() ? '0' : '20px' }};">
                     <p style="font-size:0.875rem;margin:0;font-weight:500;">No events for this date yet</p>
                 </div>
             @endif
 
-            {{-- Add Event Form --}}
-            <div style="border-top:1px solid #e5e7eb;padding-top:20px;">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
-                    <div style="width:36px;height:36px;border-radius:10px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;">
-                        <x-heroicon-o-plus-circle style="width:20px;height:20px;color:#16a34a;"/>
+            {{-- Add Event Form (hidden for read-only users such as Department Heads) --}}
+            @unless ($this->isReadOnly())
+                <div style="border-top:1px solid #e5e7eb;padding-top:20px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                        <div style="width:36px;height:36px;border-radius:10px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;">
+                            <x-heroicon-o-plus-circle style="width:20px;height:20px;color:#16a34a;"/>
+                        </div>
+                        <h3 style="font-weight:600;color:#111827;font-size:1rem;margin:0;">Add Event</h3>
                     </div>
-                    <h3 style="font-weight:600;color:#111827;font-size:1rem;margin:0;">Add Event</h3>
-                </div>
 
-                <div style="margin-bottom:16px;">
-                    <label style="display:block;font-size:0.875rem;font-weight:500;color:#374151;margin-bottom:6px;">
-                        Title <span style="color:#dc2626;">*</span>
-                    </label>
-                    <input
-                        type="text"
-                        wire:model="newTitle"
-                        placeholder="e.g. Holiday, School event, Meeting..."
-                        style="width:100%;border:1.5px solid #d1d5db;border-radius:10px;padding:10px 14px;font-size:14px;outline:none;transition:border 0.2s;box-sizing:border-box;"
-                        onfocus="this.style.borderColor='#16a34a'"
-                        onblur="this.style.borderColor='#d1d5db'"
-                    />
-                    @error('newTitle') <p style="color:#dc2626;font-size:12px;margin:6px 0 0 0;">{{ $message }}</p> @enderror
-                </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block;font-size:0.875rem;font-weight:500;color:#374151;margin-bottom:6px;">
+                            Title <span style="color:#dc2626;">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            wire:model="newTitle"
+                            placeholder="e.g. Holiday, School event, Meeting..."
+                            style="width:100%;border:1.5px solid #d1d5db;border-radius:10px;padding:10px 14px;font-size:14px;outline:none;transition:border 0.2s;box-sizing:border-box;"
+                            onfocus="this.style.borderColor='#16a34a'"
+                            onblur="this.style.borderColor='#d1d5db'"
+                        />
+                        @error('newTitle') <p style="color:#dc2626;font-size:12px;margin:6px 0 0 0;">{{ $message }}</p> @enderror
+                    </div>
 
-                <div style="margin-bottom:16px;">
-                    <label style="display:block;font-size:0.875rem;font-weight:500;color:#374151;margin-bottom:6px;">
-                        Reason <span style="color:#9ca3af;font-weight:400;">(optional)</span>
-                    </label>
-                    <input
-                        type="text"
-                        wire:model="newReason"
-                        placeholder="Additional details..."
-                        style="width:100%;border:1.5px solid #d1d5db;border-radius:10px;padding:10px 14px;font-size:14px;outline:none;transition:border 0.2s;box-sizing:border-box;"
-                        onfocus="this.style.borderColor='#16a34a'"
-                        onblur="this.style.borderColor='#d1d5db'"
-                    />
-                </div>
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block;font-size:0.875rem;font-weight:500;color:#374151;margin-bottom:6px;">
+                            Reason <span style="color:#9ca3af;font-weight:400;">(optional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            wire:model="newReason"
+                            placeholder="Additional details..."
+                            style="width:100%;border:1.5px solid #d1d5db;border-radius:10px;padding:10px 14px;font-size:14px;outline:none;transition:border 0.2s;box-sizing:border-box;"
+                            onfocus="this.style.borderColor='#16a34a'"
+                            onblur="this.style.borderColor='#d1d5db'"
+                        />
+                    </div>
 
-                <div style="display:flex;justify-content:flex-end;">
-                    <button
-                        wire:click="addEvent"
-                        style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 2px 4px rgba(5,150,105,0.3);"
-                        onmouseover="this.style.background='linear-gradient(135deg,#047857,#065f46)'"
-                        onmouseout="this.style.background='linear-gradient(135deg,#059669,#047857)'">
-                        + Add Event
-                    </button>
+                    <div style="display:flex;justify-content:flex-end;">
+                        <button
+                            wire:click="addEvent"
+                            style="background:linear-gradient(135deg,#059669,#047857);color:white;padding:10px 24px;border-radius:10px;font-size:14px;font-weight:600;border:none;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 2px 4px rgba(5,150,105,0.3);"
+                            onmouseover="this.style.background='linear-gradient(135deg,#047857,#065f46)'"
+                            onmouseout="this.style.background='linear-gradient(135deg,#059669,#047857)'">
+                            + Add Event
+                        </button>
+                    </div>
                 </div>
-            </div>
+            @endunless
         </div>
 
         {{-- Appointments on this date --}}
@@ -114,13 +119,23 @@
             @if(count($appointments) > 0)
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     @foreach($appointments as $appointment)
-                        <a href="{{ route('filament.admin.resources.counseling-appointments.edit', $appointment->id) }}"
-                           style="display:block;padding:16px;border-radius:12px;border:1.5px solid;text-decoration:none;transition:box-shadow 0.2s;
-                               {{ $appointment->status === 'pending' ? 'border-color:#fed7aa;background:#fff7ed;' : '' }}
-                               {{ $appointment->status === 'approved' ? 'border-color:#bbf7d0;background:#f0fdf4;' : '' }}
-                               {{ $appointment->status === 'rejected' ? 'border-color:#fecaca;background:#fef2f2;' : '' }}"
-                           onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
-                           onmouseout="this.style.boxShadow='none'">
+                        @php
+                            $cardStyle = 'display:block;padding:16px;border-radius:12px;border:1.5px solid;text-decoration:none;transition:box-shadow 0.2s;'
+                                . ($appointment->status === 'pending' ? 'border-color:#fed7aa;background:#fff7ed;' : '')
+                                . ($appointment->status === 'approved' ? 'border-color:#bbf7d0;background:#f0fdf4;' : '')
+                                . ($appointment->status === 'rejected' ? 'border-color:#fecaca;background:#fef2f2;' : '');
+                        @endphp
+
+                        {{-- Read-only users get a plain card; everyone else gets the link to the edit page --}}
+                        @if ($this->isReadOnly())
+                            <div style="{{ $cardStyle }}">
+                        @else
+                            <a href="{{ route('filament.admin.resources.counseling-appointments.edit', $appointment->id) }}"
+                               style="{{ $cardStyle }}"
+                               onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
+                               onmouseout="this.style.boxShadow='none'">
+                        @endif
+
                             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
                                 <div>
                                     <h4 style="font-weight:600;color:#111827;font-size:1rem;margin:0 0 6px 0;">
@@ -141,7 +156,12 @@
                                     {{ ucfirst($appointment->status) }}
                                 </span>
                             </div>
-                        </a>
+
+                        @if ($this->isReadOnly())
+                            </div>
+                        @else
+                            </a>
+                        @endif
                     @endforeach
                 </div>
             @else

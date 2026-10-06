@@ -19,6 +19,35 @@ class CalendarResource extends Resource
     protected static ?string $modelLabel = 'Calendar';
     protected static ?string $pluralModelLabel = 'Calendars';
 
+    /**
+     * Department Heads get a read-only calendar. If someone is a
+     * Department Head AND also has admin/guidance/scholarship, they
+     * keep full access.
+     */
+    public static function isReadOnlyForCurrentUser(): bool
+    {
+        $user = auth()->user();
+
+        return $user
+            && $user->isDepartmentHead()
+            && ! $user->hasAnyRole(['admin', 'guidance', 'scholarship']);
+    }
+
+    public static function canCreate(): bool
+    {
+        return ! static::isReadOnlyForCurrentUser();
+    }
+
+    public static function canEdit($record): bool
+    {
+        return ! static::isReadOnlyForCurrentUser();
+    }
+
+    public static function canDelete($record): bool
+    {
+        return ! static::isReadOnlyForCurrentUser();
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([]);

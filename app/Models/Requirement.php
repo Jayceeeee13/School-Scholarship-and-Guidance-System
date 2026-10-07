@@ -17,7 +17,6 @@ class Requirement extends Model
         'is_active' => 'boolean',
     ];
 
-    // Scope to get only active records
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
@@ -29,9 +28,15 @@ class Requirement extends Model
     }
 
     public function applicants(): BelongsToMany
-{
-    return $this->belongsToMany(Applicant::class, 'applicant_requirement')
-        ->withPivot('is_submitted', 'file_path', 'notes')
-        ->withTimestamps();
-}
+    {
+        return $this->belongsToMany(Applicant::class, 'applicant_requirement')
+            ->withPivot('is_submitted', 'file_path', 'notes')
+            ->withTimestamps();
+    }
+
+    public function typesOfScholarship(): BelongsToMany
+    {
+        return $this->belongsToMany(TypeOfScholarship::class, 'requirement_type_of_scholarship')
+            ->withTimestamps();
+    }
 }

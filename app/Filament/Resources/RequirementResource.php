@@ -29,12 +29,22 @@ class RequirementResource extends Resource
         return $form
             ->schema([
                 TextInput::make('name')->required(),
+
                 Select::make('type_of_application_id')
-                ->label('Type of Application')
-                ->relationship('typeOfApplication', 'name')
-                ->searchable()
-                ->preload()
-                ->required(),
+                    ->label('Type of Application')
+                    ->relationship('typeOfApplication', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->required(),
+
+                Select::make('typesOfScholarship')
+                    ->label('Type(s) of Scholarship')
+                    ->relationship('typesOfScholarship', 'name')
+                    ->multiple()
+                    ->searchable()
+                    ->preload()
+                    ->helperText('Select which scholarship type(s) this requirement applies to. Leave empty if it applies to all.'),
+
                 Forms\Components\Toggle::make('is_active')
                     ->label('Active')
                     ->default(true)
@@ -48,9 +58,16 @@ class RequirementResource extends Resource
             ->columns([
                 TextColumn::make('name')->searchable(),
 
-            TextColumn::make('typeOfApplication.name')
-                ->label('Application Type')
-                ->sortable(),
+                TextColumn::make('typeOfApplication.name')
+                    ->label('Application Type')
+                    ->sortable(),
+
+                TextColumn::make('typesOfScholarship.name')
+                    ->label('Scholarship Type(s)')
+                    ->badge()
+                    ->color('success')
+                    ->placeholder('All'),
+
                 Tables\Columns\ToggleColumn::make('is_active')
                     ->label('Active')
                     ->sortable()
@@ -58,7 +75,11 @@ class RequirementResource extends Resource
                     ->offColor('danger'),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('typesOfScholarship')
+                    ->label('Type of Scholarship')
+                    ->relationship('typesOfScholarship', 'name')
+                    ->searchable()
+                    ->preload(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

@@ -362,47 +362,104 @@
     </div>
 </section>
 
-<!-- ACTIVITIES (UPDATED) -->
-<section id="activities" class="bg-gradient-to-b from-green-100/70 to-emerald-50/0 py-24"
+<!-- ACTIVITIES -->
+<section id="activities" class="relative bg-gradient-to-b from-green-100/70 to-emerald-50/0 py-24"
          x-data="{ item: null }"
          x-effect="document.body.classList.toggle('overflow-hidden', !!item)"
          @keydown.escape.window="item = null">
     <div class="mx-auto max-w-7xl px-6">
-        <div class="max-w-xl">
-            <h2 class="{{ $h2 }}">Activities</h2>
+
+        {{-- Header --}}
+        <div class="mb-12 max-w-xl">
+            <span class="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-green-800">
+                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                What's happening
+            </span>
+            <h2 class="{{ $h2 }} mt-4">Activities</h2>
             <p class="mt-3 text-sm text-slate-500 sm:text-base">Events, programs, and moments from the Scholarship and Guidance office.</p>
         </div>
 
-        <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            @forelse ($activities as $act)
-                @php
-                    $actPayload = [
-                        'title' => $act->title,
-                        'body'  => $act->description ?? '',
-                        'date'  => optional($act->activity_date)->format('F d, Y'),
-                        'image' => $act->image ? asset('storage/'.$act->image) : null,
-                    ];
-                @endphp
-                <button type="button" @click="item = {{ \Illuminate\Support\Js::from($actPayload) }}"
-                        class="group overflow-hidden rounded-3xl border border-green-200/60 bg-white text-left shadow-sm transition hover:-translate-y-1.5 hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
-                    @if (!empty($act->image))
-                        <img src="{{ asset('storage/'.$act->image) }}" alt="{{ $act->title }}" loading="lazy" class="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-105">
-                    @else
-                        <div class="aspect-[16/10] bg-hero-gradient"></div>
-                    @endif
-                    <div class="p-6">
-                        @if ($act->activity_date)
-                            <time class="text-xs font-semibold uppercase tracking-wider text-green-700">{{ $act->activity_date->format('M d, Y') }}</time>
+        @if ($activities->count())
+            <div class="grid auto-rows-[18rem] gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:auto-rows-[16rem]">
+                @foreach ($activities as $act)
+                    @php
+                        $isFeatured = $loop->first;
+                        $isNew      = $act->activity_date && $act->activity_date->gt(now()->subDays(14));
+                        $actPayload = [
+                            'title' => $act->title,
+                            'body'  => $act->description ?? '',
+                            'date'  => optional($act->activity_date)->format('F d, Y'),
+                            'image' => $act->image ? asset('storage/'.$act->image) : null,
+                        ];
+                    @endphp
+
+                    <button type="button"
+                            @click="item = {{ \Illuminate\Support\Js::from($actPayload) }}"
+                            class="group relative isolate flex overflow-hidden rounded-[2rem] bg-green-950 text-left ring-1 ring-green-900/10 transition duration-300 hover:-translate-y-1 hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700
+                                   {{ $isFeatured ? 'sm:col-span-2 lg:row-span-2' : '' }}">
+
+                        {{-- Background: image or branded fallback --}}
+                        @if (!empty($act->image))
+                            <img src="{{ asset('storage/'.$act->image) }}" alt="{{ $act->title }}" loading="lazy"
+                                 class="absolute inset-0 -z-20 h-full w-full object-cover transition duration-700 group-hover:scale-105">
+                        @else
+                            <div class="absolute inset-0 -z-20 bg-hero-gradient"></div>
+                            <div class="absolute inset-0 -z-20 bg-hero-pattern bg-repeat"></div>
+                            <svg class="pointer-events-none absolute -bottom-10 -right-10 -z-10 h-64 w-64 text-white/[0.08]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="0.6" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="{{ $cap }}"/>
+                            </svg>
                         @endif
-                        <h3 class="mt-1 font-display text-lg font-bold text-slate-900">{{ $act->title }}</h3>
-                        <p class="mt-1 line-clamp-2 text-sm text-slate-600">{{ $act->description }}</p>
-                        <span class="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-green-800">Read more <span aria-hidden="true">→</span></span>
-                    </div>
-                </button>
-            @empty
-                <p class="col-span-full text-sm text-slate-500">No activities posted yet.</p>
-            @endforelse
-        </div>
+
+                        {{-- Readability overlay --}}
+                        <div class="absolute inset-0 -z-10 bg-gradient-to-t from-green-950/90 via-green-950/35 to-transparent transition-opacity duration-300 group-hover:from-green-950/95"></div>
+
+                        {{-- Top row: date chip + badges --}}
+                        <div class="absolute inset-x-0 top-0 flex items-start justify-between p-5">
+                            @if ($act->activity_date)
+                                <time class="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
+                                    {{ $act->activity_date->format('M d, Y') }}
+                                </time>
+                            @else
+                                <span></span>
+                            @endif
+
+                            @if ($isFeatured || $isNew)
+                                <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-100 backdrop-blur-md">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
+                                    {{ $isFeatured ? 'Latest' : 'New' }}
+                                </span>
+                            @endif
+                        </div>
+
+                        {{-- Bottom: title, description, arrow --}}
+                        <div class="relative mt-auto flex w-full items-end justify-between gap-4 p-6 {{ $isFeatured ? 'md:p-8' : '' }}">
+                            <div class="min-w-0">
+                                <h3 class="font-display font-bold leading-tight text-white {{ $isFeatured ? 'text-2xl md:text-4xl' : 'text-lg md:text-xl' }}">
+                                    {{ $act->title }}
+                                </h3>
+                                @if (!empty($act->description))
+                                    <p class="mt-2 text-emerald-50/80 {{ $isFeatured ? 'line-clamp-3 max-w-xl text-sm md:text-base' : 'line-clamp-2 text-sm' }}">
+                                        {{ $act->description }}
+                                    </p>
+                                @endif
+                            </div>
+
+                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-emerald-950 shadow-btn-glow transition duration-300 group-hover:rotate-45 group-hover:bg-white">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M9 7h8v8"/></svg>
+                            </span>
+                        </div>
+                    </button>
+                @endforeach
+            </div>
+        @else
+            <div class="mx-auto max-w-md rounded-3xl border border-dashed border-green-300 bg-white/60 px-6 py-12 text-center">
+                <div class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-green-100 text-green-700">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <h3 class="font-display text-xl font-bold text-slate-900">No activities yet</h3>
+                <p class="mt-2 text-sm text-slate-500">Upcoming events and programs will be posted here.</p>
+            </div>
+        @endif
     </div>
 
     {{-- Activity modal --}}
@@ -410,9 +467,9 @@
         <div x-show="item" x-transition.opacity class="absolute inset-0 bg-green-950/70 backdrop-blur-sm" @click="item = null"></div>
 
         <div x-show="item" x-transition.scale.origin.center.90
-             class="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+             class="relative flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
             <button type="button" @click="item = null" aria-label="Close"
-                    class="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-green-950/60 text-white transition hover:bg-green-950">
+                    class="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-green-950/60 text-white ring-1 ring-white/25 backdrop-blur-md transition hover:bg-green-950">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
 
@@ -421,8 +478,9 @@
                     <img :src="item.image" :alt="item.title" class="aspect-[16/9] w-full object-cover">
                 </template>
                 <div class="px-7 py-6 md:px-9 md:py-8">
-                    <time class="text-xs font-semibold uppercase tracking-wider text-green-700" x-text="item ? item.date : ''"></time>
-                    <h3 class="mt-2 font-display text-2xl font-bold text-slate-900 md:text-3xl" x-text="item ? item.title : ''"></h3>
+                    <time class="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-green-800"
+                          x-show="item && item.date" x-text="item ? item.date : ''"></time>
+                    <h3 class="mt-3 font-display text-2xl font-bold leading-tight text-slate-900 md:text-3xl" x-text="item ? item.title : ''"></h3>
                     <p class="mt-4 whitespace-pre-line text-slate-700" x-text="item ? item.body : ''"></p>
                 </div>
             </div>

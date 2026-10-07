@@ -31,6 +31,9 @@ class RequirementSubmissionController extends Controller
         if ($applicant) {
             $requirements = Requirement::where('type_of_application_id', $applicant->type_of_application_id)
                 ->where('is_active', 1)
+                ->whereHas('typesOfScholarship', function ($query) use ($applicant) {
+                    $query->where('type_of_scholarships.id', $applicant->type_of_scholarship_id);
+                })
                 ->orderBy('name')
                 ->get();
 
@@ -54,9 +57,13 @@ $submitted = DB::table('applicant_requirement')
         // Guard: applicant must exist
         $applicant = Applicant::where('user_id', Auth::id())->firstOrFail();
 
-        // Fetch this applicant's required documents
+        // Fetch this applicant's required documents — matching both their
+        // application type AND their specific scholarship type.
         $requirements = Requirement::where('type_of_application_id', $applicant->type_of_application_id)
             ->where('is_active', 1)
+            ->whereHas('typesOfScholarship', function ($query) use ($applicant) {
+                $query->where('type_of_scholarships.id', $applicant->type_of_scholarship_id);
+            })
             ->get();
 
         // ── Build validation rules ─────────────────────────────

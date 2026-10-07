@@ -37,28 +37,115 @@
             }
         }
     </script>
+    <style>
+        /* Only animate if the visitor allows motion */
+        @media (prefers-reduced-motion: no-preference) {
+
+            /* Entrance animations (staggered with --d) */
+            @keyframes riseIn {
+                from { opacity: 0; transform: translateY(28px); }
+                to   { opacity: 1; transform: none; }
+            }
+            @keyframes slideInRight {
+                from { opacity: 0; transform: translateX(60px) scale(.97); }
+                to   { opacity: 1; transform: none; }
+            }
+            @keyframes dropIn {
+                from { opacity: 0; transform: translateY(-100%); }
+                to   { opacity: 1; transform: none; }
+            }
+            .rise  { animation: riseIn .8s cubic-bezier(.22,1,.36,1) both; animation-delay: var(--d, 0ms); }
+            .slide { animation: slideInRight .9s cubic-bezier(.22,1,.36,1) both; animation-delay: var(--d, 0ms); }
+            .drop  { animation: dropIn .7s cubic-bezier(.22,1,.36,1) both; }
+
+            /* Floating blurred blobs */
+            @keyframes floatSlow {
+                0%, 100% { translate: 0 0; }
+                50%      { translate: 26px -30px; }
+            }
+            .float-a { animation: floatSlow 12s ease-in-out infinite; }
+            .float-b { animation: floatSlow 16s ease-in-out infinite reverse; }
+
+            /* Heading gradient shimmer */
+            @keyframes shimmer {
+                0%   { background-position: 0% 50%; }
+                100% { background-position: 100% 50%; }
+            }
+            .shimmer-text {
+                background-size: 200% auto;
+                animation: shimmer 5s ease-in-out infinite alternate;
+            }
+
+            /* Pulsing glow on the Register pill */
+            @keyframes glowPulse {
+                0%, 100% { box-shadow: 0 0 20px rgba(74,222,128,.25), 0 6px 20px -8px rgba(74,222,128,.5); }
+                50%      { box-shadow: 0 0 36px rgba(74,222,128,.55), 0 6px 20px -8px rgba(74,222,128,.85); }
+            }
+            .glow-pulse { animation: glowPulse 3s ease-in-out infinite; }
+
+            /* Soft pulse on the "Student Portal" dot */
+            @keyframes ping2 {
+                75%, 100% { transform: scale(2.2); opacity: 0; }
+            }
+            .ping-dot::after {
+                content: ""; position: absolute; inset: 0; border-radius: 9999px;
+                background: #6ee7b7; animation: ping2 1.8s cubic-bezier(0,0,.2,1) infinite;
+            }
+
+            /* Shake the error box */
+            @keyframes shake {
+                10%, 90%      { transform: translateX(-2px); }
+                20%, 80%      { transform: translateX(4px); }
+                30%, 50%, 70% { transform: translateX(-6px); }
+                40%, 60%      { transform: translateX(6px); }
+            }
+            .shake { animation: shake .6s cubic-bezier(.36,.07,.19,.97) both; }
+
+            /* Button shine sweep on hover */
+            .btn-shine { position: relative; overflow: hidden; }
+            .btn-shine::before {
+                content: ""; position: absolute; top: 0; left: -75%; width: 50%; height: 100%;
+                background: linear-gradient(120deg, transparent, rgba(255,255,255,.35), transparent);
+                transform: skewX(-20deg);
+            }
+            .btn-shine:hover::before { left: 130%; transition: left .7s ease; }
+            .btn-shine:active { transform: scale(.98); }
+
+            /* Input lift on focus */
+            .field { transition: box-shadow .25s ease, border-color .25s ease, transform .25s ease; }
+            .field:focus { transform: translateY(-1px); }
+        }
+
+        /* Spinner (always fine, it only shows while submitting) */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            width: 1rem; height: 1rem; border-radius: 9999px;
+            border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+            animation: spin .7s linear infinite;
+        }
+    </style>
 </head>
 <body class="bg-emerald-950/5 text-slate-800 font-sans antialiased">
 
 <!-- NAVBAR -->
-<header class="bg-green-800 border-b border-white sticky top-0 z-40 shadow-sm shadow-green-900/5">
+<header class="drop bg-green-800 border-b border-white sticky top-0 z-40 shadow-sm shadow-green-900/5">
     <div class="max-w-8xl mx-auto px-6 py-3 flex flex-wrap justify-between items-center gap-4">
         <a href="{{ url('/') }}" class="flex items-center gap-2 group flex-shrink-0">
-            <img src="{{ asset('images/logo.png') }}" alt="Green Valley College Foundation" class="w-10 h-10 rounded-lg object-contain flex-shrink-0">
+            <img src="{{ asset('images/logo.png') }}" alt="Green Valley College Foundation" class="w-10 h-10 rounded-lg object-contain flex-shrink-0 transition duration-300 group-hover:rotate-6 group-hover:scale-110">
             <span class="font-display text-base md:text-lg font-bold text-white tracking-tight whitespace-nowrap">
                 Green Valley College Foundation Inc.
             </span>
         </a>
         <nav class="flex items-center gap-2 sm:gap-3">
             <a href="{{ url('/') }}"
-               class="inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-4 py-1.5 text-xs sm:text-sm font-semibold text-white transition">
-                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+               class="group inline-flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 px-4 py-1.5 text-xs sm:text-sm font-semibold text-white transition">
+                <svg class="w-4 h-4 transition-transform duration-300 group-hover:-translate-x-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
                 </svg>
                 Back
             </a>
             <a href="{{ route('register') }}"
-               class="inline-flex items-center rounded-full bg-emerald-400 px-4 py-1.5 text-xs sm:text-sm font-semibold text-emerald-950 shadow-btn-glow hover:bg-emerald-300 transition">
+               class="glow-pulse inline-flex items-center rounded-full bg-emerald-400 px-4 py-1.5 text-xs sm:text-sm font-semibold text-emerald-950 shadow-btn-glow hover:bg-emerald-300 hover:-translate-y-0.5 transition">
                 Register
             </a>
         </nav>
@@ -66,36 +153,42 @@
 </header>
 
 <!-- HERO BACKGROUND -->
-<section class="relative min-h-[calc(100vh-64px)] flex items-center">
+<section class="relative min-h-[calc(100vh-64px)] flex items-center overflow-hidden">
     <div class="absolute inset-0 bg-hero-gradient"></div>
     <div class="absolute inset-0 bg-hero-pattern bg-repeat opacity-60"></div>
     <div class="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.08]" style="background-image: url('{{ asset('images/gvc.png') }}');"></div>
 
+    {{-- Floating glow blobs --}}
+    <div class="float-a absolute -left-24 top-10 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl"></div>
+    <div class="float-b absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-lime-300/10 blur-3xl"></div>
+
     <div class="relative max-w-6xl mx-auto px-6 py-12 grid gap-10 lg:grid-cols-[minmax(0,1.2fr),minmax(0,1fr)] items-center">
         <div class="text-emerald-50 space-y-4 max-w-xl">
-            <p class="inline-flex items-center rounded-full bg-emerald-900/40 border border-emerald-300/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide">
+            <p class="rise inline-flex items-center gap-2 rounded-full bg-emerald-900/40 border border-emerald-300/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide" style="--d:150ms">
+                <span class="ping-dot relative inline-block h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
                 Student Portal
             </p>
-            <h1 class="font-display text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight drop-shadow-md">
-                Login to your<br class="hidden sm:block"> Scholarship & Guidance account
+            <h1 class="rise font-display text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight drop-shadow-md" style="--d:280ms">
+                Login to your<br class="hidden sm:block">
+                <span class="shimmer-text bg-gradient-to-r from-gvc-pale via-gvc-mint to-emerald-300 bg-clip-text text-transparent">Scholarship & Guidance</span> account
             </h1>
-            <p class="text-sm sm:text-base text-emerald-100/90">
+            <p class="rise text-sm sm:text-base text-emerald-100/90" style="--d:420ms">
                 Access your scholarship applications, renewal status, and guidance appointments all in one place.
             </p>
         </div>
 
-        <div class="w-full max-w-md ml-auto bg-white/95 backdrop-blur rounded-2xl shadow-xl shadow-emerald-950/40 border border-emerald-200/70 p-6 md:p-8">
-            <h2 class="font-display text-xl md:text-2xl font-semibold mb-1 text-slate-900">Login</h2>
-            <p class="text-sm text-slate-600 mb-5">Sign in using your registered email and password.</p>
+        <div class="slide w-full max-w-md ml-auto bg-white/95 backdrop-blur rounded-2xl shadow-xl shadow-emerald-950/40 border border-emerald-200/70 p-6 md:p-8" style="--d:350ms">
+            <h2 class="rise font-display text-xl md:text-2xl font-semibold mb-1 text-slate-900" style="--d:600ms">Login</h2>
+            <p class="rise text-sm text-slate-600 mb-5" style="--d:680ms">Sign in using your registered email and password.</p>
 
             @if (session('success'))
-                <div class="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm p-3">
+                <div class="rise mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm p-3" style="--d:700ms">
                     {{ session('success') }}
                 </div>
             @endif
 
             @if ($errors->any())
-                <div class="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm p-3">
+                <div class="shake mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm p-3" role="alert">
                     <ul class="list-disc list-inside space-y-1">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
@@ -104,9 +197,9 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('login.post') }}" class="space-y-4">
+            <form method="POST" action="{{ route('login.post') }}" class="space-y-4" id="loginForm">
             @csrf
-            <div class="space-y-1.5">
+            <div class="rise space-y-1.5" style="--d:760ms">
                 <label for="email" class="block text-sm font-medium text-slate-700">Email</label>
                 <input
                     type="email"
@@ -114,11 +207,11 @@
                     name="email"
                     required
                     value="{{ old('email') }}"
-                    class="block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
+                    class="field block w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                 >
             </div>
 
-            <div class="space-y-1.5">
+            <div class="rise space-y-1.5" style="--d:840ms">
                 <label for="password" class="block text-sm font-medium text-slate-700">Password</label>
                 <div class="relative">
                     <input
@@ -126,7 +219,7 @@
                         id="password"
                         name="password"
                         required
-                        class="block w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-10 text-sm shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
+                        class="field block w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-10 text-sm shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
                     >
                     <button
                         type="button"
@@ -149,11 +242,14 @@
 
             <button
                 type="submit"
-                class="w-full inline-flex items-center justify-center rounded-lg bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white shadow-btn-glow transition"
+                id="loginBtn"
+                class="rise btn-shine w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white shadow-btn-glow transition"
+                style="--d:920ms"
             >
-                Login
+                <span class="spinner hidden" id="loginSpinner" aria-hidden="true"></span>
+                <span id="loginLabel">Login</span>
             </button>
-            <p class="mt-3 text-xs text-slate-500 text-center">
+            <p class="rise mt-3 text-xs text-slate-500 text-center" style="--d:1000ms">
                 Don't have an account?
                 <a href="{{ route('register') }}" class="text-emerald-700 font-semibold hover:text-emerald-500">Register</a>
             </p>
@@ -178,6 +274,23 @@
             eyeSlashIcon.classList.add('hidden');
         }
     }
+
+    // Show a spinner on the Login button while the form submits
+    document.getElementById('loginForm').addEventListener('submit', function () {
+        const btn = document.getElementById('loginBtn');
+        document.getElementById('loginSpinner').classList.remove('hidden');
+        document.getElementById('loginLabel').textContent = 'Signing in...';
+        btn.classList.add('opacity-80', 'cursor-wait');
+        btn.setAttribute('aria-busy', 'true');
+    });
+
+    // If the browser restores this page from the back/forward cache, reset the button
+    window.addEventListener('pageshow', function (e) {
+        if (!e.persisted) return;
+        document.getElementById('loginSpinner').classList.add('hidden');
+        document.getElementById('loginLabel').textContent = 'Login';
+        document.getElementById('loginBtn').classList.remove('opacity-80', 'cursor-wait');
+    });
 </script>
 
 </body>

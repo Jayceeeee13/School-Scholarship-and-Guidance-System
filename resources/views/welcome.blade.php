@@ -362,26 +362,70 @@
     </div>
 </section>
 
-<!-- ACTIVITIES -->
-<section id="activities" class="bg-gradient-to-b from-green-100/70 to-emerald-50/0 py-24">
+<!-- ACTIVITIES (UPDATED) -->
+<section id="activities" class="bg-gradient-to-b from-green-100/70 to-emerald-50/0 py-24"
+         x-data="{ item: null }"
+         x-effect="document.body.classList.toggle('overflow-hidden', !!item)"
+         @keydown.escape.window="item = null">
     <div class="mx-auto max-w-7xl px-6">
-        <h2 class="{{ $h2 }}">Activities</h2>
+        <div class="max-w-xl">
+            <h2 class="{{ $h2 }}">Activities</h2>
+            <p class="mt-3 text-sm text-slate-500 sm:text-base">Events, programs, and moments from the Scholarship and Guidance office.</p>
+        </div>
+
         <div class="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             @forelse ($activities as $act)
-                <article class="group overflow-hidden rounded-3xl border border-green-200/60 bg-white shadow-sm transition hover:-translate-y-1.5 hover:shadow-card-hover">
+                @php
+                    $actPayload = [
+                        'title' => $act->title,
+                        'body'  => $act->description ?? '',
+                        'date'  => optional($act->activity_date)->format('F d, Y'),
+                        'image' => $act->image ? asset('storage/'.$act->image) : null,
+                    ];
+                @endphp
+                <button type="button" @click="item = {{ \Illuminate\Support\Js::from($actPayload) }}"
+                        class="group overflow-hidden rounded-3xl border border-green-200/60 bg-white text-left shadow-sm transition hover:-translate-y-1.5 hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
                     @if (!empty($act->image))
-                        <img src="{{ asset('storage/'.$act->image) }}" alt="" loading="lazy" class="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-105">
+                        <img src="{{ asset('storage/'.$act->image) }}" alt="{{ $act->title }}" loading="lazy" class="aspect-[16/10] w-full object-cover transition duration-500 group-hover:scale-105">
                     @else
                         <div class="aspect-[16/10] bg-hero-gradient"></div>
                     @endif
                     <div class="p-6">
-                        <h3 class="font-display text-lg font-bold text-slate-900">{{ $act->title }}</h3>
-                        <p class="mt-1 text-sm text-slate-600">{{ \Illuminate\Support\Str::limit($act->description ?? '', 110) }}</p>
+                        @if ($act->activity_date)
+                            <time class="text-xs font-semibold uppercase tracking-wider text-green-700">{{ $act->activity_date->format('M d, Y') }}</time>
+                        @endif
+                        <h3 class="mt-1 font-display text-lg font-bold text-slate-900">{{ $act->title }}</h3>
+                        <p class="mt-1 line-clamp-2 text-sm text-slate-600">{{ $act->description }}</p>
+                        <span class="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-green-800">Read more <span aria-hidden="true">→</span></span>
                     </div>
-                </article>
+                </button>
             @empty
                 <p class="col-span-full text-sm text-slate-500">No activities posted yet.</p>
             @endforelse
+        </div>
+    </div>
+
+    {{-- Activity modal --}}
+    <div x-show="item" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" :aria-label="item ? item.title : ''">
+        <div x-show="item" x-transition.opacity class="absolute inset-0 bg-green-950/70 backdrop-blur-sm" @click="item = null"></div>
+
+        <div x-show="item" x-transition.scale.origin.center.90
+             class="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+            <button type="button" @click="item = null" aria-label="Close"
+                    class="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-green-950/60 text-white transition hover:bg-green-950">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="overflow-y-auto">
+                <template x-if="item && item.image">
+                    <img :src="item.image" :alt="item.title" class="aspect-[16/9] w-full object-cover">
+                </template>
+                <div class="px-7 py-6 md:px-9 md:py-8">
+                    <time class="text-xs font-semibold uppercase tracking-wider text-green-700" x-text="item ? item.date : ''"></time>
+                    <h3 class="mt-2 font-display text-2xl font-bold text-slate-900 md:text-3xl" x-text="item ? item.title : ''"></h3>
+                    <p class="mt-4 whitespace-pre-line text-slate-700" x-text="item ? item.body : ''"></p>
+                </div>
+            </div>
         </div>
     </div>
 </section>

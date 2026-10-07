@@ -6,6 +6,7 @@ use App\Models\Exam;
 use App\Models\Program;
 use App\Models\Personnels;
 use App\Models\Announcement;
+use App\Models\Activity; // ← NEW
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -32,6 +33,10 @@ $landing = function () {
     return view('welcome', [
         'exam'          => Exam::first(),
         'announcements' => Announcement::latest()->take(6)->get(),
+        'activities'    => Activity::orderByDesc('activity_date')   // ← NEW
+            ->latest()
+            ->take(6)
+            ->get(),
         'scholarships'  => \App\Models\TypeOfScholarship::active()->orderBy('name')->get(),
         'personnels'    => Personnels::active()
             ->select('id', 'first_name', 'middle_name', 'last_name', 'position', 'profile')

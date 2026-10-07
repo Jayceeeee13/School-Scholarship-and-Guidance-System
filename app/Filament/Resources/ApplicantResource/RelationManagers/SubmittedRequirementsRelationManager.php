@@ -9,6 +9,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use App\Models\Requirement;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Filament\Notifications\Notification;
 use Illuminate\Support\HtmlString;
 use Livewire\Attributes\Computed;
@@ -26,11 +27,47 @@ class SubmittedRequirementsRelationManager extends RelationManager
     public int $progressDone    = 0;
     public int $progressPercent = 0;
 
+    /**
+     * IDs of the requirements that apply to this applicant:
+     *   - same type of application (New Applicant / Renewal), AND
+     *   - active, AND
+     *   - either marked "All" (no scholarship types attached)
+     *     or attached to the applicant's specific type of scholarship.
+     *
+     * Mirrors RequirementSubmissionController::requirementsFor() so the
+     * admin checklist always matches what the applicant sees in the portal.
+     */
+    protected function applicableRequirementIds(): Collection
+    {
+        $applicant = $this->getOwnerRecord();
+
+        return Requirement::where('type_of_application_id', $applicant->type_of_application_id)
+            ->where('is_active', 1)
+            ->where(function ($query) use ($applicant) {
+                $query->whereDoesntHave('typesOfScholarship') // "All"
+                    ->orWhereHas('typesOfScholarship', function ($q) use ($applicant) {
+                        $q->where('type_of_scholarships.id', $applicant->type_of_scholarship_id);
+                    });
+            })
+            ->pluck('id');
+    }
+
+    /**
+     * The applicant's checklist, limited to requirements that apply to them.
+     * Older pivot rows for requirements that no longer apply stay in the
+     * database but are hidden here and ignored in the progress numbers.
+     */
+    protected function applicableChecklist()
+    {
+        return $this->getOwnerRecord()
+            ->submittedRequirements()
+            ->whereIn('requirements.id', $this->applicableRequirementIds());
+    }
+
     protected function syncRequirements(): void
     {
         $applicant       = $this->getOwnerRecord();
-        $allRequirements = Requirement::where('type_of_application_id', $applicant->type_of_application_id)
-            ->pluck('id');
+        $allRequirements = $this->applicableRequirementIds();
 
         $existing = $applicant->submittedRequirements()->pluck('requirements.id');
         $missing  = $allRequirements->diff($existing);
@@ -46,9 +83,8 @@ class SubmittedRequirementsRelationManager extends RelationManager
 
     protected function refreshProgress(): void
     {
-        $applicant            = $this->getOwnerRecord();
-        $this->progressTotal   = $applicant->submittedRequirements()->count();
-        $this->progressDone    = $applicant->submittedRequirements()->wherePivot('is_submitted', true)->count();
+        $this->progressTotal   = $this->applicableChecklist()->count();
+        $this->progressDone    = $this->applicableChecklist()->wherePivot('is_submitted', true)->count();
         $this->progressPercent = $this->progressTotal > 0
             ? (int) round(($this->progressDone / $this->progressTotal) * 100)
             : 0;
@@ -123,6 +159,9 @@ class SubmittedRequirementsRelationManager extends RelationManager
             ->recordTitleAttribute('name')
             ->heading('Requirements Checklist')
             ->description(fn () => $this->getProgressBarHtml())
+            // Only show requirements that apply to this applicant
+            // ("All" + their type of scholarship).
+            ->modifyQueryUsing(fn ($query) => $query->whereIn('requirements.id', $this->applicableRequirementIds()))
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Requirement')
@@ -184,11 +223,11 @@ class SubmittedRequirementsRelationManager extends RelationManager
                     ->modalCancelActionLabel('Cancel')
                     ->form(function () {
                         $applicant    = $this->getOwnerRecord();
-                        $requirements = $applicant->submittedRequirements()
+                        $requirements = $this->applicableChecklist()
                             ->wherePivot('is_submitted', false)
                             ->get();
 
-                        $total   = $applicant->submittedRequirements()->count();
+                        $total   = $this->applicableChecklist()->count();
                         $done    = $total - $requirements->count();
                         $pending = $requirements->count();
                         $percent = $total > 0 ? round(($done / $total) * 100) : 0;
@@ -304,7 +343,14 @@ class SubmittedRequirementsRelationManager extends RelationManager
                         $submitted = 0;
                         $saved     = 0;
 
+                        // Never touch requirements that don't apply to this applicant.
+                        $allowedIds = $this->applicableRequirementIds()->all();
+
                         foreach ($files as $requirementId => $values) {
+                            if (! in_array((int) $requirementId, $allowedIds, true)) {
+                                continue;
+                            }
+
                             $isSubmitted = !empty($values['is_submitted']);
                             $hasFile     = !empty($values['file_path']);
 
@@ -367,28 +413,28 @@ class SubmittedRequirementsRelationManager extends RelationManager
                         ->successNotificationTitle('Requirement updated'),
 
                     Tables\Actions\Action::make('download')
-    ->label('Download File')
-    ->icon('heroicon-o-arrow-down-tray')
-    ->color('info')
-    ->action(function ($record) {
-        $path = $record->pivot->file_path;
+                        ->label('Download File')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('info')
+                        ->action(function ($record) {
+                            $path = $record->pivot->file_path;
 
-        // Try common disks in order — 'local' (storage/app) first, then 'public'.
-        foreach (['local', 'public'] as $disk) {
-            if (\Illuminate\Support\Facades\Storage::disk($disk)->exists($path)) {
-                return \Illuminate\Support\Facades\Storage::disk($disk)->download($path);
-            }
-        }
+                            // Try common disks in order — 'local' (storage/app) first, then 'public'.
+                            foreach (['local', 'public'] as $disk) {
+                                if (\Illuminate\Support\Facades\Storage::disk($disk)->exists($path)) {
+                                    return \Illuminate\Support\Facades\Storage::disk($disk)->download($path);
+                                }
+                            }
 
-        Notification::make()
-            ->title('File Not Found')
-            ->danger()
-            ->body('This requirement\'s file could no longer be located on the server. It may have been moved or deleted — please ask the applicant to re-upload it.')
-            ->send();
+                            Notification::make()
+                                ->title('File Not Found')
+                                ->danger()
+                                ->body('This requirement\'s file could no longer be located on the server. It may have been moved or deleted — please ask the applicant to re-upload it.')
+                                ->send();
 
-        return null;
-    })
-    ->visible(fn ($record) => !empty($record->pivot->file_path)),
+                            return null;
+                        })
+                        ->visible(fn ($record) => !empty($record->pivot->file_path)),
 
                     Tables\Actions\Action::make('toggle_status')
                         ->label(fn ($record) => $record->pivot->is_submitted ? 'Mark Pending' : 'Mark Submitted')

@@ -28,7 +28,75 @@
     <style>
         [x-cloak]{display:none!important}
         section[id]{scroll-margin-top:5rem}
-        @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto!important}}
+
+        /* ── Everything below only runs if the visitor allows motion ── */
+        @media (prefers-reduced-motion: no-preference) {
+
+            /* Scroll reveal (classes are added by the script at the bottom) */
+            .reveal{
+                opacity:0;
+                transform:translateY(32px) scale(.97);
+                transition:opacity .8s cubic-bezier(.22,1,.36,1), transform .8s cubic-bezier(.22,1,.36,1);
+                transition-delay:var(--d,0ms);
+                will-change:opacity,transform;
+            }
+            .reveal-left{transform:translateX(-48px)}
+            .reveal-right{transform:translateX(48px)}
+            .reveal.in{opacity:1;transform:none}
+
+            /* Floating blurred blobs */
+            @keyframes floatSlow{
+                0%,100%{translate:0 0}
+                50%{translate:24px -28px}
+            }
+            .float-slow{animation:floatSlow 12s ease-in-out infinite}
+            .float-slow:nth-of-type(even){animation-duration:15s;animation-direction:reverse}
+
+            /* Phone mockups bob (uses `translate`, so your rotate classes still work) */
+            @keyframes bob{
+                0%,100%{translate:0 0}
+                50%{translate:0 -14px}
+            }
+            .bob{animation:bob 5s ease-in-out infinite}
+
+            /* Hero gradient text shimmer */
+            @keyframes shimmer{
+                0%{background-position:0% 50%}
+                100%{background-position:100% 50%}
+            }
+            h1 span.bg-clip-text{background-size:200% auto;animation:shimmer 5s ease-in-out infinite alternate}
+
+            /* Primary button glow pulse */
+            @keyframes glowPulse{
+                0%,100%{box-shadow:0 0 30px rgba(74,222,128,.25),0 10px 30px -10px rgba(74,222,128,.5)}
+                50%{box-shadow:0 0 55px rgba(74,222,128,.55),0 10px 30px -10px rgba(74,222,128,.85)}
+            }
+            a.shadow-btn-glow{animation:glowPulse 3s ease-in-out infinite}
+
+            /* Navbar link underline grow */
+            header nav a{position:relative}
+            header nav a::after{
+                content:"";position:absolute;left:50%;bottom:2px;height:2px;width:0;
+                background:#4ade80;border-radius:2px;
+                transition:width .3s ease,left .3s ease;
+            }
+            header nav a:hover::after,header nav a.is-active::after{width:55%;left:22.5%}
+        }
+
+        /* Active nav link */
+        header nav a.is-active{background:rgba(255,255,255,.15)!important;color:#fff!important}
+
+        /* Header gets denser once you scroll */
+        header{transition:background-color .3s ease,box-shadow .3s ease}
+        header.is-scrolled{background-color:rgb(20 83 45 / .96)!important;box-shadow:0 10px 30px -10px rgba(2,44,34,.5)}
+
+        /* Scroll progress bar */
+        .scroll-bar{
+            position:fixed;top:0;left:0;right:0;height:3px;z-index:70;
+            transform-origin:left;transform:scaleX(0);
+            background:linear-gradient(90deg,#4ade80,#bbf7d0,#4ade80);
+            pointer-events:none;
+        }
     </style>
 </head>
 
@@ -694,6 +762,116 @@
 <footer class="border-t border-green-300/20 bg-slate-900 py-10">
     <p class="text-center text-xs text-slate-400">&copy; {{ date('Y') }} Green Valley College Foundation Inc. All rights reserved.</p>
 </footer>
+
+{{-- ANIMATIONS --}}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const $$ = (s) => [...document.querySelectorAll(s)];
+
+    /* ── Header: solid on scroll + active link + progress bar + hero parallax ── */
+    const header = document.querySelector('header');
+    const bar = document.createElement('div');
+    bar.className = 'scroll-bar';
+    document.body.appendChild(bar);
+
+    const heroBg = document.querySelector('#home .bg-cover');
+    let ticking = false;
+
+    const onScroll = () => {
+        const y = window.scrollY;
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        header.classList.toggle('is-scrolled', y > 24);
+        bar.style.transform = `scaleX(${max > 0 ? y / max : 0})`;
+        if (heroBg && !reduce && y < window.innerHeight * 1.2) {
+            heroBg.style.transform = `translateY(${y * 0.25}px) scale(1.1)`;
+        }
+        ticking = false;
+    };
+    window.addEventListener('scroll', () => {
+        if (!ticking) { requestAnimationFrame(onScroll); ticking = true; }
+    }, { passive: true });
+    onScroll();
+
+    const navLinks = $$('header nav a[href^="#"]');
+    const sectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+            if (!e.isIntersecting) return;
+            navLinks.forEach((a) => a.classList.toggle('is-active', a.getAttribute('href') === '#' + e.target.id));
+        });
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    $$('section[id]').forEach((s) => sectionObserver.observe(s));
+
+    if (reduce) return; // everything below is motion-only
+
+    /* ── Floating blobs + bobbing phone mockups ── */
+    $$('.blur-3xl').forEach((el) => el.classList.add('float-slow'));
+    $$('#home img[loading="lazy"]').forEach((img, i) => {
+        const frame = img.parentElement;
+        frame.classList.add('bob');
+        frame.style.animationDelay = (i * 0.8) + 's';
+    });
+
+    /* ── Scroll reveal ── */
+    const targets = [];
+    const add = (els, { step = 90, base = 0, dir = '' } = {}) => {
+        els.forEach((el, i) => {
+            if (!el || el.dataset.rv) return;
+            el.dataset.rv = '1';
+            el.classList.add('reveal');
+            if (dir) el.classList.add('reveal-' + dir);
+            el.style.setProperty('--d', (base + i * step) + 'ms');
+            targets.push(el);
+        });
+    };
+
+    // Hero: staggered entrance
+    add($$('#home .relative.mx-auto > *'), { step: 140, base: 100 });
+
+    // Announcements
+    add($$('#announcement > .mb-12'));
+    add($$('#announcement .grid > article'), { dir: 'left', base: 100 });
+    add($$('#announcement .grid > div.flex > *'), { step: 110, base: 200, dir: 'right' });
+
+    // Activities
+    add($$('#activities .mb-12'));
+    add($$('#activities .grid > *'), { step: 100, base: 100 });
+
+    // Scholarships (the carousel manages its own scroll, so only fade the wrapper pieces)
+    add($$('#scholarship .mb-10'));
+    add($$('#scholarship [x-ref="track"]'), { base: 150 });
+
+    // Personnel
+    add($$('#personnels .max-w-2xl'));
+    add($$('#personnels .grid > *'), { step: 80, base: 100 });
+
+    // Contact
+    add($$('#contact > h2'));
+    add($$('#contact dl > *'), { step: 120, base: 100 });
+
+    // About
+    add($$('#about h2'), { dir: 'left' });
+    add($$('#about .space-y-4'), { dir: 'right', base: 150 });
+
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            const el = entry.target;
+            revealObserver.unobserve(el);
+            el.classList.add('in');
+
+            // Clean up afterwards so your own hover transitions take over again
+            const delay = parseInt(el.style.getPropertyValue('--d')) || 0;
+            setTimeout(() => {
+                el.classList.remove('reveal', 'reveal-left', 'reveal-right', 'in');
+                el.style.removeProperty('--d');
+            }, delay + 1000);
+        });
+    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+
+    targets.forEach((el) => revealObserver.observe(el));
+});
+</script>
 
 </body>
 </html>

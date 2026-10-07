@@ -221,13 +221,13 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                         </svg>
                     </a>
-                    <a href="{{ route('filament.admin.resources.school-positions.index') }}"
+                    <!-- <a href="{{ route('filament.admin.resources.school-positions.index') }}"
                        class="group flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-amber-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
                         <span>School Positions</span>
                         <svg class="w-4 h-4 text-gray-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                         </svg>
-                    </a>
+                    </a> -->
                     <a href="{{ route('filament.admin.resources.roles.index') }}"
                        class="group flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-amber-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
                         <span>Roles</span>

@@ -132,6 +132,37 @@ class ListScholars extends ListRecords
             Actions\CreateAction::make()
                 ->visible(fn (): bool => ! in_array($this->activeTab, ['dtr', 'institutional'])),
 
+            Actions\Action::make('configureDtrScholarships')
+    ->label('DTR Scholarship Types')
+    ->icon('heroicon-o-adjustments-horizontal')
+    ->color('gray')
+    ->visible(fn (): bool => $this->activeTab === 'dtr'
+        && ! auth()->user()->isDepartmentHead()
+        && auth()->user()->hasAnyRole(['admin', 'scholarship']))
+    ->modalHeading('Which scholarships use DTR?')
+    ->modalDescription('Only scholars under the checked types can have DTR entries and be assigned a Department Head for DTR approval.')
+    ->modalSubmitActionLabel('Save')
+    ->fillForm(fn (): array => [
+        'types' => TypeOfScholarship::where('uses_dtr', true)->pluck('id')->all(),
+    ])
+    ->form([
+        Forms\Components\CheckboxList::make('types')
+            ->label('Types of Scholarship')
+            ->options(fn () => TypeOfScholarship::orderBy('name')->pluck('name', 'id'))
+            ->columns(2)
+            ->bulkToggleable()
+            ->required(),
+    ])
+    ->action(function (array $data): void {
+        TypeOfScholarship::query()->update(['uses_dtr' => false]);
+        TypeOfScholarship::whereIn('id', $data['types'])->update(['uses_dtr' => true]);
+
+        Notification::make()
+            ->title('DTR scholarship types updated')
+            ->success()
+            ->send();
+    }),
+
             Actions\Action::make('newInstitutionalScholar')
                 ->label('Add Institutional Scholar')
                 ->icon('heroicon-o-plus-circle')
@@ -176,7 +207,7 @@ class ListScholars extends ListRecords
                             Forms\Components\Select::make('scholar_id')
                                 ->label('Scholar (Student Representatives)')
                                 ->options(function () {
-                                    $query = Scholars::where('type_of_scholarship', 'Student Representatives');
+                                    $query = Scholars::whereIn('type_of_scholarship', TypeOfScholarship::dtrNames());
 
                                     if (auth()->user()->isDepartmentHead()) {
                                         $query->where('department_head_id', auth()->id());
@@ -664,10 +695,9 @@ class ListScholars extends ListRecords
                             ->modalHeading('Assign Department Head')
                             ->modalDescription('This creates (or updates) this scholar\'s record in the main Scholars list and assigns their Department Head.')
                             ->modalSubmitActionLabel('Save Assignment')
-                            ->visible(fn (InstitutionalScholar $record): bool =>
-    str_contains(strtolower(trim($record->type_of_scholarship ?? '')), 'student representative')
-    && auth()->user()->hasAnyRole(['admin', 'scholarship'])
-)
+                              ->visible(fn (InstitutionalScholar $record): bool =>
+      TypeOfScholarship::nameUsesDtr($record->type_of_scholarship)
+      && auth()->user()->hasAnyRole(['admin', 'scholarship']))
                             ->form([
                                                                                                     Forms\Components\Select::make('department_head_id')
                                     ->label('Department Head')

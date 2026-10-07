@@ -804,10 +804,9 @@ class ScholarsResource extends Resource
                                 static::notifyDepartmentHeadOfAssignment($newHead, $record);
                             }
                         })
-                        ->visible(fn (Scholars $record): bool =>
-                            str_contains(strtolower(trim($record->type_of_scholarship ?? '')), 'student representative')
-                            && ! static::isRestrictedToOwnScholars()
-                        ),
+                          ->visible(fn (Scholars $record): bool =>
+      TypeOfScholarship::nameUsesDtr($record->type_of_scholarship)
+      && ! static::isRestrictedToOwnScholars()),
 
                     Tables\Actions\ViewAction::make()
     ->infolist([
@@ -978,9 +977,7 @@ class ScholarsResource extends Resource
                     ])
                     ->columns(4),
             ])
-            ->visible(fn (Scholars $record): bool =>
-                str_contains(strtolower(trim($record->type_of_scholarship ?? '')), 'student representative')
-            ),
+              ->visible(fn (Scholars $record): bool => TypeOfScholarship::nameUsesDtr($record->type_of_scholarship)),
     ]),
 
                     Tables\Actions\EditAction::make()

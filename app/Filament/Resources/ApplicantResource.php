@@ -412,6 +412,60 @@ TextInput::make('age')
             ]);
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // Requirements helpers
+    // A requirement applies to an applicant when it has the same type of
+    // application, is active, and is either "All" (no scholarship types
+    // attached) or attached to the applicant's own type of scholarship.
+    // Mirrors RequirementSubmissionController and the Requirements
+    // Checklist relation manager.
+    // ─────────────────────────────────────────────────────────────
+
+    protected static function applicableRequirementIds(Applicant $applicant): \Illuminate\Support\Collection
+    {
+        return \App\Models\Requirement::where('type_of_application_id', $applicant->type_of_application_id)
+            ->where('is_active', 1)
+            ->where(function ($query) use ($applicant) {
+                $query->whereDoesntHave('typesOfScholarship') // "All"
+                    ->orWhereHas('typesOfScholarship', function ($q) use ($applicant) {
+                        $q->where('type_of_scholarships.id', $applicant->type_of_scholarship_id);
+                    });
+            })
+            ->pluck('id');
+    }
+
+    /**
+     * Submitted / total for one applicant. Cached per request so the column,
+     * its color and its tooltip don't each repeat the queries.
+     * (Not cached across polls: the table polls every 8s, each poll is a new request.)
+     */
+    public static function requirementProgress(Applicant $applicant): array
+    {
+        static $cache = [];
+
+        $key = $applicant->id . ':' . $applicant->type_of_application_id . ':' . $applicant->type_of_scholarship_id;
+
+        if (isset($cache[$key])) {
+            return $cache[$key];
+        }
+
+        $ids = static::applicableRequirementIds($applicant);
+
+        $submitted = $applicant->submittedRequirements()
+            ->whereIn('requirements.id', $ids)
+            ->wherePivot('is_submitted', true)
+            ->count();
+
+        return $cache[$key] = ['submitted' => $submitted, 'total' => $ids->count()];
+    }
+
+    public static function hasCompleteRequirements(Applicant $applicant): bool
+    {
+        $progress = static::requirementProgress($applicant);
+
+        return $progress['submitted'] >= $progress['total'];
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -470,28 +524,26 @@ TextInput::make('age')
                     ->searchable(),
 
                 // ── Requirements column ────────────────────────────────────────
-                // Only counts rows where is_submitted = true (not all pivot rows)
+                // Counts only requirements that apply to this applicant
+                // ("All" + their type of scholarship) and are submitted.
                 TextColumn::make('requirements_count')
                     ->label('Requirements')
                     ->badge()
                     ->getStateUsing(function ($record) {
-                        $total     = \App\Models\Requirement::where('type_of_application_id', $record->type_of_application_id)->count();
-                        $submitted = $record->submittedRequirements()->wherePivot('is_submitted', true)->count();
-                        return "{$submitted}/{$total}";
+                        $p = self::requirementProgress($record);
+                        return "{$p['submitted']}/{$p['total']}";
                     })
                     ->color(function ($record) {
-                        $total     = \App\Models\Requirement::where('type_of_application_id', $record->type_of_application_id)->count();
-                        $submitted = $record->submittedRequirements()->wherePivot('is_submitted', true)->count();
+                        $p = self::requirementProgress($record);
 
-                        if ($total === 0) return 'gray';
-                        if ($submitted === $total) return 'success';
-                        if ($submitted > 0) return 'warning';
+                        if ($p['total'] === 0) return 'gray';
+                        if ($p['submitted'] >= $p['total']) return 'success';
+                        if ($p['submitted'] > 0) return 'warning';
                         return 'danger';
                     })
                     ->tooltip(function ($record) {
-                        $total     = \App\Models\Requirement::where('type_of_application_id', $record->type_of_application_id)->count();
-                        $submitted = $record->submittedRequirements()->wherePivot('is_submitted', true)->count();
-                        return "Submitted: {$submitted} out of {$total} requirements";
+                        $p = self::requirementProgress($record);
+                        return "Submitted: {$p['submitted']} out of {$p['total']} requirements";
                     }),
                 // ── End requirements column ────────────────────────────────────
                 
@@ -695,15 +747,14 @@ TextInput::make('age')
                 ->send();
         }
     })
-    ->disabled(fn (Applicant $record) => !$record->hasCompleteRequirements() || ($record->typeOfScholarship?->slots ?? 1) <= 0)
+    ->disabled(fn (Applicant $record) => ! self::hasCompleteRequirements($record) || ($record->typeOfScholarship?->slots ?? 1) <= 0)
     ->tooltip(function (Applicant $record) {
         if (($record->typeOfScholarship?->slots ?? 1) <= 0) {
             return "No remaining slots for {$record->typeOfScholarship?->name}";
         }
-        if (!$record->hasCompleteRequirements()) {
-            $total     = \App\Models\Requirement::where('type_of_application_id', $record->type_of_application_id)->count();
-            $submitted = $record->submittedRequirements()->wherePivot('is_submitted', true)->count();
-            return "Requirements incomplete ({$submitted}/{$total} submitted)";
+        if (! self::hasCompleteRequirements($record)) {
+            $p = self::requirementProgress($record);
+            return "Requirements incomplete ({$p['submitted']}/{$p['total']} submitted)";
         }
         return null;
     })
@@ -809,7 +860,7 @@ TextInput::make('age')
         $skippedNoSlots = 0;
 
         $records->each(function ($record) use (&$approved, &$skippedNoSlots) {
-            if ($record->status !== 'pending' || ! $record->hasCompleteRequirements()) {
+            if ($record->status !== 'pending' || ! self::hasCompleteRequirements($record)) {
                 return;
             }
 

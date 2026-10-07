@@ -414,10 +414,8 @@ class ScholarsResource extends Resource
     ->color('gray')
     ->url(fn () => static::getUrl('accomplishment-reports'))
     ->visible(function ($livewire) {
-        // Hidden specifically on the "All Scholars" tab; still shows on
-        // Revoked Scholars (both tabs share this same table() method).
         return ! static::isRestrictedToOwnScholars()
-            && ($livewire->activeTab ?? 'all') !== 'all';
+            && ! in_array($livewire->activeTab ?? 'all', ['all', 'revoked']);
     }),
 
                 Tables\Actions\Action::make('export')
@@ -430,7 +428,8 @@ class ScholarsResource extends Resource
                             'scholars-' . now()->format('Y-m-d') . '.xlsx'
                         );
                     })
-                    ->visible(fn () => ! static::isRestrictedToOwnScholars()),
+                    ->visible(fn ($livewire) => ! static::isRestrictedToOwnScholars()
+        && ! static::isRevokedTab($livewire)),
 
                 Tables\Actions\Action::make('import')
                     ->label('Import Excel')
@@ -553,7 +552,8 @@ class ScholarsResource extends Resource
                                 ->send();
                         }
                     })
-                    ->visible(fn () => ! static::isRestrictedToOwnScholars()),
+                    ->visible(fn ($livewire) => ! static::isRestrictedToOwnScholars()
+        && ! static::isRevokedTab($livewire)),
 
                 Tables\Actions\Action::make('download_template')
                     ->label('Download Template')
@@ -565,7 +565,8 @@ class ScholarsResource extends Resource
                             'scholars-import-template.xlsx'
                         );
                     })
-                    ->visible(fn () => ! static::isRestrictedToOwnScholars()),
+                    ->visible(fn ($livewire) => ! static::isRestrictedToOwnScholars()
+        && ! static::isRevokedTab($livewire)),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('term_id')
@@ -1116,4 +1117,9 @@ class ScholarsResource extends Resource
     {
         return auth()->user()->hasAnyRole(['admin', 'scholarship', 'department head']);
     }
+
+    protected static function isRevokedTab($livewire): bool
+{
+    return ($livewire->activeTab ?? 'all') === 'revoked';
+}
 }

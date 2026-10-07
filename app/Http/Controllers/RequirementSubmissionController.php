@@ -11,6 +11,27 @@ use Illuminate\Support\Str;
 
 class RequirementSubmissionController extends Controller
 {
+    /**
+     * Requirements that apply to this applicant:
+     *   - same type of application (New Applicant / Renewal), AND
+     *   - active, AND
+     *   - either marked "All" (no scholarship types attached)
+     *     or attached to the applicant's specific type of scholarship.
+     */
+    private function requirementsFor(Applicant $applicant)
+    {
+        return Requirement::where('type_of_application_id', $applicant->type_of_application_id)
+            ->where('is_active', 1)
+            ->where(function ($query) use ($applicant) {
+                $query->whereDoesntHave('typesOfScholarship') // "All"
+                    ->orWhereHas('typesOfScholarship', function ($q) use ($applicant) {
+                        $q->where('type_of_scholarships.id', $applicant->type_of_scholarship_id);
+                    });
+            })
+            ->orderBy('name')
+            ->get();
+    }
+
     // ─────────────────────────────────────────────────────────────
     // GET /apply/requirements
     // ─────────────────────────────────────────────────────────────
@@ -29,21 +50,17 @@ class RequirementSubmissionController extends Controller
         $submitted    = [];
 
         if ($applicant) {
-            $requirements = Requirement::where('type_of_application_id', $applicant->type_of_application_id)
-                ->where('is_active', 1)
-                ->whereHas('typesOfScholarship', function ($query) use ($applicant) {
-                    $query->where('type_of_scholarships.id', $applicant->type_of_scholarship_id);
-                })
-                ->orderBy('name')
-                ->get();
+            $requirements = $this->requirementsFor($applicant);
 
-            // ✅ AFTER — only counts rows where a file was actually submitted
-$submitted = DB::table('applicant_requirement')
-    ->where('applicant_id', $applicant->id)
-    ->where('is_submitted', 1)
-    ->whereNotNull('file_path')   // extra guard: must have an actual file
-    ->pluck('requirement_id')
-    ->toArray();
+            // Only counts rows where a file was actually submitted, and only
+            // for requirements that currently apply to this applicant.
+            $submitted = DB::table('applicant_requirement')
+                ->where('applicant_id', $applicant->id)
+                ->where('is_submitted', 1)
+                ->whereNotNull('file_path')
+                ->whereIn('requirement_id', $requirements->pluck('id'))
+                ->pluck('requirement_id')
+                ->toArray();
         }
 
         return view('requirements_submission', compact('applicant', 'requirements', 'submitted'));
@@ -57,14 +74,9 @@ $submitted = DB::table('applicant_requirement')
         // Guard: applicant must exist
         $applicant = Applicant::where('user_id', Auth::id())->firstOrFail();
 
-        // Fetch this applicant's required documents — matching both their
-        // application type AND their specific scholarship type.
-        $requirements = Requirement::where('type_of_application_id', $applicant->type_of_application_id)
-            ->where('is_active', 1)
-            ->whereHas('typesOfScholarship', function ($query) use ($applicant) {
-                $query->where('type_of_scholarships.id', $applicant->type_of_scholarship_id);
-            })
-            ->get();
+        // Same filtering as index(): "All" requirements + the ones for this
+        // applicant's scholarship type.
+        $requirements = $this->requirementsFor($applicant);
 
         // ── Build validation rules ─────────────────────────────
         // All file fields are nullable — partial submission is allowed.
@@ -83,8 +95,8 @@ $submitted = DB::table('applicant_requirement')
         ]);
 
         // ── Store only the files that were actually uploaded ───
-        $prefix  = Str::slug($request->file_name);
-        $saved   = 0;
+        $prefix = Str::slug($request->file_name);
+        $saved  = 0;
 
         foreach ($requirements as $req) {
             $fieldKey = 'req_' . $req->id;
@@ -122,13 +134,15 @@ $submitted = DB::table('applicant_requirement')
             return back()->with('success', 'No new files were uploaded. Your previously submitted documents are unchanged.');
         }
 
-        $total   = $requirements->count();
-        // ✅ AFTER
-$nowDone = DB::table('applicant_requirement')
-    ->where('applicant_id', $applicant->id)
-    ->where('is_submitted', 1)
-    ->whereNotNull('file_path')
-    ->count();
+        $total = $requirements->count();
+
+        // Count only submissions for requirements that apply to this applicant.
+        $nowDone = DB::table('applicant_requirement')
+            ->where('applicant_id', $applicant->id)
+            ->where('is_submitted', 1)
+            ->whereNotNull('file_path')
+            ->whereIn('requirement_id', $requirements->pluck('id'))
+            ->count();
 
         if ($nowDone >= $total) {
             $message = "All {$total} requirements have been submitted successfully!";

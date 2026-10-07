@@ -679,58 +679,55 @@ class ListScholars extends ListRecords
                         // Carries user_id across so Daily Time Record and other
                         // features that key off scholars.user_id work correctly.
                         Tables\Actions\Action::make('assign_department_head_institutional')
-                            ->label(function (InstitutionalScholar $record): string {
-                                $existing = self::findMatchingScholar($record);
+    ->label(function (InstitutionalScholar $record): string {
+        $existing = self::findMatchingScholar($record);
 
-                                return $existing?->department_head_id
-                                    ? 'Reassign Department Head'
-                                    : 'Assign Department Head';
-                            })
-                            ->icon('heroicon-o-user-plus')
-                            ->color(function (InstitutionalScholar $record): string {
-                                $existing = self::findMatchingScholar($record);
+        return $existing?->department_head_id
+            ? 'Reassign Department Head'
+            : 'Assign Department Head';
+    })
+    ->icon('heroicon-o-user-plus')
+    ->color(function (InstitutionalScholar $record): string {
+        $existing = self::findMatchingScholar($record);
 
-                                return $existing?->department_head_id ? 'gray' : 'info';
-                            })
-                            ->modalHeading('Assign Department Head')
-                            ->modalDescription('This creates (or updates) this scholar\'s record in the main Scholars list and assigns their Department Head.')
-                            ->modalSubmitActionLabel('Save Assignment')
-                              ->visible(fn (InstitutionalScholar $record): bool =>
-      TypeOfScholarship::nameUsesDtr($record->type_of_scholarship)
-      && auth()->user()->hasAnyRole(['admin', 'scholarship']))
-                            ->form([
-                                                                                                    Forms\Components\Select::make('department_head_id')
-                                    ->label('Department Head')
-                                    ->options(fn () => \App\Models\User::whereHas('role', fn ($q) => $q->where('name', 'Department Head'))
-                                        ->whereNull('archived_at')
-                                        ->with('department')
-                                        ->get()
-                                        ->mapWithKeys(fn ($u) => [
-                                            $u->id => $u->name . ($u->department ? " — {$u->department->name}" : ''),
-                                        ]))
-                                    ->searchable()
-                                    ->preload()
-                                    ->native(false)
-                                    ->required()
-                                    ->placeholder('Select a Department Head'),
-                            ])
-                                                        ->fillForm(function (InstitutionalScholar $record): array {
-                                $existing = self::findMatchingScholar($record);
+        return $existing?->department_head_id ? 'gray' : 'info';
+    })
+    ->modalHeading('Assign Department Head')
+    ->modalDescription('This creates (or updates) this scholar\'s record in the main Scholars list and assigns their Department Head.')
+    ->modalSubmitActionLabel('Save Assignment')
+    // CHANGED: was str_contains(... 'student representative')
+    ->visible(fn (InstitutionalScholar $record): bool =>
+        TypeOfScholarship::nameUsesDtr($record->type_of_scholarship)
+        && auth()->user()->hasAnyRole(['admin', 'scholarship'])
+    )
+    ->form([
+        Forms\Components\Select::make('department_head_id')
+            ->label('Department Head')
+            ->options(fn () => \App\Models\User::whereHas('role', fn ($q) => $q->where('name', 'Department Head'))
+                ->whereNull('archived_at')
+                ->with('department')
+                ->get()
+                ->mapWithKeys(fn ($u) => [
+                    $u->id => $u->name . ($u->department ? " — {$u->department->name}" : ''),
+                ]))
+            ->searchable()
+            ->preload()
+            ->native(false)
+            ->required()
+            ->placeholder('Select a Department Head'),
+    ])
+    ->fillForm(function (InstitutionalScholar $record): array {
+        $existing = self::findMatchingScholar($record);
+        $currentHeadId = $existing?->department_head_id;
 
-                                // Only pre-fill if the currently-assigned head is
-                                // still active — an archived head's ID would
-                                // otherwise show up as a raw number in the field
-                                // since it no longer exists in options().
-                                $currentHeadId = $existing?->department_head_id;
+        $stillActive = $currentHeadId
+            ? \App\Models\User::whereNull('archived_at')->where('id', $currentHeadId)->exists()
+            : false;
 
-                                $stillActive = $currentHeadId
-                                    ? \App\Models\User::whereNull('archived_at')->where('id', $currentHeadId)->exists()
-                                    : false;
-
-                                return [
-                                    'department_head_id' => $stillActive ? $currentHeadId : null,
-                                ];
-                            })
+        return [
+            'department_head_id' => $stillActive ? $currentHeadId : null,
+        ];
+    })
                             ->action(function (InstitutionalScholar $record, array $data): void {
                                 $scholar = self::findMatchingScholar($record) ?? new Scholars();
 

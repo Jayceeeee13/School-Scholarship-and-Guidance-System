@@ -105,7 +105,7 @@ class ListScholars extends ListRecords
      * Match priority: user_id (most reliable) -> student_id -> name+birthdate,
      * scoped to the same term when available.
      */
-    protected static function findMatchingScholar(InstitutionalScholar $record): ?Scholars
+    public static function findMatchingScholar(InstitutionalScholar $record): ?Scholars
     {
         $query = Scholars::query();
 

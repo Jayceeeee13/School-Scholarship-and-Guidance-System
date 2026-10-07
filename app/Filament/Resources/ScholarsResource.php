@@ -366,10 +366,17 @@ class ScholarsResource extends Resource
                 ->formatStateUsing(fn (string $state): string => ucfirst($state))
                 ->sortable(),
 
-            Tables\Columns\TextColumn::make('departmentHead.name')
-                ->label('Department Head')
-                ->placeholder('— Not Assigned —')
-                ->toggleable(isToggledHiddenByDefault: true),
+            Tables\Columns\TextColumn::make('department_head_name')
+    ->label('Department Head')
+    ->getStateUsing(function ($record) {
+        $scholar = $record instanceof Scholars
+            ? $record
+            : Pages\ListScholars::findMatchingScholar($record);
+
+        return $scholar?->departmentHead?->name;
+    })
+    ->placeholder('— Not Assigned —')
+    ->toggleable(isToggledHiddenByDefault: true),
 
             Tables\Columns\TextColumn::make('revocation_reason')
                 ->label('Reason for Discontinuance')

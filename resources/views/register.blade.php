@@ -33,6 +33,115 @@
     </script>
     <style>
         .fields-section.hidden { display: none; }
+
+        /* Only animate if the visitor allows motion */
+        @media (prefers-reduced-motion: no-preference) {
+
+            /* Entrance animations (staggered with --d) */
+            @keyframes riseIn {
+                from { opacity: 0; transform: translateY(28px); }
+                to   { opacity: 1; transform: none; }
+            }
+            @keyframes slideInRight {
+                from { opacity: 0; transform: translateX(60px) scale(.97); }
+                to   { opacity: 1; transform: none; }
+            }
+            @keyframes slideInLeft {
+                from { opacity: 0; transform: translateX(-40px); }
+                to   { opacity: 1; transform: none; }
+            }
+            @keyframes dropIn {
+                from { opacity: 0; transform: translateY(-100%); }
+                to   { opacity: 1; transform: none; }
+            }
+            .rise      { animation: riseIn .8s cubic-bezier(.22,1,.36,1) both; animation-delay: var(--d, 0ms); }
+            .slide     { animation: slideInRight .9s cubic-bezier(.22,1,.36,1) both; animation-delay: var(--d, 0ms); }
+            .slide-l   { animation: slideInLeft .8s cubic-bezier(.22,1,.36,1) both; animation-delay: var(--d, 0ms); }
+            .drop      { animation: dropIn .7s cubic-bezier(.22,1,.36,1) both; }
+
+            /* Form fields: animate every time their tab becomes visible.
+               First load waits for the card to appear; later tab switches are instant. */
+            .fields-section { --base: 700ms; }
+            body.is-ready .fields-section { --base: 0ms; }
+            .fields-section > * {
+                animation: riseIn .55s cubic-bezier(.22,1,.36,1) both;
+                animation-delay: calc(var(--base) + var(--i, 0) * 55ms);
+            }
+            [data-hint]:not(.hidden) { animation: riseIn .45s cubic-bezier(.22,1,.36,1) both; }
+
+            /* Floating blurred blobs */
+            @keyframes floatSlow {
+                0%, 100% { translate: 0 0; }
+                50%      { translate: 26px -30px; }
+            }
+            .float-a { animation: floatSlow 12s ease-in-out infinite; }
+            .float-b { animation: floatSlow 16s ease-in-out infinite reverse; }
+
+            /* Heading gradient shimmer */
+            @keyframes shimmer {
+                0%   { background-position: 0% 50%; }
+                100% { background-position: 100% 50%; }
+            }
+            .shimmer-text {
+                background-size: 200% auto;
+                animation: shimmer 5s ease-in-out infinite alternate;
+            }
+
+            /* Soft pulse on the badge dot */
+            @keyframes ping2 {
+                75%, 100% { transform: scale(2.2); opacity: 0; }
+            }
+            .ping-dot::after {
+                content: ""; position: absolute; inset: 0; border-radius: 9999px;
+                background: #6ee7b7; animation: ping2 1.8s cubic-bezier(0,0,.2,1) infinite;
+            }
+
+            /* Login pill glow */
+            @keyframes glowPulse {
+                0%, 100% { box-shadow: 0 0 14px rgba(167,243,208,.15); }
+                50%      { box-shadow: 0 0 26px rgba(167,243,208,.45); }
+            }
+            .glow-pulse { animation: glowPulse 3s ease-in-out infinite; }
+
+            /* Shake the error box */
+            @keyframes shake {
+                10%, 90%      { transform: translateX(-2px); }
+                20%, 80%      { transform: translateX(4px); }
+                30%, 50%, 70% { transform: translateX(-6px); }
+                40%, 60%      { transform: translateX(6px); }
+            }
+            .shake { animation: shake .6s cubic-bezier(.36,.07,.19,.97) both; }
+
+            /* Button shine sweep on hover */
+            .btn-shine { position: relative; overflow: hidden; }
+            .btn-shine::before {
+                content: ""; position: absolute; top: 0; left: -75%; width: 50%; height: 100%;
+                background: linear-gradient(120deg, transparent, rgba(255,255,255,.35), transparent);
+                transform: skewX(-20deg);
+            }
+            .btn-shine:hover::before { left: 130%; transition: left .7s ease; }
+            .btn-shine:active { transform: scale(.98); }
+
+            /* Input lift on focus */
+            .field { transition: box-shadow .25s ease, border-color .25s ease, transform .25s ease; }
+            .field:focus { transform: translateY(-1px); }
+
+            /* Info cards hover */
+            .info-card { transition: transform .3s ease, background-color .3s ease, border-color .3s ease; }
+            .info-card:hover { transform: translateX(6px); border-color: rgba(110,231,183,.5); }
+
+            /* Tab buttons */
+            [data-tab] { transition: background-color .25s ease, color .25s ease, transform .2s ease, box-shadow .25s ease; }
+            [data-tab]:active { transform: scale(.96); }
+        }
+
+        /* Spinner (only visible while submitting) */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            width: 1rem; height: 1rem; border-radius: 9999px;
+            border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+            animation: spin .7s linear infinite;
+        }
     </style>
 </head>
 
@@ -103,7 +212,7 @@
 
     // Shared input styling (turns red when the field has a validation error)
     $inputClass = fn (string $name, string $extra = '') =>
-        'block w-full rounded-lg border px-3 py-2.5 text-sm shadow-sm outline-none focus:ring-2 '
+        'field block w-full rounded-lg border px-3 py-2.5 text-sm shadow-sm outline-none focus:ring-2 '
         . ($errors->has($name)
             ? 'border-red-400 focus:border-red-500 focus:ring-red-200'
             : 'border-slate-300 focus:border-emerald-500 focus:ring-emerald-200')
@@ -116,17 +225,17 @@
 <body class="bg-emerald-950/5 text-slate-800 font-sans antialiased">
 
 <!-- NAVBAR -->
-<header class="bg-green-800 border-b border-white sticky top-0 z-40 shadow-sm shadow-green-900/5">
+<header class="drop bg-green-800 border-b border-white sticky top-0 z-40 shadow-sm shadow-green-900/5">
     <div class="max-w-7xl mx-auto px-6 py-3 flex flex-wrap justify-between items-center gap-4">
-        <a href="{{ url('/') }}" class="flex items-center gap-2 flex-shrink-0">
-            <img src="{{ asset('images/logo.png') }}" alt="Green Valley College Foundation" class="w-10 h-10 rounded-lg object-contain flex-shrink-0">
+        <a href="{{ url('/') }}" class="group flex items-center gap-2 flex-shrink-0">
+            <img src="{{ asset('images/logo.png') }}" alt="Green Valley College Foundation" class="w-10 h-10 rounded-lg object-contain flex-shrink-0 transition duration-300 group-hover:rotate-6 group-hover:scale-110">
             <span class="font-display text-base md:text-lg font-bold text-white tracking-tight whitespace-nowrap">
                 Green Valley College Foundation Inc.
             </span>
         </a>
         <nav class="flex items-center gap-2 sm:gap-3">
             <a href="{{ route('login') }}"
-               class="inline-flex items-center rounded-full border border-emerald-200/70 bg-emerald-900/40 px-4 py-1.5 text-xs sm:text-sm font-medium text-emerald-50 hover:bg-emerald-800/80 hover:border-emerald-200 transition">
+               class="glow-pulse inline-flex items-center rounded-full border border-emerald-200/70 bg-emerald-900/40 px-4 py-1.5 text-xs sm:text-sm font-medium text-emerald-50 hover:bg-emerald-800/80 hover:border-emerald-200 hover:-translate-y-0.5 transition">
                 Login
             </a>
         </nav>
@@ -134,29 +243,36 @@
 </header>
 
 <!-- HERO BACKGROUND -->
-<section class="relative min-h-[calc(100vh-64px)] flex items-center">
+<section class="relative min-h-[calc(100vh-64px)] flex items-center overflow-hidden">
     <div class="absolute inset-0 bg-hero-gradient"></div>
     <div class="absolute inset-0 bg-hero-pattern bg-repeat opacity-60"></div>
     <div class="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-[0.08]"
          style="background-image: url('{{ asset('images/gvc.png') }}');"></div>
 
+    {{-- Floating glow blobs --}}
+    <div class="float-a absolute -left-24 top-10 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl"></div>
+    <div class="float-b absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-lime-300/10 blur-3xl"></div>
+
     <div class="relative max-w-6xl mx-auto px-6 py-12 grid gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start">
 
         {{-- LEFT SIDE --}}
         <div class="text-emerald-50 space-y-4 max-w-xl">
-            <p class="inline-flex items-center rounded-full bg-emerald-900/40 border border-emerald-300/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide">
+            <p class="rise inline-flex items-center gap-2 rounded-full bg-emerald-900/40 border border-emerald-300/40 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide" style="--d:150ms">
+                <span class="ping-dot relative inline-block h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
                 Student Registration
             </p>
-            <h1 class="font-display text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight drop-shadow-md">
-                Create your<br class="hidden sm:block"> Scholarship &amp; Guidance account
+            <h1 class="rise font-display text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight drop-shadow-md" style="--d:280ms">
+                Create your<br class="hidden sm:block">
+                <span class="shimmer-text bg-gradient-to-r from-gvc-pale via-gvc-mint to-emerald-300 bg-clip-text text-transparent">Scholarship &amp; Guidance</span> account
             </h1>
-            <p class="text-sm sm:text-base text-emerald-100/90">
+            <p class="rise text-sm sm:text-base text-emerald-100/90" style="--d:420ms">
                 Tell us a bit about yourself so we can match you with the right scholarship and guidance services.
             </p>
 
             <div class="space-y-3 pt-2">
                 @foreach ($types as $t)
-                    <div class="flex items-start gap-3 bg-emerald-900/40 border border-emerald-300/20 rounded-xl px-4 py-3">
+                    <div class="slide-l info-card flex items-start gap-3 bg-emerald-900/40 border border-emerald-300/20 rounded-xl px-4 py-3"
+                         style="--d:{{ 550 + $loop->index * 150 }}ms">
                         <div class="mt-0.5 w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
                             <svg class="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons[$t['icon']] }}" />
@@ -172,13 +288,13 @@
         </div>
 
         {{-- RIGHT SIDE: FORM CARD --}}
-        <div class="w-full max-w-md ml-auto bg-white/95 backdrop-blur rounded-2xl shadow-xl shadow-emerald-950/40 border border-emerald-200/70 p-6 md:p-8">
-            <h2 class="font-display text-xl md:text-2xl font-semibold mb-1 text-slate-900">Create an account</h2>
-            <p class="text-sm text-slate-600 mb-5">Register as a student to access the portal.</p>
+        <div class="slide w-full max-w-md ml-auto bg-white/95 backdrop-blur rounded-2xl shadow-xl shadow-emerald-950/40 border border-emerald-200/70 p-6 md:p-8" style="--d:350ms">
+            <h2 class="rise font-display text-xl md:text-2xl font-semibold mb-1 text-slate-900" style="--d:550ms">Create an account</h2>
+            <p class="rise text-sm text-slate-600 mb-5" style="--d:620ms">Register as a student to access the portal.</p>
 
             {{-- Errors --}}
             @if ($errors->any())
-                <div class="mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm p-3">
+                <div class="shake mb-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm p-3" role="alert">
                     <ul class="list-disc list-inside space-y-1">
                         @foreach ($errors->all() as $error)
                             <li>{{ $error }}</li>
@@ -188,13 +304,13 @@
             @endif
 
             {{-- ENROLLMENT TYPE TOGGLE --}}
-            <div class="mb-5">
+            <div class="rise mb-5" style="--d:680ms">
                 <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">I am...</p>
 
                 <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
                     @foreach ($types as $key => $t)
                         <button type="button" data-tab="{{ $key }}" onclick="switchType('{{ $key }}')"
-                                class="rounded-lg px-3 py-2 text-sm font-semibold transition inline-flex items-center justify-center gap-2 {{ $active === $key ? $tabOn : $tabOff }}">
+                                class="rounded-lg px-3 py-2 text-sm font-semibold inline-flex items-center justify-center gap-2 {{ $active === $key ? $tabOn : $tabOff }}">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons[$t['icon']] }}" />
                             </svg>
@@ -211,7 +327,7 @@
                 @endforeach
             </div>
 
-            <form method="POST" action="{{ route('register.post') }}" class="space-y-4">
+            <form method="POST" action="{{ route('register.post') }}" class="space-y-4" id="registerForm">
                 @csrf
                 <input type="hidden" name="enrollment_type" id="enrollment_type" value="{{ $active }}">
 
@@ -221,7 +337,7 @@
 
                         @foreach ($fields as $f)
                             @if ($f['type'] === 'divider')
-                                <div class="col-span-2 flex items-center gap-2 py-1">
+                                <div class="col-span-2 flex items-center gap-2 py-1" style="--i:{{ $loop->index }}">
                                     <div class="flex-1 h-px bg-slate-200"></div>
                                     <span class="text-xs text-slate-400 font-medium">{{ $f['label'] }}</span>
                                     <div class="flex-1 h-px bg-slate-200"></div>
@@ -231,7 +347,7 @@
 
                             @php $id = $f['id'] ?? $f['name']; @endphp
 
-                            <div class="{{ ($f['half'] ?? false) ? 'col-span-1' : 'col-span-2' }} space-y-1.5">
+                            <div class="{{ ($f['half'] ?? false) ? 'col-span-1' : 'col-span-2' }} space-y-1.5" style="--i:{{ $loop->index }}">
                                 <label for="{{ $id }}" class="block text-sm font-medium text-slate-700">
                                     {{ $f['label'] }}
                                     @if ($f['required'] ?? true)<span class="text-red-400">*</span>@endif
@@ -273,12 +389,14 @@
                 @endforeach
 
                 {{-- SUBMIT --}}
-                <button type="submit"
-                        class="w-full inline-flex items-center justify-center rounded-lg bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white shadow-btn-glow transition mt-2">
-                    Create Account
+                <button type="submit" id="registerBtn"
+                        class="rise btn-shine w-full inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white shadow-btn-glow transition mt-2"
+                        style="--d:1300ms">
+                    <span class="spinner hidden" id="registerSpinner" aria-hidden="true"></span>
+                    <span id="registerLabel">Create Account</span>
                 </button>
 
-                <p class="mt-3 text-xs text-slate-500 text-center">
+                <p class="rise mt-3 text-xs text-slate-500 text-center" style="--d:1380ms">
                     Already have an account?
                     <a href="{{ route('login') }}" class="text-emerald-700 font-semibold hover:text-emerald-500">Login</a>
                 </p>
@@ -298,8 +416,12 @@
     const TAB_ON  = @json(explode(' ', $tabOn));
     const TAB_OFF = @json(explode(' ', $tabOff));
 
-    // Show the selected registration type and hide the other one
-    function switchType(type) {
+    // Show the selected registration type and hide the other one.
+    // `byUser` is false for the initial call, so the first load keeps its slow entrance
+    // and later tab switches animate quickly.
+    function switchType(type, byUser = true) {
+        if (byUser) document.body.classList.add('is-ready');
+
         document.getElementById('enrollment_type').value = type;
 
         document.querySelectorAll('[data-section]').forEach(el =>
@@ -324,7 +446,27 @@
     }
 
     // Restore the selected tab after a validation error redirect
-    switchType(@json($active));
+    switchType(@json($active), false);
+
+    // After the entrance finishes, make later tab switches instant
+    setTimeout(() => document.body.classList.add('is-ready'), 2200);
+
+    // Show a spinner on the button while the form submits
+    document.getElementById('registerForm').addEventListener('submit', function () {
+        const btn = document.getElementById('registerBtn');
+        document.getElementById('registerSpinner').classList.remove('hidden');
+        document.getElementById('registerLabel').textContent = 'Creating account...';
+        btn.classList.add('opacity-80', 'cursor-wait');
+        btn.setAttribute('aria-busy', 'true');
+    });
+
+    // If the browser restores this page from the back/forward cache, reset the button
+    window.addEventListener('pageshow', function (e) {
+        if (!e.persisted) return;
+        document.getElementById('registerSpinner').classList.add('hidden');
+        document.getElementById('registerLabel').textContent = 'Create Account';
+        document.getElementById('registerBtn').classList.remove('opacity-80', 'cursor-wait');
+    });
 </script>
 
 </body>

@@ -17,7 +17,7 @@
                         </div>
                         <div>
                             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Counseling</h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">4 configurations</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $this->countConfigured('counseling') }} configurations</p>
                         </div>
                     </div>
                 </div>
@@ -74,7 +74,7 @@
                         </div>
                         <div>
                             <h3 class="text-base font-semibold text-gray-900 dark:text-white">Scholarship</h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">5 configurations</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $this->countConfigured('scholarship') }} configurations</p>
                         </div>
                     </div>
                 </div>
@@ -195,7 +195,7 @@
                         </div>
                         <div>
                             <h3 class="text-base font-semibold text-gray-900 dark:text-white">General</h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">8 configurations</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $this->countConfigured('general') }} configurations</p>
                         </div>
                     </div>
                 </div>
@@ -249,6 +249,16 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                         </svg>
                     </a>
+
+                    {{-- Activities (NEW) --}}
+                    <a href="{{ route('filament.admin.resources.activities.index') }}"
+                       class="group flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-amber-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                        <span>Activities</span>
+                        <svg class="w-4 h-4 text-gray-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
+
                     <a href="{{ route('filament.admin.pages.archived-records') }}"
                        class="group flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-amber-50 dark:hover:bg-gray-800 rounded-lg transition-colors">
                         <span>Archived Records</span>

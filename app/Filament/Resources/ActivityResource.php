@@ -19,6 +19,8 @@ class ActivityResource extends Resource
 
     protected static ?string $navigationLabel = 'Activities';
 
+    protected static bool $shouldRegisterNavigation = false;
+
     // ── Permissions: who can manage public-page activities ──────────
     // Trim this list to the roles that should post (e.g. ['admin', 'guidance']).
 

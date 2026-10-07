@@ -64,6 +64,8 @@
     </script>
 
     <style>
+        [x-cloak] { display: none !important; }
+
         @keyframes progress-fill { from { width: 0%; } }
         .progress-bar { animation: progress-fill 0.5s ease-out; }
 
@@ -80,7 +82,94 @@
         .timer-warning { animation: pulse-red 1s infinite; }
 
         html { scroll-behavior: smooth; }
-        #fs-prompt { font-family: 'Outfit', sans-serif; }
+        #fs-prompt { font-family: 'Outfit', sans-serif; transition: opacity .35s ease; }
+
+        /* Question cards lift slightly on hover */
+        .q-card { transition: border-color .2s ease, box-shadow .25s ease, transform .25s ease; }
+        .q-card:hover { box-shadow: 0 14px 30px -14px rgba(20,83,45,.25); }
+
+        /* Only animate if the visitor allows motion */
+        @media (prefers-reduced-motion: no-preference) {
+
+            /* Entrance animations (staggered with --d). "backwards" releases the
+               element afterwards so hover effects keep working. */
+            @keyframes riseIn {
+                from { opacity: 0; transform: translateY(24px); }
+                to   { opacity: 1; transform: none; }
+            }
+            @keyframes dropIn {
+                from { opacity: 0; transform: translateY(-100%); }
+                to   { opacity: 1; transform: none; }
+            }
+            @keyframes popIn {
+                from { opacity: 0; transform: scale(.85); }
+                to   { opacity: 1; transform: none; }
+            }
+            @keyframes slideInLeft {
+                from { opacity: 0; transform: translateX(-28px); }
+                to   { opacity: 1; transform: none; }
+            }
+            .rise    { animation: riseIn .75s cubic-bezier(.22,1,.36,1) backwards; animation-delay: var(--d, 0ms); }
+            .pop     { animation: popIn .5s cubic-bezier(.34,1.56,.64,1) backwards; animation-delay: var(--d, 0ms); }
+            .slide-l { animation: slideInLeft .7s cubic-bezier(.22,1,.36,1) backwards; animation-delay: var(--d, 0ms); }
+            .drop    { animation: dropIn .7s cubic-bezier(.22,1,.36,1) backwards; }
+
+            /* Small pop when a choice is selected */
+            @keyframes choicePop {
+                0%   { transform: scale(.97); }
+                60%  { transform: scale(1.015); }
+                100% { transform: scale(1); }
+            }
+            input:checked + .choice-label { animation: choicePop .3s ease-out; }
+
+            /* "Answered" tag pops in each time it appears */
+            .pop-in { animation: popIn .35s cubic-bezier(.34,1.56,.64,1) backwards; }
+
+            /* Fullscreen prompt: floating logo + glowing start button */
+            @keyframes bob {
+                0%, 100% { translate: 0 0; }
+                50%      { translate: 0 -8px; }
+            }
+            .bob { animation: bob 3.5s ease-in-out infinite; }
+
+            @keyframes startGlow {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(187,247,208,.5); }
+                50%      { box-shadow: 0 0 0 14px rgba(187,247,208,0); }
+            }
+            .start-glow { animation: startGlow 2s ease-in-out infinite; }
+
+            /* Blurred glow behind the fullscreen prompt */
+            @keyframes floatSlow {
+                0%, 100% { translate: 0 0; }
+                50%      { translate: 26px -30px; }
+            }
+            .float-a { animation: floatSlow 12s ease-in-out infinite; }
+            .float-b { animation: floatSlow 16s ease-in-out infinite reverse; }
+
+            /* Time's up icon pulse */
+            @keyframes alertPulse {
+                0%, 100% { transform: scale(1); }
+                50%      { transform: scale(1.12); }
+            }
+            .alert-pulse { animation: alertPulse 1.2s ease-in-out infinite; }
+
+            /* Submit modal check icon */
+            .bob-soft { animation: bob 3s ease-in-out infinite; }
+
+            /* Button shine sweep on hover */
+            .btn-shine { position: relative; overflow: hidden; }
+            .btn-shine::before {
+                content: ""; position: absolute; top: 0; left: -75%; width: 50%; height: 100%;
+                background: linear-gradient(120deg, transparent, rgba(255,255,255,.3), transparent);
+                transform: skewX(-20deg);
+            }
+            .btn-shine:hover::before { left: 130%; transition: left .7s ease; }
+            .btn-shine:active { transform: scale(.98); }
+
+            /* Logo hover */
+            .logo-img { transition: transform .3s ease; }
+            a:hover > .logo-img { transform: rotate(6deg) scale(1.1); }
+        }
     </style>
 </head>
 
@@ -89,43 +178,50 @@
 
 {{-- FULLSCREEN PROMPT --}}
 <div id="fs-prompt"
-     class="fixed inset-0 z-[9999] bg-green-900 flex flex-col items-center justify-center text-white px-6 text-center">
+     class="fixed inset-0 z-[9999] bg-green-900 flex flex-col items-center justify-center text-white px-6 text-center overflow-hidden">
 
-    <img src="{{ asset('images/logo.png') }}" alt="GVCFI" class="w-20 h-20 rounded-2xl object-contain mb-6 shadow-lg">
+    <div class="float-a absolute -left-24 top-10 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl"></div>
+    <div class="float-b absolute -right-24 bottom-0 h-96 w-96 rounded-full bg-lime-300/10 blur-3xl"></div>
 
-    <h1 class="text-2xl md:text-3xl font-bold mb-2">{{ $exam->title }}</h1>
-    <p class="text-green-200 text-sm mb-1">Green Valley College Foundation Inc.</p>
-    <p class="text-green-300 text-xs mb-8">{{ $exam->duration_minutes }} minutes &bull; {{ $exam->questions->count() }} items</p>
+    <img src="{{ asset('images/logo.png') }}" alt="GVCFI" class="pop bob relative w-20 h-20 rounded-2xl object-contain mb-6 shadow-lg" style="--d:100ms">
 
-    <div class="bg-white/10 border border-white/20 rounded-2xl p-5 max-w-sm w-full mb-8 text-sm text-green-100 space-y-2 text-left">
+    <h1 class="rise relative text-2xl md:text-3xl font-bold mb-2" style="--d:250ms">{{ $exam->title }}</h1>
+    <p class="rise relative text-green-200 text-sm mb-1" style="--d:350ms">Green Valley College Foundation Inc.</p>
+    <p class="rise relative text-green-300 text-xs mb-8" style="--d:430ms">{{ $exam->duration_minutes }} minutes &bull; {{ $exam->questions->count() }} items</p>
+
+    <div class="rise relative bg-white/10 border border-white/20 rounded-2xl p-5 max-w-sm w-full mb-8 text-sm text-green-100 space-y-2 text-left backdrop-blur" style="--d:520ms">
         <p class="font-semibold text-white text-base mb-3">📋 Before you begin:</p>
-        <p>✅ The exam will run in <strong>fullscreen mode</strong>.</p>
-        <p>✅ Do not close or reload the browser.</p>
-        <p>✅ Timer starts immediately after you click Start.</p>
-        <p>✅ Unanswered items are counted as incorrect.</p>
-        <p>⚠️ <strong>Switching tabs or windows will be recorded as a violation.</strong></p>
+        <p class="slide-l" style="--d:650ms">✅ The exam will run in <strong>fullscreen mode</strong>.</p>
+        <p class="slide-l" style="--d:730ms">✅ Do not close or reload the browser.</p>
+        <p class="slide-l" style="--d:810ms">✅ Timer starts immediately after you click Start.</p>
+        <p class="slide-l" style="--d:890ms">✅ Unanswered items are counted as incorrect.</p>
+        <p class="slide-l" style="--d:970ms">⚠️ <strong>Switching tabs or windows will be recorded as a violation.</strong></p>
     </div>
 
     <button onclick="startExam()"
-        class="bg-white text-green-900 font-bold text-base px-10 py-3.5 rounded-2xl shadow-lg hover:bg-green-100 transition active:scale-95">
+        class="rise start-glow btn-shine relative bg-white text-green-900 font-bold text-base px-10 py-3.5 rounded-2xl shadow-lg hover:bg-green-100 hover:-translate-y-0.5 transition active:scale-95"
+        style="--d:1100ms">
         🚀 Start Exam
     </button>
 
-    <p class="text-green-400 text-xs mt-4">Examinee: <strong class="text-white">{{ auth()->user()->name }}</strong></p>
+    <p class="rise relative text-green-400 text-xs mt-4" style="--d:1250ms">Examinee: <strong class="text-white">{{ auth()->user()->name }}</strong></p>
 </div>
 
 <script>
     function startExam() {
         enterFullscreen();
-        document.getElementById('fs-prompt').style.display = 'none';
+        const prompt = document.getElementById('fs-prompt');
+        prompt.style.opacity = '0';
+        prompt.style.pointerEvents = 'none';
+        setTimeout(() => { prompt.style.display = 'none'; }, 350);
     }
 </script>
 
 {{-- NAVBAR --}}
-<header class="bg-green-800 border-b border-white sticky top-0 z-50 shadow-sm">
+<header class="drop bg-green-800 border-b border-white sticky top-0 z-50 shadow-sm">
     <div class="max-w-8xl mx-auto px-6 py-3 flex justify-between items-center gap-4">
         <a href="#" onclick="return false;" class="flex items-center gap-2">
-            <img src="{{ asset('images/logo.png') }}" alt="GVCFI" class="w-10 h-10 rounded-lg object-contain">
+            <img src="{{ asset('images/logo.png') }}" alt="GVCFI" class="logo-img w-10 h-10 rounded-lg object-contain">
             <span class="font-display text-base md:text-lg font-bold text-white tracking-tight">
                 Green Valley College Foundation Inc.
             </span>
@@ -148,7 +244,7 @@
     <aside class="lg:col-span-1 space-y-4 lg:sticky lg:top-20 lg:self-start">
 
         {{-- Student Info --}}
-        <div class="bg-white rounded-2xl border border-green-200/60 shadow-sm p-4">
+        <div class="slide-l bg-white rounded-2xl border border-green-200/60 shadow-sm p-4" style="--d:150ms">
             <div class="flex items-center gap-3 mb-3">
                 <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
                     <svg class="w-5 h-5 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -168,29 +264,29 @@
         </div>
 
         {{-- Overall Progress --}}
-        <div class="bg-white rounded-2xl border border-green-200/60 shadow-sm p-4">
+        <div class="slide-l bg-white rounded-2xl border border-green-200/60 shadow-sm p-4" style="--d:250ms">
             <div class="flex justify-between items-center mb-2">
                 <span class="text-xs font-semibold text-slate-600">Overall Progress</span>
                 <span class="text-xs font-bold text-green-700" x-text="answeredCount() + '/' + totalQuestions()"></span>
             </div>
-            <div class="w-full bg-slate-100 rounded-full h-2">
-                <div class="bg-green-600 h-2 rounded-full progress-bar transition-all duration-300"
+            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div class="bg-gradient-to-r from-green-600 to-emerald-400 h-2 rounded-full progress-bar transition-all duration-500"
                      :style="'width:' + progressPercent() + '%'"></div>
             </div>
         </div>
 
         {{-- Categories Jump Links --}}
-        <div class="bg-white rounded-2xl border border-green-200/60 shadow-sm p-4">
+        <div class="slide-l bg-white rounded-2xl border border-green-200/60 shadow-sm p-4" style="--d:350ms">
             <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Categories</p>
             <div class="space-y-1">
                 <template x-for="(cat, idx) in categories" :key="idx">
                     <button
                         @click="scrollToCategory(idx)"
                         :class="activeCategory === idx ? 'bg-green-800 text-white' : 'hover:bg-green-50 text-slate-700'"
-                        class="w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition flex justify-between items-center">
+                        class="w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 flex justify-between items-center hover:translate-x-1">
                         <span x-text="cat.name"></span>
                         <span :class="activeCategory === idx ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-500'"
-                              class="text-xs px-1.5 py-0.5 rounded-full font-semibold"
+                              class="text-xs px-1.5 py-0.5 rounded-full font-semibold transition-colors"
                               x-text="categoryAnswered(idx) + '/' + cat.questions.length"></span>
                     </button>
                 </template>
@@ -200,7 +296,8 @@
         {{-- Submit Button --}}
         <button
             @click="confirmSubmit()"
-            class="w-full bg-green-800 hover:bg-green-700 text-white font-display font-bold py-3 px-4 rounded-2xl transition shadow-sm text-sm">
+            class="slide-l btn-shine w-full bg-green-800 hover:bg-green-700 hover:-translate-y-0.5 text-white font-display font-bold py-3 px-4 rounded-2xl transition shadow-sm text-sm"
+            style="--d:450ms">
             Submit Exam
         </button>
 
@@ -213,7 +310,7 @@
             <div :id="'category-' + catIdx">
 
                 {{-- Category Header --}}
-                <div class="bg-white rounded-2xl border border-green-200/60 shadow-sm p-5 mb-4">
+                <div class="rise bg-white rounded-2xl border border-green-200/60 shadow-sm p-5 mb-4" style="--d:200ms">
                     <div class="flex items-center justify-between flex-wrap gap-3">
                         <div>
                             <p class="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1"
@@ -227,8 +324,8 @@
                                   x-text="categoryAnswered(catIdx) + ' answered'"></span>
                         </div>
                     </div>
-                    <div class="mt-3 w-full bg-slate-100 rounded-full h-1.5">
-                        <div class="bg-green-500 h-1.5 rounded-full transition-all duration-300"
+                    <div class="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div class="bg-gradient-to-r from-green-500 to-emerald-400 h-1.5 rounded-full transition-all duration-500"
                              :style="'width:' + (categoryAnswered(catIdx) / cat.questions.length * 100) + '%'"></div>
                     </div>
                 </div>
@@ -236,7 +333,7 @@
                 {{-- Questions --}}
                 <div class="space-y-4">
                     <template x-for="(q, qIdx) in cat.questions" :key="q.id">
-                        <div class="bg-white rounded-2xl border-2 shadow-sm p-6 transition-all duration-200"
+                        <div class="q-card bg-white rounded-2xl border-2 shadow-sm p-6 transition-all duration-200"
                              :class="isAnswered(q.id) ? 'border-green-300' : 'border-slate-200'">
 
                             <div class="flex gap-4 mb-5">
@@ -277,7 +374,7 @@
                             </div>
 
                             <div class="ml-14 mt-3" x-show="isAnswered(q.id)">
-                                <span class="text-xs text-green-600 font-semibold flex items-center gap-1">
+                                <span class="pop-in text-xs text-green-600 font-semibold inline-flex items-center gap-1">
                                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                                     </svg>
@@ -294,7 +391,7 @@
         {{-- Bottom Submit --}}
         <div class="flex justify-end pt-2 pb-8">
             <button @click="confirmSubmit()"
-                class="bg-green-800 hover:bg-green-700 text-white font-display font-bold py-3 px-8 rounded-2xl transition shadow-sm text-sm">
+                class="btn-shine bg-green-800 hover:bg-green-700 hover:-translate-y-0.5 text-white font-display font-bold py-3 px-8 rounded-2xl transition shadow-sm text-sm">
                 Submit Exam
             </button>
         </div>
@@ -307,15 +404,19 @@
      x-transition:enter="transition ease-out duration-200"
      x-transition:enter-start="opacity-0"
      x-transition:enter-end="opacity-100"
-     class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
      style="display:none;">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0 scale-95"
-         x-transition:enter-end="opacity-100 scale-100">
+    <div x-show="showSubmitModal"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+         x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+         class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
 
         <div class="text-center mb-5">
-            <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+            <div class="bob-soft w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
                 <svg class="w-8 h-8 text-green-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
@@ -330,7 +431,7 @@
             </p>
 
             <template x-if="answeredCount() < totalQuestions()">
-                <div class="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+                <div class="pop-in mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
                     ⚠️ You have <span x-text="totalQuestions() - answeredCount()"></span> unanswered question(s). These will be marked as incorrect.
                 </div>
             </template>
@@ -345,7 +446,7 @@
                 @csrf
                 <div id="answers-container"></div>
                 <button type="submit"
-                        class="w-full py-2.5 rounded-xl bg-green-800 hover:bg-green-700 text-white font-semibold text-sm transition">
+                        class="btn-shine w-full py-2.5 rounded-xl bg-green-800 hover:bg-green-700 text-white font-semibold text-sm transition">
                     Submit Now
                 </button>
             </form>
@@ -355,10 +456,10 @@
 
 {{-- TIME UP MODAL --}}
 <div x-show="timeUp"
-     class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+     class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
      style="display:none;">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center">
-        <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+    <div class="pop bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center">
+        <div class="alert-pulse w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
             <svg class="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>

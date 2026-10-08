@@ -432,9 +432,17 @@
 
 <!-- ACTIVITIES -->
 <section id="activities" class="relative bg-gradient-to-b from-green-100/70 to-emerald-50/0 py-24"
-         x-data="{ item: null }"
+         x-data="{
+             item: null, idx: 0, tx: 0,
+             open(p) { this.item = p; this.idx = 0; },
+             next() { if (!this.item) return; this.idx = (this.idx + 1) % this.item.images.length; },
+             prev() { if (!this.item) return; this.idx = (this.idx - 1 + this.item.images.length) % this.item.images.length; },
+             swipe(x) { const d = x - this.tx; if (Math.abs(d) > 40) { d < 0 ? this.next() : this.prev(); } }
+         }"
          x-effect="document.body.classList.toggle('overflow-hidden', !!item)"
-         @keydown.escape.window="item = null">
+         @keydown.escape.window="item = null"
+         @keydown.arrow-right.window="next()"
+         @keydown.arrow-left.window="prev()">
     <div class="mx-auto max-w-7xl px-6">
 
         {{-- Header --}}
@@ -451,24 +459,26 @@
             <div class="grid auto-rows-[18rem] gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:auto-rows-[16rem]">
                 @foreach ($activities as $act)
                     @php
+                        $photos     = $act->photo_urls;
+                        $cover      = $photos[0] ?? null;
                         $isFeatured = $loop->first;
                         $isNew      = $act->activity_date && $act->activity_date->gt(now()->subDays(14));
                         $actPayload = [
-                            'title' => $act->title,
-                            'body'  => $act->description ?? '',
-                            'date'  => optional($act->activity_date)->format('F d, Y'),
-                            'image' => $act->image ? asset('storage/'.$act->image) : null,
+                            'title'  => $act->title,
+                            'body'   => $act->description ?? '',
+                            'date'   => optional($act->activity_date)->format('F d, Y'),
+                            'images' => $photos,
                         ];
                     @endphp
 
                     <button type="button"
-                            @click="item = {{ \Illuminate\Support\Js::from($actPayload) }}"
+                            @click="open({{ \Illuminate\Support\Js::from($actPayload) }})"
                             class="group relative isolate flex overflow-hidden rounded-[2rem] bg-green-950 text-left ring-1 ring-green-900/10 transition duration-300 hover:-translate-y-1 hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700
                                    {{ $isFeatured ? 'sm:col-span-2 lg:row-span-2' : '' }}">
 
-                        {{-- Background: image or branded fallback --}}
-                        @if (!empty($act->image))
-                            <img src="{{ asset('storage/'.$act->image) }}" alt="{{ $act->title }}" loading="lazy"
+                        {{-- Background: cover photo or branded fallback --}}
+                        @if ($cover)
+                            <img src="{{ $cover }}" alt="{{ $act->title }}" loading="lazy"
                                  class="absolute inset-0 -z-20 h-full w-full object-cover transition duration-700 group-hover:scale-105">
                         @else
                             <div class="absolute inset-0 -z-20 bg-hero-gradient"></div>
@@ -482,7 +492,7 @@
                         <div class="absolute inset-0 -z-10 bg-gradient-to-t from-green-950/90 via-green-950/35 to-transparent transition-opacity duration-300 group-hover:from-green-950/95"></div>
 
                         {{-- Top row: date chip + badges --}}
-                        <div class="absolute inset-x-0 top-0 flex items-start justify-between p-5">
+                        <div class="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-5">
                             @if ($act->activity_date)
                                 <time class="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
                                     {{ $act->activity_date->format('M d, Y') }}
@@ -491,12 +501,21 @@
                                 <span></span>
                             @endif
 
-                            @if ($isFeatured || $isNew)
-                                <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-100 backdrop-blur-md">
-                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
-                                    {{ $isFeatured ? 'Latest' : 'New' }}
-                                </span>
-                            @endif
+                            <div class="flex flex-wrap items-center justify-end gap-2">
+                                @if (count($photos) > 1)
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-white/25 bg-green-950/40 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
+                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        {{ count($photos) }}
+                                    </span>
+                                @endif
+
+                                @if ($isFeatured || $isNew)
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/30 bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-100 backdrop-blur-md">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
+                                        {{ $isFeatured ? 'Latest' : 'New' }}
+                                    </span>
+                                @endif
+                            </div>
                         </div>
 
                         {{-- Bottom: title, description, arrow --}}
@@ -530,21 +549,71 @@
         @endif
     </div>
 
-    {{-- Activity modal --}}
+    {{-- Activity modal with photo gallery --}}
     <div x-show="item" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" :aria-label="item ? item.title : ''">
         <div x-show="item" x-transition.opacity class="absolute inset-0 bg-green-950/70 backdrop-blur-sm" @click="item = null"></div>
 
         <div x-show="item" x-transition.scale.origin.center.90
-             class="relative flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+             class="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+
+            {{-- Close --}}
             <button type="button" @click="item = null" aria-label="Close"
-                    class="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-green-950/60 text-white ring-1 ring-white/25 backdrop-blur-md transition hover:bg-green-950">
+                    class="absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-green-950/60 text-white ring-1 ring-white/25 backdrop-blur-md transition hover:bg-green-950">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
 
             <div class="overflow-y-auto">
-                <template x-if="item && item.image">
-                    <img :src="item.image" :alt="item.title" class="aspect-[16/9] w-full object-cover">
+
+                {{-- Gallery --}}
+                <template x-if="item && item.images.length">
+                    <div>
+                        <div class="relative select-none bg-green-950"
+                             @touchstart.passive="tx = $event.changedTouches[0].clientX"
+                             @touchend.passive="swipe($event.changedTouches[0].clientX)">
+
+                            <div class="relative aspect-[16/10] overflow-hidden">
+                                <template x-for="(src, i) in item.images" :key="i">
+                                    <img :src="src" :alt="item.title + ' photo ' + (i + 1)"
+                                         x-show="idx === i"
+                                         x-transition.opacity.duration.300ms
+                                         class="absolute inset-0 h-full w-full object-cover">
+                                </template>
+                            </div>
+
+                            {{-- Prev / Next --}}
+                            <template x-if="item.images.length > 1">
+                                <div>
+                                    <button type="button" @click="prev()" aria-label="Previous photo"
+                                            class="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white ring-1 ring-white/30 backdrop-blur-md transition hover:bg-white hover:text-green-900">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.25"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                                    </button>
+                                    <button type="button" @click="next()" aria-label="Next photo"
+                                            class="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white ring-1 ring-white/30 backdrop-blur-md transition hover:bg-white hover:text-green-900">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.25"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                    </button>
+
+                                    <span class="absolute bottom-3 left-3 rounded-full bg-green-950/60 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md"
+                                          x-text="(idx + 1) + ' / ' + item.images.length"></span>
+                                </div>
+                            </template>
+                        </div>
+
+                        {{-- Thumbnails --}}
+                        <template x-if="item.images.length > 1">
+                            <div class="flex gap-2 overflow-x-auto bg-slate-50 p-3 [scrollbar-width:thin]">
+                                <template x-for="(src, i) in item.images" :key="'t' + i">
+                                    <button type="button" @click="idx = i" :aria-label="'Show photo ' + (i + 1)"
+                                            :class="idx === i ? 'ring-2 ring-green-700 opacity-100' : 'opacity-60 hover:opacity-100'"
+                                            class="h-16 w-24 shrink-0 overflow-hidden rounded-xl transition">
+                                        <img :src="src" alt="" loading="lazy" class="h-full w-full object-cover">
+                                    </button>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
                 </template>
+
+                {{-- Text --}}
                 <div class="px-7 py-6 md:px-9 md:py-8">
                     <time class="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-green-800"
                           x-show="item && item.date" x-text="item ? item.date : ''"></time>

@@ -19,14 +19,14 @@ class ActivityResource extends Resource
 
     protected static ?string $navigationLabel = 'Activities';
 
+    // Hidden from the sidebar; reached through the Settings page instead.
     protected static bool $shouldRegisterNavigation = false;
 
-    // ── Permissions: who can manage public-page activities ──────────
-    // Trim this list to the roles that should post (e.g. ['admin', 'guidance']).
+    // ── Permissions: admin only ─────────────────────────────────────
 
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasAnyRole(['admin', 'guidance', 'scholarship']) ?? false;
+        return auth()->user()?->hasRole('admin') ?? false;
     }
 
     public static function canCreate(): bool
@@ -61,14 +61,23 @@ class ActivityResource extends Resource
 
             Forms\Components\DatePicker::make('activity_date')
                 ->label('Date')
-                ->default(now()),
+                ->default(now())
+                ->columnSpanFull(),
 
-            Forms\Components\FileUpload::make('image')
+            Forms\Components\FileUpload::make('images')
+                ->label('Photos')
+                ->helperText('Up to 10 photos. The first photo is the cover. Drag to reorder.')
                 ->image()
+                ->multiple()
+                ->reorderable()
+                ->appendFiles()
+                ->maxFiles(10)
+                ->maxSize(2048)
                 ->disk('public')
                 ->directory('activities')
-                ->maxSize(2048)
-                ->imageEditor(),
+                ->imageEditor()
+                ->panelLayout('grid')
+                ->columnSpanFull(),
 
             Forms\Components\Textarea::make('description')
                 ->rows(6)
@@ -83,9 +92,13 @@ class ActivityResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\ImageColumn::make('image')
+                Tables\Columns\ImageColumn::make('images')
+                    ->label('Photos')
                     ->disk('public')
-                    ->square(),
+                    ->circular()
+                    ->stacked()
+                    ->limit(3)
+                    ->limitedRemainingText(),
                 Tables\Columns\TextColumn::make('title')
                     ->searchable()
                     ->limit(40),

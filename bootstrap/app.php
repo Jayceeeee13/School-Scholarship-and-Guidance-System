@@ -36,5 +36,19 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('logout') || $request->is('*/logout')) {
                 return redirect('/')->with('info', 'You have been redirected to the homepage.');
             }
+
+            // Stray GET requests to Livewire's internal AJAX endpoint — typically
+            // bots, crawlers, or mangled shared links (e.g. carrying an fbclid
+            // param), never a real user action. Redirect quietly to the homepage
+            // instead of showing an error page.
+            if ($request->is('livewire/update') || $request->is('livewire/*')) {
+                return redirect('/');
+            }
         });
+
+        // Keep these out of logs/error dashboards entirely — both cases above
+        // are already handled gracefully, so there's nothing actionable to report.
+        $exceptions->dontReport([
+            \Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException::class,
+        ]);
     })->create();

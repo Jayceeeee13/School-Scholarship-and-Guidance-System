@@ -18,8 +18,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->trustProxies(at: '*');
 
-        // Logged-in users who open /login or /register are sent back here,
-        // so pressing Back after login never shows the login form.
         $middleware->redirectUsersTo(function () {
             return strtolower(auth()->user()?->role?->name ?? '') === 'guest'
                 ? route('referral')
@@ -28,6 +26,11 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
+            if ($request->is('admin') || $request->is('admin/*')) {
+                return redirect()->route('filament.admin.auth.login')
+                    ->with('error', 'Your session expired. Please log in again.');
+            }
+
             return redirect()->route('login')
                 ->with('error', 'Your session expired. Please log in again.');
         });
@@ -37,17 +40,11 @@ return Application::configure(basePath: dirname(__DIR__))
                 return redirect('/')->with('info', 'You have been redirected to the homepage.');
             }
 
-            // Stray GET requests to Livewire's internal AJAX endpoint — typically
-            // bots, crawlers, or mangled shared links (e.g. carrying an fbclid
-            // param), never a real user action. Redirect quietly to the homepage
-            // instead of showing an error page.
             if ($request->is('livewire/update') || $request->is('livewire/*')) {
                 return redirect('/');
             }
         });
 
-        // Keep these out of logs/error dashboards entirely — both cases above
-        // are already handled gracefully, so there's nothing actionable to report.
         $exceptions->dontReport([
             \Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException::class,
         ]);

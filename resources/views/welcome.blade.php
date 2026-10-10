@@ -112,7 +112,7 @@
     $h2 = 'font-display text-3xl font-extrabold tracking-tight text-slate-900 md:text-5xl';
 
     // Mobile app installer (Expo / EAS internal distribution)
-    $appQr   = 'images/app-qr.png';        // QR image: public/images/app-qr.png
+    $appQr   = 'images/gvcfi-qr.png';        // QR image: public/images/gvcfi-qr.png
     $appUrl  = 'https://expo.dev/accounts/abidmangelen/projects/scholarr/builds/57ff8f7c-3f4e-45fd-994c-cc7cfcc49292';  // Expo install page (same link as the QR)
     $apkPath = 'downloads/gvcfi-app.apk';  // fallback: upload your APK to public/downloads/gvcfi-app.apk and leave $appUrl empty
 

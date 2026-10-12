@@ -623,15 +623,13 @@ class ListScholars extends ListRecords
                         ->placeholder('All Statuses'),
 
                     Tables\Filters\SelectFilter::make('type_of_scholarship')
-                        ->label('Type of Scholarship')
-                        ->options(fn () => InstitutionalScholar::query()
-                            ->distinct()
-                            ->whereNotNull('type_of_scholarship')
-                            ->pluck('type_of_scholarship', 'type_of_scholarship')
-                            ->sort())
-                        ->multiple()
-                        ->searchable()
-                        ->placeholder('All Scholarships'),
+    ->label('Type of Scholarship')
+    ->options(fn () => \App\Models\TypeOfScholarship::query()
+        ->orderBy('name')
+        ->pluck('name', 'name'))
+    ->multiple()
+    ->searchable()
+    ->placeholder('All Scholarships'),
 
                     Tables\Filters\SelectFilter::make('sex')
                         ->label('Sex')

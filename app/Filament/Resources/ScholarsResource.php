@@ -376,15 +376,14 @@ class ScholarsResource extends Resource
         return $scholar?->departmentHead?->name;
     })
     ->placeholder('— Not Assigned —')
-    ->toggleable(isToggledHiddenByDefault: true),
+    ->toggleable(isToggledHiddenByDefault: true),   
 
             Tables\Columns\TextColumn::make('revocation_reason')
-                ->label('Reason for Discontinuance')
-                ->limit(40)
-                ->tooltip(fn ($state) => $state)
-                ->toggleable(isToggledHiddenByDefault: true)
-                ->placeholder('—'),
-
+    ->label('Reason for Discontinuance')
+    ->limit(40)
+    ->tooltip(fn ($state) => $state)
+    ->placeholder('—')
+    ->visible(fn ($livewire) => ($livewire->activeTab ?? 'all') === 'revoked'),
             Tables\Columns\TextColumn::make('revoked_at')
                 ->label('Revoked On')
                 ->dateTime('M d, Y')

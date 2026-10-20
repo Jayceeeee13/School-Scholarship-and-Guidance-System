@@ -717,67 +717,43 @@ class ListUsers extends ListRecords
             ])
             ->actions([
                 \Filament\Tables\Actions\Action::make('archiveUser')
-                    ->label('Archive')
-                    ->icon('heroicon-o-archive-box')
-                    ->color('danger')
-                    ->requiresConfirmation()
-                    ->modalHeading('Archive User')
-                    ->modalDescription('Are you sure you want to archive this user? They will immediately lose access and be logged out if currently signed in.')
-                    ->modalSubmitActionLabel('Yes, Archive')
-                    ->visible(fn (User $record): bool => $record->id !== auth()->id())
-                    ->form([
-                        Forms\Components\Checkbox::make('archive_records')
-                            ->label('Also archive all related records')
-                            ->helperText('Includes their linked Personnel profile (if any), scholar records, DTR entries, counseling appointments, referrals, and accomplishment reports tied to their student profile.')
-                            ->default(false),
+    ->label('Archive')
+    ->icon('heroicon-o-archive-box')
+    ->color('danger')
+    ->requiresConfirmation()
+    ->modalHeading('Archive User')
+    ->modalDescription('Are you sure you want to archive this user? They will immediately lose access and be logged out if currently signed in.')
+    ->modalSubmitActionLabel('Yes, Archive')
+    ->visible(fn (User $record): bool => $record->id !== auth()->id())
+    ->form([
+        Forms\Components\TextInput::make('confirm_password')
+            ->label('Confirm your password to continue')
+            ->password()
+            ->revealable()
+            ->required()
+            ->rule(function () {
+                return function (string $attribute, $value, $fail) {
+                    if (! Hash::check($value, auth()->user()->password)) {
+                        $fail('The password is incorrect.');
+                    }
+                };
+            }),
+    ])
+    ->action(function (User $record): void {
+        $record->update(['archived_at' => now()]);
 
-                        Forms\Components\TextInput::make('confirm_password')
-                            ->label('Confirm your password to continue')
-                            ->password()
-                            ->revealable()
-                            ->required()
-                            ->rule(function () {
-                                return function (string $attribute, $value, $fail) {
-                                    if (! Hash::check($value, auth()->user()->password)) {
-                                        $fail('The password is incorrect.');
-                                    }
-                                };
-                            }),
-                    ])
-                    ->action(function (User $record, array $data): void {
-                        DB::transaction(function () use ($record, $data) {
-                            $record->update(['archived_at' => now()]);
+        $this->logCustomActivity(
+            $record,
+            'user',
+            'archived',
+            "Archived user {$record->name}"
+        );
 
-                            $this->logCustomActivity(
-                                $record,
-                                'user',
-                                'archived',
-                                "Archived user {$record->name}"
-                            );
-
-                            if ($data['archive_records'] ?? false) {
-                                $summary = $this->cascadeArchiveUserRecords($record);
-
-                                $this->logCustomActivity(
-                                    $record,
-                                    'user',
-                                    'archived_records',
-                                    "Cascaded archive for {$record->name}: "
-                                        . ($summary['personnel'] ? "personnel profile, " : '')
-                                        . "{$summary['scholars']} scholar record(s), "
-                                        . "{$summary['dtr']} DTR entry(ies), "
-                                        . "{$summary['appointments']} appointment(s), "
-                                        . "{$summary['referrals']} referral(s), "
-                                        . "{$summary['accomplishment_reports']} accomplishment report(s)."
-                                );
-                            }
-                        });
-
-                        Notification::make()
-                            ->title('User archived')
-                            ->success()
-                            ->send();
-                    }),
+        Notification::make()
+            ->title('User archived')
+            ->success()
+            ->send();
+    }),
             ]);
     }
 }

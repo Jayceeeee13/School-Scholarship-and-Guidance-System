@@ -607,35 +607,24 @@ class ArchivedRecords extends Page implements HasTable
             ])
             ->actions([
                 Tables\Actions\Action::make('restore')
-                    ->label('Restore')
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->modalHeading('Restore User')
-                    ->modalDescription('This user will regain panel access and reappear in the main Users list.')
-                    ->modalSubmitActionLabel('Yes, Restore')
-                    ->form([
-                        Forms\Components\Checkbox::make('restore_records')
-                            ->label('Also restore their related records')
-                            ->helperText('Reverses their linked Personnel profile plus any scholar/DTR/appointment/referral/accomplishment report records that were archived alongside this user, if any.')
-                            ->default(false),
+    ->label('Restore')
+    ->icon('heroicon-o-arrow-uturn-left')
+    ->color('success')
+    ->requiresConfirmation()
+    ->modalHeading('Restore User')
+    ->modalDescription('This user will regain panel access and reappear in the main Users list.')
+    ->modalSubmitActionLabel('Yes, Restore')
+    ->form([
+        $this->passwordConfirmationField(),
+    ])
+    ->action(function (User $record): void {
+        $record->update(['archived_at' => null]);
 
-                        $this->passwordConfirmationField(),
-                    ])
-                    ->action(function (User $record, array $data): void {
-                        DB::transaction(function () use ($record, $data) {
-                            $record->update(['archived_at' => null]);
-
-                            if ($data['restore_records'] ?? false) {
-                                $this->cascadeRestoreUserRecords($record);
-                            }
-                        });
-
-                        Notification::make()
-                            ->title('User restored')
-                            ->success()
-                            ->send();
-                    }),
+        Notification::make()
+            ->title('User restored')
+            ->success()
+            ->send();
+    }),
             ]);
     }
 }

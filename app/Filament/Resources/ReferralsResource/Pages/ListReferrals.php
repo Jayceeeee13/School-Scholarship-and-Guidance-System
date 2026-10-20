@@ -293,6 +293,32 @@ class ListReferrals extends ListRecords
                             )
                             ->toArray()
                     ),
+
+                    Tables\Filters\SelectFilter::make('term')
+    ->label('School Year & Semester')
+    ->options(fn () => \App\Models\Term::query()
+        ->whereNotNull('starts_on')
+        ->whereNotNull('ends_on')
+        ->orderByDesc('starts_on')
+        ->get()
+        ->mapWithKeys(fn ($term) => [$term->id => $term->label])
+        ->all())
+    ->placeholder('All terms')
+    ->query(function (Builder $query, array $data): Builder {
+        if (blank($data['value'] ?? null)) {
+            return $query;
+        }
+
+        $term = \App\Models\Term::find($data['value']);
+
+        if (! $term?->starts_on || ! $term?->ends_on) {
+            return $query;
+        }
+
+        return $query
+            ->whereDate('date', '>=', $term->starts_on->toDateString())
+            ->whereDate('date', '<=', $term->ends_on->toDateString());
+    }),
             ])
 
             ->actions([

@@ -794,176 +794,229 @@ class ScholarsResource extends Resource
     // ),
 
                     Tables\Actions\ViewAction::make()
-    ->infolist([
-        \Filament\Infolists\Components\Section::make('Scholar Information')
-            ->icon('heroicon-o-academic-cap')
-            ->schema([
-                \Filament\Infolists\Components\TextEntry::make('student_id')
-                    ->label('Student ID')
-                    ->badge()
-                    ->color(fn ($state) => $state ? 'primary' : 'gray')
-                    ->formatStateUsing(fn ($state) => $state ?? 'Not Assigned'),
+    ->modalHeading(fn (Scholars $record): ?string => $record->status === 'revoked'
+        ? 'Notice of Scholarship Discontinuance'
+        : null)
+    ->infolist(fn (Scholars $record): array => $record->status === 'revoked'
+        ? [
+            \Filament\Infolists\Components\Section::make('Notice of Scholarship Discontinuance')
+                ->icon('heroicon-o-no-symbol')
+                ->schema([
+                    \Filament\Infolists\Components\TextEntry::make('term_label')
+                        ->label('Semester / A.Y.')
+                        ->getStateUsing(fn (Scholars $r) => $r->term
+                            ? "{$r->term->semester} Semester A.Y. {$r->term->school_year}"
+                            : '—'),
 
-                \Filament\Infolists\Components\TextEntry::make('status')
-                    ->label('Status')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'active'       => 'success',
-                        'inactive'     => 'warning',
-                        'graduated'    => 'info',
-                        'discontinued' => 'danger',
-                        'revoked'      => 'danger',
-                        default        => 'gray',
-                    })
-                    ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+                    \Filament\Infolists\Components\TextEntry::make('revoked_at')
+                        ->label('Date')
+                        ->date('F d, Y')
+                        ->placeholder('—'),
 
-                \Filament\Infolists\Components\TextEntry::make('term.school_year')
-                    ->label('Term')
-                    ->formatStateUsing(fn ($state, $record) => $record->term
-                        ? $record->term->school_year . ' — ' . $record->term->semester
-                        : '—')
-                    ->badge()
-                    ->color('gray'),
+                    \Filament\Infolists\Components\TextEntry::make('student_name')
+                        ->label('Name of Student')
+                        ->getStateUsing(fn (Scholars $r) => trim(
+                            "{$r->first_name} {$r->middle_name} {$r->last_name} {$r->extension_name}"
+                        )),
 
-                \Filament\Infolists\Components\TextEntry::make('type_of_scholarship')
-                    ->label('Scholarship Type')
-                    ->badge()
-                    ->color('success'),
+                    \Filament\Infolists\Components\TextEntry::make('course_and_year')
+                        ->label('Course & Year')
+                        ->getStateUsing(fn (Scholars $r) => trim(
+                            "{$r->program} - " . match ((string) $r->year_level) {
+                                '1' => '1st Year', '2' => '2nd Year', '3' => '3rd Year',
+                                '4' => '4th Year', '5' => '5th Year', default => $r->year_level,
+                            },
+                            ' -'
+                        )),
 
-                \Filament\Infolists\Components\TextEntry::make('batch_no')
-                    ->label('Batch')
-                    ->badge()
-                    ->color(fn ($state) => $state ? 'warning' : 'gray')
-                    ->formatStateUsing(fn ($state) => $state ?? 'Not Set'),
+                    \Filament\Infolists\Components\TextEntry::make('type_of_scholarship')
+                        ->label('Type of Scholarship')
+                        ->badge()
+                        ->color('success'),
 
-                \Filament\Infolists\Components\TextEntry::make('benefit')
-                    ->label('Benefit')
-                    ->formatStateUsing(function ($state): string {
-                        if (is_null($state)) return 'Not set';
-                        return \App\Models\ExamAttempt::resolveDiscount((int) $state)['label'];
-                    })
-                    ->badge()
-                    ->color(function ($state): string {
-                        if (is_null($state)) return 'gray';
-                        return \App\Models\ExamAttempt::resolveDiscount((int) $state)['color'];
-                    }),
+                    \Filament\Infolists\Components\TextEntry::make('discontinuance_effective_at')
+                        ->label('Effectivity Date')
+                        ->date('F d, Y')
+                        ->placeholder('—'),
 
-                \Filament\Infolists\Components\TextEntry::make('departmentHead.name')
-                    ->label('Department Head')
-                    ->placeholder('— Not Assigned —'),
-            ])
-            ->columns(4),
+                    \Filament\Infolists\Components\TextEntry::make('revocation_reason')
+                        ->label('Reason for Discontinuance')
+                        ->placeholder('—')
+                        ->columnSpanFull(),
+                ])
+                ->columns(2),
+        ]
+        : [
+            \Filament\Infolists\Components\Section::make('Scholar Information')
+                ->icon('heroicon-o-academic-cap')
+                ->schema([
+                    \Filament\Infolists\Components\TextEntry::make('student_id')
+                        ->label('Student ID')
+                        ->badge()
+                        ->color(fn ($state) => $state ? 'primary' : 'gray')
+                        ->formatStateUsing(fn ($state) => $state ?? 'Not Assigned'),
 
-        \Filament\Infolists\Components\Section::make('Personal Information')
-            ->icon('heroicon-o-user')
-            ->schema([
-                \Filament\Infolists\Components\TextEntry::make('first_name')
-                    ->label('First Name'),
+                    \Filament\Infolists\Components\TextEntry::make('status')
+                        ->label('Status')
+                        ->badge()
+                        ->color(fn (string $state): string => match ($state) {
+                            'active'       => 'success',
+                            'inactive'     => 'warning',
+                            'graduated'    => 'info',
+                            'discontinued' => 'danger',
+                            'revoked'      => 'danger',
+                            default        => 'gray',
+                        })
+                        ->formatStateUsing(fn (string $state): string => ucfirst($state)),
 
-                \Filament\Infolists\Components\TextEntry::make('middle_name')
-                    ->label('Middle Name')
-                    ->placeholder('—'),
+                    \Filament\Infolists\Components\TextEntry::make('term.school_year')
+                        ->label('Term')
+                        ->formatStateUsing(fn ($state, $record) => $record->term
+                            ? $record->term->school_year . ' — ' . $record->term->semester
+                            : '—')
+                        ->badge()
+                        ->color('gray'),
 
-                \Filament\Infolists\Components\TextEntry::make('last_name')
-                    ->label('Last Name'),
+                    \Filament\Infolists\Components\TextEntry::make('type_of_scholarship')
+                        ->label('Scholarship Type')
+                        ->badge()
+                        ->color('success'),
 
-                \Filament\Infolists\Components\TextEntry::make('extension_name')
-                    ->label('Extension')
-                    ->placeholder('—'),
+                    \Filament\Infolists\Components\TextEntry::make('batch_no')
+                        ->label('Batch')
+                        ->badge()
+                        ->color(fn ($state) => $state ? 'warning' : 'gray')
+                        ->formatStateUsing(fn ($state) => $state ?? 'Not Set'),
 
-                \Filament\Infolists\Components\TextEntry::make('sex')
-                    ->label('Sex')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'Male'   => 'info',
-                        'Female' => 'danger',
-                        default  => 'gray',
-                    }),
+                    \Filament\Infolists\Components\TextEntry::make('benefit')
+                        ->label('Benefit')
+                        ->formatStateUsing(function ($state): string {
+                            if (is_null($state)) return 'Not set';
+                            return \App\Models\ExamAttempt::resolveDiscount((int) $state)['label'];
+                        })
+                        ->badge()
+                        ->color(function ($state): string {
+                            if (is_null($state)) return 'gray';
+                            return \App\Models\ExamAttempt::resolveDiscount((int) $state)['color'];
+                        }),
 
-                \Filament\Infolists\Components\TextEntry::make('birthdate')
-                    ->label('Birthdate')
-                    ->date('F d, Y'),
+                    \Filament\Infolists\Components\TextEntry::make('departmentHead.name')
+                        ->label('Department Head')
+                        ->placeholder('— Not Assigned —'),
+                ])
+                ->columns(4),
 
-                \Filament\Infolists\Components\TextEntry::make('program')
-                    ->label('Program')
-                    ->badge()
-                    ->color('info'),
+            \Filament\Infolists\Components\Section::make('Personal Information')
+                ->icon('heroicon-o-user')
+                ->schema([
+                    \Filament\Infolists\Components\TextEntry::make('first_name')
+                        ->label('First Name'),
 
-                \Filament\Infolists\Components\TextEntry::make('year_level')
-                    ->label('Year Level')
-                    ->formatStateUsing(fn ($state) => match ((string) $state) {
-                        '1' => '1st Year',
-                        '2' => '2nd Year',
-                        '3' => '3rd Year',
-                        '4' => '4th Year',
-                        '5' => '5th Year',
-                        default => $state,
-                    })
-                    ->badge()
-                    ->color('primary'),
-            ])
-            ->columns(4),
+                    \Filament\Infolists\Components\TextEntry::make('middle_name')
+                        ->label('Middle Name')
+                        ->placeholder('—'),
 
-        \Filament\Infolists\Components\Section::make('Daily Time Records')
-            ->icon('heroicon-o-clock')
-            ->schema([
-                \Filament\Infolists\Components\RepeatableEntry::make('dailyTimeRecords')
-                    ->label('')
-                    ->schema([
-                        \Filament\Infolists\Components\TextEntry::make('date')
-                            ->label('Date')
-                            ->date('M d, Y'),
+                    \Filament\Infolists\Components\TextEntry::make('last_name')
+                        ->label('Last Name'),
 
-                        \Filament\Infolists\Components\TextEntry::make('office_assigned')
-                            ->label('Office')
-                            ->placeholder('—'),
+                    \Filament\Infolists\Components\TextEntry::make('extension_name')
+                        ->label('Extension')
+                        ->placeholder('—'),
 
-                        \Filament\Infolists\Components\TextEntry::make('total_hours')
-                            ->label('Total Hrs')
-                            ->numeric(2)
-                            ->suffix(' hrs')
-                            ->placeholder('—'),
+                    \Filament\Infolists\Components\TextEntry::make('sex')
+                        ->label('Sex')
+                        ->badge()
+                        ->color(fn (string $state): string => match ($state) {
+                            'Male'   => 'info',
+                            'Female' => 'danger',
+                            default  => 'gray',
+                        }),
 
-                        \Filament\Infolists\Components\TextEntry::make('status')
-                            ->badge()
-                            ->color(fn (string $state): string => match ($state) {
-                                'pending'   => 'warning',
-                                'approved'  => 'info',
-                                'submitted' => 'primary',
-                                'received'  => 'success',
-                                'rejected'  => 'danger',
-                                default     => 'gray',
-                            })
-                            ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+                    \Filament\Infolists\Components\TextEntry::make('birthdate')
+                        ->label('Birthdate')
+                        ->date('F d, Y'),
 
-                        \Filament\Infolists\Components\TextEntry::make('am_in')
-                            ->label('AM In')
-                            ->formatStateUsing(fn ($state) => $state
-                                ? \Carbon\Carbon::parse($state)->format('h:i A')
-                                : '—'),
+                    \Filament\Infolists\Components\TextEntry::make('program')
+                        ->label('Program')
+                        ->badge()
+                        ->color('info'),
 
-                        \Filament\Infolists\Components\TextEntry::make('am_out')
-                            ->label('AM Out')
-                            ->formatStateUsing(fn ($state) => $state
-                                ? \Carbon\Carbon::parse($state)->format('h:i A')
-                                : '—'),
+                    \Filament\Infolists\Components\TextEntry::make('year_level')
+                        ->label('Year Level')
+                        ->formatStateUsing(fn ($state) => match ((string) $state) {
+                            '1' => '1st Year',
+                            '2' => '2nd Year',
+                            '3' => '3rd Year',
+                            '4' => '4th Year',
+                            '5' => '5th Year',
+                            default => $state,
+                        })
+                        ->badge()
+                        ->color('primary'),
+                ])
+                ->columns(4),
 
-                        \Filament\Infolists\Components\TextEntry::make('pm_in')
-                            ->label('PM In')
-                            ->formatStateUsing(fn ($state) => $state
-                                ? \Carbon\Carbon::parse($state)->format('h:i A')
-                                : '—'),
+            \Filament\Infolists\Components\Section::make('Daily Time Records')
+                ->icon('heroicon-o-clock')
+                ->schema([
+                    \Filament\Infolists\Components\RepeatableEntry::make('dailyTimeRecords')
+                        ->label('')
+                        ->schema([
+                            \Filament\Infolists\Components\TextEntry::make('date')
+                                ->label('Date')
+                                ->date('M d, Y'),
 
-                        \Filament\Infolists\Components\TextEntry::make('pm_out')
-                            ->label('PM Out')
-                            ->formatStateUsing(fn ($state) => $state
-                                ? \Carbon\Carbon::parse($state)->format('h:i A')
-                                : '—'),
-                    ])
-                    ->columns(4),
-            ])
-              ->visible(fn (Scholars $record): bool => TypeOfScholarship::nameUsesDtr($record->type_of_scholarship)),
-    ]),
+                            \Filament\Infolists\Components\TextEntry::make('office_assigned')
+                                ->label('Office')
+                                ->placeholder('—'),
+
+                            \Filament\Infolists\Components\TextEntry::make('total_hours')
+                                ->label('Total Hrs')
+                                ->numeric(2)
+                                ->suffix(' hrs')
+                                ->placeholder('—'),
+
+                            \Filament\Infolists\Components\TextEntry::make('status')
+                                ->badge()
+                                ->color(fn (string $state): string => match ($state) {
+                                    'pending'   => 'warning',
+                                    'approved'  => 'info',
+                                    'submitted' => 'primary',
+                                    'received'  => 'success',
+                                    'rejected'  => 'danger',
+                                    default     => 'gray',
+                                })
+                                ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+
+                            \Filament\Infolists\Components\TextEntry::make('am_in')
+                                ->label('AM In')
+                                ->formatStateUsing(fn ($state) => $state
+                                    ? \Carbon\Carbon::parse($state)->format('h:i A')
+                                    : '—'),
+
+                            \Filament\Infolists\Components\TextEntry::make('am_out')
+                                ->label('AM Out')
+                                ->formatStateUsing(fn ($state) => $state
+                                    ? \Carbon\Carbon::parse($state)->format('h:i A')
+                                    : '—'),
+
+                            \Filament\Infolists\Components\TextEntry::make('pm_in')
+                                ->label('PM In')
+                                ->formatStateUsing(fn ($state) => $state
+                                    ? \Carbon\Carbon::parse($state)->format('h:i A')
+                                    : '—'),
+
+                            \Filament\Infolists\Components\TextEntry::make('pm_out')
+                                ->label('PM Out')
+                                ->formatStateUsing(fn ($state) => $state
+                                    ? \Carbon\Carbon::parse($state)->format('h:i A')
+                                    : '—'),
+                        ])
+                        ->columns(4),
+                ])
+                ->visible(fn (Scholars $record): bool => TypeOfScholarship::nameUsesDtr($record->type_of_scholarship)),
+        ]
+    ),
 
                     Tables\Actions\EditAction::make()
                         ->visible(fn () => ! static::isRestrictedToOwnScholars()),

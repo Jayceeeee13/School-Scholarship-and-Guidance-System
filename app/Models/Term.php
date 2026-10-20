@@ -7,14 +7,18 @@ use Illuminate\Database\Eloquent\Model;
 class Term extends Model
 {
     protected $fillable = [
-        'school_year',
-        'semester',
-        'is_active',
-    ];
+    'school_year',
+    'semester',
+    'starts_on',
+    'ends_on',
+    'is_active',
+];
 
-    protected $casts = [
-        'is_active' => 'boolean',
-    ];
+protected $casts = [
+    'is_active' => 'boolean',
+    'starts_on' => 'date',
+    'ends_on'   => 'date',
+];
 
     // Scope to get only active term
     public function scopeActive($query)

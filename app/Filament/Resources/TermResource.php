@@ -50,6 +50,20 @@ class TermResource extends Resource
                             ])
                             ->required(),
 
+                        Forms\Components\DatePicker::make('starts_on')
+    ->label('Start Date')
+    ->native(false)
+    ->displayFormat('F d, Y')
+    ->required()
+    ->live(),
+
+Forms\Components\DatePicker::make('ends_on')
+    ->label('End Date')
+    ->native(false)
+    ->displayFormat('F d, Y')
+    ->required()
+    ->afterOrEqual('starts_on'),
+
                         Forms\Components\Toggle::make('is_active')
                             ->label('Set as Active Term')
                             ->helperText('Only one term can be active at a time. Enabling this will deactivate all others.')
@@ -71,6 +85,18 @@ class TermResource extends Resource
                 Tables\Columns\TextColumn::make('semester')
                     ->searchable()
                     ->sortable(),
+
+                    Tables\Columns\TextColumn::make('starts_on')
+    ->label('Start')
+    ->date('M d, Y')
+    ->placeholder('Not set')
+    ->sortable(),
+
+Tables\Columns\TextColumn::make('ends_on')
+    ->label('End')
+    ->date('M d, Y')
+    ->placeholder('Not set')
+    ->sortable(),
 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Active')

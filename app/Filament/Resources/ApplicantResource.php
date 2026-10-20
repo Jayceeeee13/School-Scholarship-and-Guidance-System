@@ -597,6 +597,34 @@ TextInput::make('age')
                 Tables\Filters\Filter::make('has_interview')
                     ->label('Has Interview Notes')
                     ->query(fn (Builder $query) => $query->whereNotNull('interview')->where('interview', '!=', '')),
+
+                    Tables\Filters\SelectFilter::make('term')
+    ->label('School Year & Semester')
+    ->options(fn () => \App\Models\Term::query()
+        ->whereNotNull('starts_on')
+        ->whereNotNull('ends_on')
+        ->orderByDesc('starts_on')
+        ->get()
+        ->mapWithKeys(fn ($term) => [$term->id => $term->label])
+        ->all())
+    ->placeholder('All terms')
+    ->query(function (Builder $query, array $data): Builder {
+        if (blank($data['value'] ?? null)) {
+            return $query;
+        }
+
+        $term = \App\Models\Term::find($data['value']);
+
+        if (! $term?->starts_on || ! $term?->ends_on) {
+            return $query;
+        }
+
+        // created_at is a datetime, so cover the whole last day of the term
+        return $query->whereBetween('created_at', [
+            $term->starts_on->copy()->startOfDay(),
+            $term->ends_on->copy()->endOfDay(),
+        ]);
+    }),
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([

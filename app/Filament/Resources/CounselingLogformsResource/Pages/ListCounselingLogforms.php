@@ -62,12 +62,21 @@ class ListCounselingLogforms extends ListRecords
                 ->visible(fn (): bool => $this->activeTab === 'logforms'),
 
             Actions\Action::make('print')
-                ->label('Print')
-                ->icon('heroicon-o-printer')
-                ->color('gray')
-                ->url(fn () => route('counseling-logforms.print'))
-                ->openUrlInNewTab()
-                ->visible(fn (): bool => $this->activeTab === 'logforms'),
+    ->label('Print')
+    ->icon('heroicon-o-printer')
+    ->color('gray')
+    ->url(function () {
+        $filters = $this->tableFilters ?? [];
+
+        return route('counseling-logforms.print', array_filter([
+            'from'    => $filters['date_range']['from'] ?? null,
+            'until'   => $filters['date_range']['until'] ?? null,
+            'type'    => $filters['type']['value'] ?? null,
+            'term_id' => $filters['term_id']['value'] ?? null,
+        ]));
+    })
+    ->openUrlInNewTab()
+    ->visible(fn (): bool => $this->activeTab === 'logforms'),
         ];
     }
 

@@ -339,6 +339,49 @@ class ListCounselingLogforms extends ListRecords
         })
         ->searchable()
         ->placeholder('All Terms'),
+        Tables\Filters\Filter::make('date_range')
+        ->form([
+            Forms\Components\DatePicker::make('from')
+                ->label('From')
+                ->native(false)
+                ->displayFormat('M d, Y')
+                ->maxDate(fn (Forms\Get $get) => $get('until') ?: now()),
+
+            Forms\Components\DatePicker::make('until')
+                ->label('Until')
+                ->native(false)
+                ->displayFormat('M d, Y')
+                ->minDate(fn (Forms\Get $get) => $get('from')),
+        ])
+        ->columns(2)
+        ->query(function (Builder $query, array $data): Builder {
+            return $query
+                ->when(
+                    $data['from'] ?? null,
+                    fn (Builder $q, $date) => $q->whereDate('created_at', '>=', $date)
+                )
+                ->when(
+                    $data['until'] ?? null,
+                    fn (Builder $q, $date) => $q->whereDate('created_at', '<=', $date)
+                );
+        })
+        ->indicateUsing(function (array $data): array {
+            $indicators = [];
+
+            if ($data['from'] ?? null) {
+                $indicators[] = Tables\Filters\Indicator::make(
+                    'From ' . \Carbon\Carbon::parse($data['from'])->format('M d, Y')
+                )->removeField('from');
+            }
+
+            if ($data['until'] ?? null) {
+                $indicators[] = Tables\Filters\Indicator::make(
+                    'Until ' . \Carbon\Carbon::parse($data['until'])->format('M d, Y')
+                )->removeField('until');
+            }
+
+            return $indicators;
+        }),
 ])
             ->actions([
                 Tables\Actions\ActionGroup::make([

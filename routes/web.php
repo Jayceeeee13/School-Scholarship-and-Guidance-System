@@ -278,6 +278,19 @@ Route::get('/test-auth', function () {
     ]);
 });
 
+Route::get('/debug-https-check', function () {
+    return response()->json([
+        'secure'             => request()->secure(),
+        'scheme'             => request()->getScheme(),
+        'x_forwarded_proto'  => request()->header('X-Forwarded-Proto'),
+        'x_forwarded_for'    => request()->header('X-Forwarded-For'),
+        'session_driver'     => config('session.driver'),
+        'session_lifetime'   => config('session.lifetime'),
+        'app_env'            => config('app.env'),
+        'app_debug'          => config('app.debug'),
+    ]);
+});
+
 Route::get('/test-calendar-direct', function () {
     return app(\App\Filament\Resources\CalendarResource\Pages\CalendarAppointments::class)->__invoke(request());
 });

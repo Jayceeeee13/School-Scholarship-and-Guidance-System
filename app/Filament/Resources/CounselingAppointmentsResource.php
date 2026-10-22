@@ -507,6 +507,17 @@ class CounselingAppointmentsResource extends Resource
                         ->color('primary'),
                 ]),
 
+            \Filament\Infolists\Components\Section::make('Cancellation Details')
+                ->icon('heroicon-o-x-circle')
+                ->iconColor('danger')
+                ->visible(fn ($record) => $record->status === 'cancelled')
+                ->schema([
+                    \Filament\Infolists\Components\TextEntry::make('cancellation_reason')
+                        ->label('Reason for Cancellation')
+                        ->placeholder('No reason provided')
+                        ->columnSpanFull(),
+                ]),
+
             \Filament\Infolists\Components\ViewEntry::make('guidance_history')
                 ->label('')
                 ->view('filament.infolists.guidance-history')
@@ -514,7 +525,6 @@ class CounselingAppointmentsResource extends Resource
                 ->columnSpanFull(),
         ]);
 }
-
     /**
      * Resolves the full guidance history (including follow-ups reached via
      * parent_appointment_id chains) for the student tied to $record. Shared

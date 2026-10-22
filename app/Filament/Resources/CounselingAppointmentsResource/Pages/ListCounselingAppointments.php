@@ -245,6 +245,14 @@ if ($this->activeTab === 'all') {
                         fn () => $this->activeTab === 'endorsed'
                     ),
 
+                    Tables\Columns\TextColumn::make('cancellation_reason')
+    ->label('Cancellation Reason')
+    ->limit(50)
+    ->tooltip(fn ($state) => $state)
+    ->placeholder('—')
+    ->toggleable(isToggledHiddenByDefault: true)
+    ->hidden(fn () => $this->activeTab === 'endorsed'),
+
                 /*
                 |--------------------------------------------------------------------------
                 | Endorsement Columns

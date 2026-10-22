@@ -201,22 +201,33 @@
         </div>
         <h3 id="cancel-title" class="mb-1 font-display text-lg font-bold text-slate-900">Cancel Appointment?</h3>
         <p id="cancel-label" class="mb-1 text-sm text-slate-500"></p>
-        <p class="mb-6 text-xs text-slate-400">This action cannot be undone. You can book a new appointment afterwards.</p>
+        <p class="mb-5 text-xs text-slate-400">This action cannot be undone. You can book a new appointment afterwards.</p>
 
-        <div class="flex gap-3">
-            <button type="button" onclick="closeCancel()"
-                    class="flex-1 rounded-full border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 active:scale-95">
-                Keep It
-            </button>
-            <form id="cancel-form" method="POST" class="flex-1">
-                @csrf
-                @method('PATCH')
+        <form id="cancel-form" method="POST">
+            @csrf
+            @method('PATCH')
+
+            <div class="mb-5 text-left">
+                <label for="cancellation_reason" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                    Reason for cancellation <span class="text-red-500">*</span>
+                </label>
+                <textarea id="cancellation_reason" name="cancellation_reason" rows="3" required
+                          placeholder="e.g. Schedule conflict, no longer needed..."
+                          class="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-700 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100"></textarea>
+                <p id="cancel-reason-error" class="mt-1 hidden text-xs text-red-500">Please provide a reason for cancelling.</p>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" onclick="closeCancel()"
+                        class="flex-1 rounded-full border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 active:scale-95">
+                    Keep It
+                </button>
                 <button type="submit"
-                        class="w-full rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 active:scale-95">
+                        class="flex-1 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 active:scale-95">
                     Yes, Cancel
                 </button>
-            </form>
-        </div>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -419,10 +430,15 @@
 
 <script>
     const cancelModal = document.getElementById('cancel-modal');
+    const cancelForm = document.getElementById('cancel-form');
+    const cancelReasonInput = document.getElementById('cancellation_reason');
+    const cancelReasonError = document.getElementById('cancel-reason-error');
 
     function openCancel(btn) {
-        document.getElementById('cancel-form').action = btn.dataset.action;
+        cancelForm.action = btn.dataset.action;
         document.getElementById('cancel-label').textContent = btn.dataset.label;
+        cancelReasonInput.value = '';
+        cancelReasonError.classList.add('hidden');
         cancelModal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
     }
@@ -431,6 +447,14 @@
         document.body.style.overflow = '';
     }
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCancel(); });
+
+    cancelForm.addEventListener('submit', function (e) {
+        if (!cancelReasonInput.value.trim()) {
+            e.preventDefault();
+            cancelReasonError.classList.remove('hidden');
+            cancelReasonInput.focus();
+        }
+    });
 </script>
 
 </body>

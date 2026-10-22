@@ -79,27 +79,34 @@ class CounselingAppointmentController extends Controller
         return view('appointment', compact('appointments'));
     }
 
-    public function cancel(CounselingAppointments $appointment): \Illuminate\Http\RedirectResponse
-    {
-        abort_if(
-            $appointment->student_id !== auth()->user()->student?->id,
-            403
-        );
+    public function cancel(Request $request, CounselingAppointments $appointment): \Illuminate\Http\RedirectResponse
+{
+    abort_if(
+        $appointment->student_id !== auth()->user()->student?->id,
+        403
+    );
 
-        abort_if(
-            !in_array($appointment->status, ['pending', 'approved']),
-            422
-        );
+    abort_if(
+        !in_array($appointment->status, ['pending', 'approved']),
+        422
+    );
 
-        $appointment->update(['status' => 'cancelled']);
+    $validated = $request->validate([
+        'cancellation_reason' => 'required|string|max:1000',
+    ]);
 
-        // ── Notify all Admin & Guidance users in the Filament panel bell ─────
-        $appointment->notifyAdmin('cancelled');
-        // ─────────────────────────────────────────────────────────────────────
+    $appointment->update([
+        'status'               => 'cancelled',
+        'cancellation_reason'  => $validated['cancellation_reason'],
+    ]);
 
-        return back()->with(
-            'appointment_cancelled',
-            'Your appointment on ' . $appointment->counseling_date->format('F d, Y') . ' has been cancelled.'
-        );
-    }
+    // ── Notify all Admin & Guidance users in the Filament panel bell ─────
+    $appointment->notifyAdmin('cancelled');
+    // ─────────────────────────────────────────────────────────────────────
+
+    return back()->with(
+        'appointment_cancelled',
+        'Your appointment on ' . $appointment->counseling_date->format('F d, Y') . ' has been cancelled.'
+    );
+}
 }

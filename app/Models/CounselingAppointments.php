@@ -28,6 +28,7 @@ class CounselingAppointments extends Model
         'support_needed_id',
         'concern',
         'status',
+        'cancellation_reason',
         'approved_at',
         'archived_at',
     ];

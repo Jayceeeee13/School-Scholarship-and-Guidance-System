@@ -186,7 +186,7 @@
 
 <div class="no-print">
     <button onclick="window.print()">🖨️ Print / Save as PDF</button>
-    <a href="javascript:history.back()">← Go Back</a>
+    <a href="#" onclick="goBackOrClose(event)">← Go Back</a>
 </div>
 
 <div class="page">
@@ -347,5 +347,28 @@
     </div>
 
 </div>
+<script>
+    function goBackOrClose(e) {
+        e.preventDefault();
+
+        // If this tab has real history (opened via a normal link click,
+        // not window.open), going back works fine.
+        if (window.history.length > 1 && document.referrer) {
+            window.history.back();
+            return;
+        }
+
+        // Otherwise this was opened as a new tab (e.g. Filament's
+        // openUrlInNewTab()) with no history — just close it.
+        window.close();
+
+        // If the browser blocks window.close() (some browsers only allow
+        // closing tabs that were opened by script), fall back to a safe
+        // destination instead of leaving a dead link.
+        setTimeout(() => {
+            window.location.href = '/admin/reports-page';
+        }, 300);
+    }
+</script>
 </body>
 </html>

@@ -614,6 +614,47 @@ class ListUsers extends ListRecords
                 )
                 ->recordUrl(null)
                 ->filters([
+                    Tables\Filters\SelectFilter::make('quick_range')
+        ->label('Quick Range')
+        ->options([
+            '1h'   => 'Last 1 Hour',
+            '6h'   => 'Last 6 Hours',
+            '24h'  => 'Last 24 Hours',
+            'today'=> 'Today',
+            '7d'   => 'Last 7 Days',
+            '30d'  => 'Last 30 Days',
+        ])
+        ->placeholder('Any time')
+        ->query(function (Builder $query, array $data): Builder {
+            if (blank($data['value'] ?? null)) {
+                return $query;
+            }
+
+            return match ($data['value']) {
+                '1h'    => $query->where('created_at', '>=', now()->subHour()),
+                '6h'    => $query->where('created_at', '>=', now()->subHours(6)),
+                '24h'   => $query->where('created_at', '>=', now()->subDay()),
+                'today' => $query->whereDate('created_at', today()),
+                '7d'    => $query->where('created_at', '>=', now()->subDays(7)),
+                '30d'   => $query->where('created_at', '>=', now()->subDays(30)),
+                default => $query,
+            };
+        })
+        ->indicateUsing(function (array $data): ?string {
+            if (blank($data['value'] ?? null)) {
+                return null;
+            }
+
+            return match ($data['value']) {
+                '1h'    => 'Last 1 Hour',
+                '6h'    => 'Last 6 Hours',
+                '24h'   => 'Last 24 Hours',
+                'today' => 'Today',
+                '7d'    => 'Last 7 Days',
+                '30d'   => 'Last 30 Days',
+                default => null,
+            };
+        }),
             Tables\Filters\Filter::make('created_at')
                 ->label('Date Range')
                 ->form([

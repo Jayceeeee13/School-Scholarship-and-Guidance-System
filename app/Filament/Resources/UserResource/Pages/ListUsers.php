@@ -613,6 +613,47 @@ class ListUsers extends ListRecords
                         ->latest()
                 )
                 ->recordUrl(null)
+                ->filters([
+            Tables\Filters\Filter::make('created_at')
+                ->label('Date Range')
+                ->form([
+                    Forms\Components\DatePicker::make('date_from')
+                        ->label('From Date')
+                        ->native(false)
+                        ->displayFormat('M d, Y'),
+
+                    Forms\Components\DatePicker::make('date_until')
+                        ->label('Until Date')
+                        ->native(false)
+                        ->displayFormat('M d, Y'),
+                ])
+                ->query(function (Builder $query, array $data): Builder {
+                    return $query
+                        ->when(
+                            $data['date_from'] ?? null,
+                            fn ($q) => $q->whereDate('created_at', '>=', $data['date_from'])
+                        )
+                        ->when(
+                            $data['date_until'] ?? null,
+                            fn ($q) => $q->whereDate('created_at', '<=', $data['date_until'])
+                        );
+                })
+                ->indicateUsing(function (array $data): array {
+                    $indicators = [];
+
+                    if ($data['date_from'] ?? null) {
+                        $indicators[] = 'From ' . \Carbon\Carbon::parse($data['date_from'])->format('M d, Y');
+                    }
+
+                    if ($data['date_until'] ?? null) {
+                        $indicators[] = 'Until ' . \Carbon\Carbon::parse($data['date_until'])->format('M d, Y');
+                    }
+
+                    return $indicators;
+                }),
+        ])
+        ->filtersLayout(\Filament\Tables\Enums\FiltersLayout::AboveContent)
+        ->filtersFormColumns(2)
                 ->columns([
                     TextColumn::make('created_at')
                         ->label('When')

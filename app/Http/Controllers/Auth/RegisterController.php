@@ -35,10 +35,10 @@ class RegisterController extends Controller
         ]);
 
         // Verify against students table
-        $student = Students::where('student_id', $validated['student_id'])
-            ->where('last_name', $validated['last_name_enrolled'])
-            ->whereDate('birth_date', $validated['birthdate_enrolled'])
-            ->first();
+        $student = Students::whereRaw('TRIM(student_id) = ?', [trim($validated['student_id'])])
+    ->whereRaw('LOWER(TRIM(last_name)) = ?', [strtolower(trim($validated['last_name_enrolled']))])
+    ->whereDate('birth_date', $validated['birthdate_enrolled'])
+    ->first();
 
         if (! $student) {
             return back()->withErrors([

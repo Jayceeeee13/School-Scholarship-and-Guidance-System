@@ -31,6 +31,8 @@
             --slate-border: #e2e8f0;
             --text-main:    #1a202c;
             --text-muted:   #64748b;
+            --error:        #dc2626;
+            --error-soft:   #fef2f2;
         }
 
         * { box-sizing: border-box; }
@@ -184,6 +186,44 @@
             color: var(--green-mid);
         }
 
+        /* ── Validation states ── */
+        .field-input.has-error {
+            border-color: var(--error);
+            background-color: var(--error-soft);
+        }
+        .field-input.has-error:focus {
+            border-color: var(--error);
+            box-shadow: 0 0 0 3px rgba(220,38,38,0.12);
+        }
+        .field-error {
+            display: none;
+            margin: 6px 0 0;
+            font-size: 0.72rem;
+            line-height: 1.4;
+            font-weight: 600;
+            color: var(--error);
+        }
+        .field-error:not(:empty) { display: block; }
+
+        .hint {
+            margin: 6px 0 0;
+            font-size: 0.68rem;
+            color: #94a3b8;
+        }
+
+        .error-summary {
+            background: var(--error-soft);
+            border: 1px solid #fecaca;
+            border-left: 4px solid var(--error);
+            border-radius: 12px;
+            padding: 14px 18px;
+            font-size: 0.82rem;
+            color: #991b1b;
+        }
+        .error-summary strong { display: block; margin-bottom: 6px; }
+        .error-summary ul { margin: 0; padding-left: 18px; }
+        .error-summary li { margin-bottom: 2px; }
+
         .controls-box {
             background: var(--slate-light);
             border: 1.5px solid var(--slate-border);
@@ -255,6 +295,10 @@
             box-shadow: 0 4px 14px rgba(20,90,50,0.3);
         }
         .btn-submit:active { transform: scale(0.98); }
+        .btn-submit:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
 
         .req { color: #e53e3e; }
 
@@ -294,6 +338,12 @@
             gap: 10px;
             font-size: 0.875rem;
             font-weight: 600;
+        }
+
+        @media (max-width: 640px) {
+            .card-header { padding: 20px; }
+            form.app-form { padding: 24px 20px !important; }
+            .grid-2 { grid-template-columns: 1fr !important; }
         }
     </style>
 </head>
@@ -395,20 +445,37 @@
                 </span>
             </div>
 
-            <form method="POST"
+            <form id="applicationForm"
+                  class="app-form"
+                  method="POST"
                   action="{{ route('application_new.post') }}"
                   enctype="multipart/form-data"
+                  novalidate
                   style="padding:32px 40px;display:flex;flex-direction:column;gap:32px;">
                 @csrf
 
+                {{-- ── SERVER-SIDE ERROR SUMMARY ─────────────────── --}}
+                @if ($errors->any())
+                    <div class="error-summary" role="alert">
+                        <strong>Please fix the following before submitting:</strong>
+                        <ul>
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 {{-- ── TOP CONTROLS ──────────────────────────────── --}}
                 <div class="controls-box">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
 
                         {{-- Applicant Type --}}
                         <div>
                             <label class="field-label">Applicant Type <span class="req">*</span></label>
-                            <select name="type_of_application_id" class="field-input" required>
+                            <select name="type_of_application_id"
+                                    class="field-input {{ $errors->has('type_of_application_id') ? 'has-error' : '' }}"
+                                    required>
                                 <option value="">Select Type</option>
                                 @foreach($applicantTypes as $type)
                                     <option value="{{ $type->id }}" {{ old('type_of_application_id') == $type->id ? 'selected' : '' }}>
@@ -416,6 +483,7 @@
                                     </option>
                                 @endforeach
                             </select>
+                            <p class="field-error" data-error-for="type_of_application_id">{{ $errors->first('type_of_application_id') }}</p>
                         </div>
 
                         {{-- Scholarship Type --}}
@@ -443,7 +511,9 @@
                                     Set automatically to Academic because you have taken the scholarship exam.
                                 </p>
                             @else
-                                <select name="type_of_scholarship_id" class="field-input" required>
+                                <select name="type_of_scholarship_id"
+                                        class="field-input {{ $errors->has('type_of_scholarship_id') ? 'has-error' : '' }}"
+                                        required>
                                     <option value="">Select Scholarship</option>
                                     @foreach($scholarshipTypes as $type)
                                         <option
@@ -455,6 +525,7 @@
                                     @endforeach
                                 </select>
                             @endif
+                            <p class="field-error" data-error-for="type_of_scholarship_id">{{ $errors->first('type_of_scholarship_id') }}</p>
                         </div>
 
                         {{-- 2×2 Picture --}}
@@ -464,11 +535,12 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#94a3b8" stroke-width="2" style="flex-shrink:0;">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                 </svg>
-                                <span x-text="fileName || 'Click to upload .jpg, .jpeg, or .png'" style="font-size:0.85rem;"></span>
+                                <span x-text="fileName || 'Click to upload .jpg, .jpeg, or .png (max 5 MB)'" style="font-size:0.85rem;"></span>
                             </label>
                             <input id="picture" name="picture" type="file"
-                                   accept=".jpg,.jpeg,.png" style="display:none;"
-                                   @change="fileName = $event.target.files[0]?.name || ''">
+                                   accept=".jpg,.jpeg,.png,image/jpeg,image/png" style="display:none;"
+                                   @change="fileName = validatePicture($event.target) ? ($event.target.files[0]?.name || '') : ''">
+                            <p class="field-error" data-error-for="picture">{{ $errors->first('picture') }}</p>
                         </div>
 
                     </div>
@@ -483,39 +555,52 @@
                         <span class="section-title">Personal Information</span>
                     </div>
 
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
 
                         <div>
                             <label class="field-label">First Name <span class="req">*</span></label>
-                            <input type="text" name="first_name" required
+                            <input type="text" name="first_name" required maxlength="100"
+                                   autocomplete="given-name"
                                    value="{{ old('first_name') }}"
-                                   placeholder="e.g. Juan" class="field-input">
+                                   placeholder="e.g. Juan"
+                                   class="field-input {{ $errors->has('first_name') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="first_name">{{ $errors->first('first_name') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Middle Name</label>
-                            <input type="text" name="middle_name"
+                            <input type="text" name="middle_name" maxlength="100"
+                                   autocomplete="additional-name"
                                    value="{{ old('middle_name') }}"
-                                   placeholder="e.g. Santos" class="field-input">
+                                   placeholder="e.g. Santos"
+                                   class="field-input {{ $errors->has('middle_name') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="middle_name">{{ $errors->first('middle_name') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Last Name <span class="req">*</span></label>
-                            <input type="text" name="last_name" required
+                            <input type="text" name="last_name" required maxlength="100"
+                                   autocomplete="family-name"
                                    value="{{ old('last_name') }}"
-                                   placeholder="e.g. Dela Cruz" class="field-input">
+                                   placeholder="e.g. Dela Cruz"
+                                   class="field-input {{ $errors->has('last_name') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="last_name">{{ $errors->first('last_name') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Extension Name</label>
-                            <input type="text" name="extension_name"
+                            <input type="text" name="extension_name" maxlength="20"
                                    value="{{ old('extension_name') }}"
-                                   placeholder="e.g. Jr., Sr., III" class="field-input">
+                                   placeholder="e.g. Jr., Sr., III"
+                                   class="field-input {{ $errors->has('extension_name') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="extension_name">{{ $errors->first('extension_name') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Program <span class="req">*</span></label>
-                            <select name="program_id" class="field-input" required>
+                            <select name="program_id"
+                                    class="field-input {{ $errors->has('program_id') ? 'has-error' : '' }}"
+                                    required>
                                 <option value="">Select Program</option>
                                 @foreach($programs as $program)
                                     <option value="{{ $program->id }}" {{ old('program_id') == $program->id ? 'selected' : '' }}>
@@ -523,11 +608,14 @@
                                     </option>
                                 @endforeach
                             </select>
+                            <p class="field-error" data-error-for="program_id">{{ $errors->first('program_id') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Year Level <span class="req">*</span></label>
-                            <select name="year_level" class="field-input" required>
+                            <select name="year_level"
+                                    class="field-input {{ $errors->has('year_level') ? 'has-error' : '' }}"
+                                    required>
                                 <option value="">Select Year Level</option>
                                 @foreach(['1st Year','2nd Year','3rd Year','4th Year','5th Year'] as $level)
                                     <option value="{{ $level }}" {{ old('year_level') === $level ? 'selected' : '' }}>
@@ -535,11 +623,14 @@
                                     </option>
                                 @endforeach
                             </select>
+                            <p class="field-error" data-error-for="year_level">{{ $errors->first('year_level') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Gender <span class="req">*</span></label>
-                            <select name="gender_id" class="field-input" required>
+                            <select name="gender_id"
+                                    class="field-input {{ $errors->has('gender_id') ? 'has-error' : '' }}"
+                                    required>
                                 <option value="">Select Gender</option>
                                 @foreach($genders as $gender)
                                     <option value="{{ $gender->id }}" {{ old('gender_id') == $gender->id ? 'selected' : '' }}>
@@ -547,13 +638,17 @@
                                     </option>
                                 @endforeach
                             </select>
+                            <p class="field-error" data-error-for="gender_id">{{ $errors->first('gender_id') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Contact Number</label>
-                            <input type="tel" name="contact_no"
+                            <input type="tel" name="contact_no" maxlength="16" inputmode="tel"
+                                   autocomplete="tel"
                                    value="{{ old('contact_no') }}"
-                                   placeholder="09XX-XXX-XXXX" class="field-input">
+                                   placeholder="09XX-XXX-XXXX"
+                                   class="field-input {{ $errors->has('contact_no') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="contact_no">{{ $errors->first('contact_no') }}</p>
                         </div>
 
                         {{-- Birth Date --}}
@@ -561,9 +656,12 @@
                             <label class="field-label">Birth Date</label>
                             <input type="date" name="birthdate"
                                    id="birthdate"
+                                   min="1930-01-02"
+                                   max="{{ now()->subDay()->toDateString() }}"
                                    value="{{ old('birthdate') }}"
-                                   class="field-input" style="color:#4a5568;"
-                                   onchange="computeAge()">
+                                   class="field-input {{ $errors->has('birthdate') ? 'has-error' : '' }}"
+                                   style="color:#4a5568;">
+                            <p class="field-error" data-error-for="birthdate">{{ $errors->first('birthdate') }}</p>
                         </div>
 
                         {{-- Age (auto-computed) --}}
@@ -584,16 +682,20 @@
 
                         <div>
                             <label class="field-label">Religion</label>
-                            <input type="text" name="religion"
+                            <input type="text" name="religion" maxlength="100"
                                    value="{{ old('religion') }}"
-                                   placeholder="e.g. Roman Catholic" class="field-input">
+                                   placeholder="e.g. Roman Catholic"
+                                   class="field-input {{ $errors->has('religion') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="religion">{{ $errors->first('religion') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Facebook Account</label>
-                            <input type="text" name="facebook_account"
+                            <input type="text" name="facebook_account" maxlength="100"
                                    value="{{ old('facebook_account') }}"
-                                   placeholder="facebook.com/yourprofile" class="field-input">
+                                   placeholder="facebook.com/yourprofile"
+                                   class="field-input {{ $errors->has('facebook_account') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="facebook_account">{{ $errors->first('facebook_account') }}</p>
                         </div>
 
                     </div>
@@ -608,48 +710,60 @@
                         <span class="section-title">Family Background</span>
                     </div>
 
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
 
                         <div>
                             <label class="field-label">Father's Name <span class="req">*</span></label>
-                            <input type="text" name="fathers_name" required
+                            <input type="text" name="fathers_name" required maxlength="100"
                                    value="{{ old('fathers_name') }}"
-                                   placeholder="Full name" class="field-input">
+                                   placeholder="Full name"
+                                   class="field-input {{ $errors->has('fathers_name') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="fathers_name">{{ $errors->first('fathers_name') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Father's Contact No.</label>
-                            <input type="tel" name="fathers_contact_no"
+                            <input type="tel" name="fathers_contact_no" maxlength="16" inputmode="tel"
                                    value="{{ old('fathers_contact_no') }}"
-                                   placeholder="09XX-XXX-XXXX" class="field-input">
+                                   placeholder="09XX-XXX-XXXX"
+                                   class="field-input {{ $errors->has('fathers_contact_no') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="fathers_contact_no">{{ $errors->first('fathers_contact_no') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Mother's Name <span class="req">*</span></label>
-                            <input type="text" name="mothers_name" required
+                            <input type="text" name="mothers_name" required maxlength="100"
                                    value="{{ old('mothers_name') }}"
-                                   placeholder="Full name" class="field-input">
+                                   placeholder="Full name"
+                                   class="field-input {{ $errors->has('mothers_name') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="mothers_name">{{ $errors->first('mothers_name') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Mother's Contact No.</label>
-                            <input type="tel" name="mothers_contact_no"
+                            <input type="tel" name="mothers_contact_no" maxlength="16" inputmode="tel"
                                    value="{{ old('mothers_contact_no') }}"
-                                   placeholder="09XX-XXX-XXXX" class="field-input">
+                                   placeholder="09XX-XXX-XXXX"
+                                   class="field-input {{ $errors->has('mothers_contact_no') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="mothers_contact_no">{{ $errors->first('mothers_contact_no') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Guardian</label>
-                            <input type="text" name="guardian"
+                            <input type="text" name="guardian" maxlength="100"
                                    value="{{ old('guardian') }}"
-                                   placeholder="Full name (if applicable)" class="field-input">
+                                   placeholder="Full name (if applicable)"
+                                   class="field-input {{ $errors->has('guardian') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="guardian">{{ $errors->first('guardian') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Guardian Contact No.</label>
-                            <input type="tel" name="guardian_contact_no"
+                            <input type="tel" name="guardian_contact_no" maxlength="16" inputmode="tel"
                                    value="{{ old('guardian_contact_no') }}"
-                                   placeholder="09XX-XXX-XXXX" class="field-input">
+                                   placeholder="09XX-XXX-XXXX"
+                                   class="field-input {{ $errors->has('guardian_contact_no') ? 'has-error' : '' }}">
+                            <p class="field-error" data-error-for="guardian_contact_no">{{ $errors->first('guardian_contact_no') }}</p>
                         </div>
 
                     </div>
@@ -661,8 +775,8 @@
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         Back to Home
                     </a>
-                    <button type="submit" class="btn-submit">
-                        Submit Application
+                    <button type="submit" id="submitBtn" class="btn-submit">
+                        <span id="submitLabel">Submit Application</span>
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M5 12l5-5-5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
                 </div>
@@ -688,6 +802,9 @@
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
 <script>
+    /* ═══════════════════════════════════════════════════════════════
+       Age auto-compute
+    ═══════════════════════════════════════════════════════════════ */
     function computeAge() {
         const birthdateVal = document.getElementById('birthdate').value;
         const ageInput     = document.getElementById('age');
@@ -697,10 +814,10 @@
             return;
         }
 
-        const birth   = new Date(birthdateVal);
-        const today   = new Date();
-        let   age     = today.getFullYear() - birth.getFullYear();
-        const mDiff   = today.getMonth() - birth.getMonth();
+        const birth = new Date(birthdateVal);
+        const today = new Date();
+        let   age   = today.getFullYear() - birth.getFullYear();
+        const mDiff = today.getMonth() - birth.getMonth();
 
         // Subtract 1 if birthday hasn't occurred yet this year
         if (mDiff < 0 || (mDiff === 0 && today.getDate() < birth.getDate())) {
@@ -710,12 +827,182 @@
         ageInput.value = age > 0 ? age : '';
     }
 
-    // Re-compute on page load to handle old('birthdate') after validation failure
-    document.addEventListener('DOMContentLoaded', function () {
-        if (document.getElementById('birthdate') &&
-            document.getElementById('birthdate').value) {
-            computeAge();
+    /* ═══════════════════════════════════════════════════════════════
+       Client-side validation — mirrors ApplicationController rules.
+       (The server still re-validates everything on submit.)
+    ═══════════════════════════════════════════════════════════════ */
+    const NAME_RE  = /^[\p{L}\s\-.']+$/u;
+    const EXT_RE   = /^[A-Za-z.\s]+$/;
+    const PHONE_RE = /^(09\d{9}|\+639\d{9})$/;
+
+    const NAME_MSG  = 'may only contain letters, spaces, hyphens, periods, and apostrophes.';
+    const PHONE_MSG = 'must be a valid PH mobile number (e.g. 09171234567).';
+
+    const NAME_FIELDS  = ['first_name', 'middle_name', 'last_name', 'fathers_name', 'mothers_name', 'guardian'];
+    const PHONE_FIELDS = ['contact_no', 'fathers_contact_no', 'mothers_contact_no', 'guardian_contact_no'];
+
+    function nameRule(value, label, required) {
+        const v = value.trim();
+        if (!v)             return required ? label + ' is required.' : '';
+        if (v.length > 100) return label + ' must not exceed 100 characters.';
+        if (!NAME_RE.test(v)) return label + ' ' + NAME_MSG;
+        return '';
+    }
+
+    function phoneRule(value, label) {
+        const v = value.replace(/[\s\-]+/g, '');
+        if (!v) return '';
+        return PHONE_RE.test(v) ? '' : label + ' ' + PHONE_MSG;
+    }
+
+    function maxRule(value, label, max) {
+        return value.trim().length > max ? label + ' must not exceed ' + max + ' characters.' : '';
+    }
+
+    const RULES = {
+        type_of_application_id: (v) => v ? '' : 'Please select an applicant type.',
+        type_of_scholarship_id: (v) => v ? '' : 'Please select a scholarship type.',
+
+        first_name:  (v) => nameRule(v, 'First name', true),
+        middle_name: (v) => nameRule(v, 'Middle name', false),
+        last_name:   (v) => nameRule(v, 'Last name', true),
+
+        extension_name: (v) => {
+            const t = v.trim();
+            if (!t) return '';
+            if (t.length > 20) return 'Extension name must not exceed 20 characters.';
+            return EXT_RE.test(t) ? '' : 'Extension name may only contain letters and periods (e.g. Jr., III).';
+        },
+
+        program_id: (v) => v ? '' : 'Please select a program.',
+        year_level: (v) => v ? '' : 'Please select a year level.',
+        gender_id:  (v) => v ? '' : 'Please select a gender.',
+
+        contact_no: (v) => phoneRule(v, 'Contact number'),
+
+        birthdate: (v) => {
+            if (!v) return '';
+            const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD (local)
+            if (v >= today)       return 'Birth date must be a past date.';
+            if (v <= '1930-01-01') return 'Please enter a valid birth date.';
+            return '';
+        },
+
+        religion:         (v) => maxRule(v, 'Religion', 100),
+        facebook_account: (v) => maxRule(v, 'Facebook account', 100),
+
+        fathers_name:       (v) => nameRule(v, "Father's name", true),
+        fathers_contact_no: (v) => phoneRule(v, "Father's contact number"),
+        mothers_name:       (v) => nameRule(v, "Mother's name", true),
+        mothers_contact_no: (v) => phoneRule(v, "Mother's contact number"),
+
+        guardian: (v) => {
+            const contact = document.querySelector('[name="guardian_contact_no"]').value.trim();
+            if (!v.trim() && contact) {
+                return 'Please enter the guardian name since a guardian contact number was provided.';
+            }
+            return nameRule(v, 'Guardian name', false);
+        },
+        guardian_contact_no: (v) => phoneRule(v, 'Guardian contact number'),
+    };
+
+    function setError(el, message) {
+        const box = document.querySelector('[data-error-for="' + el.name + '"]');
+        if (box) box.textContent = message;
+        el.classList.toggle('has-error', Boolean(message));
+        el.setAttribute('aria-invalid', message ? 'true' : 'false');
+    }
+
+    function validateField(el) {
+        const rule = RULES[el.name];
+        if (!rule || el.disabled) return true;
+        const message = rule(el.value);
+        setError(el, message);
+        return !message;
+    }
+
+    // Used by the picture input's Alpine @change handler.
+    function validatePicture(input) {
+        const box  = document.querySelector('[data-error-for="picture"]');
+        const file = input.files && input.files[0];
+        let message = '';
+
+        if (file) {
+            const okType = ['image/jpeg', 'image/png'].includes(file.type) || /\.(jpe?g|png)$/i.test(file.name);
+            if (!okType) {
+                message = 'The ID picture must be a .jpg, .jpeg, or .png file.';
+            } else if (file.size > 5 * 1024 * 1024) {
+                message = 'The ID picture must not be larger than 5 MB.';
+            }
         }
+
+        if (box) box.textContent = message;
+        if (message) input.value = ''; // discard the bad file
+        return !message;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('applicationForm');
+        if (!form) return;
+
+        const birth = document.getElementById('birthdate');
+        if (birth) {
+            birth.addEventListener('change', computeAge);
+            if (birth.value) computeAge(); // after a failed server validation
+        }
+
+        // ── Block invalid characters while typing ──────────────────
+        form.addEventListener('input', function (e) {
+            const el = e.target;
+
+            if (NAME_FIELDS.includes(el.name)) {
+                el.value = el.value.replace(/[^\p{L}\s\-.']/gu, '');
+            } else if (el.name === 'extension_name') {
+                el.value = el.value.replace(/[^A-Za-z.\s]/g, '');
+            } else if (PHONE_FIELDS.includes(el.name)) {
+                el.value = el.value.replace(/[^\d+\s\-]/g, '');
+            }
+
+            // Once a field shows an error, re-check live so it clears as soon as it's fixed.
+            if (el.classList.contains('has-error')) validateField(el);
+
+            // Guardian name depends on guardian contact.
+            if (el.name === 'guardian_contact_no') {
+                validateField(form.elements['guardian']);
+            }
+        });
+
+        // ── Validate when leaving a field / changing a select or date ──
+        form.addEventListener('focusout', function (e) { validateField(e.target); });
+        form.addEventListener('change',   function (e) { validateField(e.target); });
+
+        // ── Validate everything on submit ──────────────────────────
+        form.addEventListener('submit', function (e) {
+            let firstInvalid = null;
+
+            Array.from(form.elements).forEach(function (el) {
+                if (!RULES[el.name]) return;
+                if (!validateField(el) && !firstInvalid) firstInvalid = el;
+            });
+
+            const picture = document.getElementById('picture');
+            if (picture && !validatePicture(picture) && !firstInvalid) firstInvalid = picture;
+
+            if (firstInvalid) {
+                e.preventDefault();
+                const target = firstInvalid.type === 'file'
+                    ? document.querySelector('label[for="picture"]')
+                    : firstInvalid;
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (firstInvalid.type !== 'file') firstInvalid.focus({ preventScroll: true });
+                return;
+            }
+
+            // Prevent double submissions.
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            document.getElementById('submitLabel').textContent = 'Submitting…';
+        });
     });
 </script>
 

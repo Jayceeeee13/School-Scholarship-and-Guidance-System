@@ -23,6 +23,20 @@ class ApplicationController extends Controller
     // 09XXXXXXXXX or +639XXXXXXXXX (spaces/dashes are stripped before validating)
     private const PHONE_REGEX = '/^(09\d{9}|\+639\d{9})$/';
 
+    /**
+     * ID of the Academic scholarship type if the logged-in user has already
+     * finished an exam (completed_at filled in); otherwise null.
+     * When this returns an ID, the scholarship type is forced to Academic.
+     */
+    private function forcedAcademicId(): ?int
+    {
+        $hasTakenExam = ExamAttempt::where('user_id', Auth::id())
+            ->whereNotNull('completed_at')
+            ->exists();
+
+        return $hasTakenExam ? ExamAttempt::academicScholarshipId() : null;
+    }
+
     public function create()
     {
         // If user already has a submitted application, redirect away
@@ -38,11 +52,15 @@ class ApplicationController extends Controller
         $genders          = Gender::where('is_active', 1)->get();
         $programs         = Program::where('is_active', 1)->get();
 
+        // Exam takers are automatically set to the Academic scholarship type.
+        $academicId = $this->forcedAcademicId();
+
         return view('application_new', compact(
             'scholarshipTypes',
             'applicantTypes',
             'genders',
-            'programs'
+            'programs',
+            'academicId'
         ));
     }
 
@@ -52,6 +70,11 @@ class ApplicationController extends Controller
         if (Applicant::where('user_id', Auth::id())->exists()) {
             return redirect()->route('gvc')
                 ->with('already_applied', true);
+        }
+
+        // ── Exam takers are always Academic (ignore whatever was posted) ───
+        if ($academicId = $this->forcedAcademicId()) {
+            $request->merge(['type_of_scholarship_id' => $academicId]);
         }
 
         // ── Normalize input before validating ──────────────────────────────
@@ -172,10 +195,11 @@ class ApplicationController extends Controller
 
         // ── Pull exam discount as benefit ──────────────────────────────────
         // If the student took the exam BEFORE applying, read the discount from
-        // their latest completed attempt. If they take it AFTER applying, the
-        // ExamAttemptObserver::created() hook pushes it into applicant.benefit.
+        // their latest finished attempt (completed_at filled in). If they take
+        // it AFTER applying, the ExamAttemptObserver::created() hook pushes it
+        // into applicant.benefit.
         $examAttempt = ExamAttempt::where('user_id', Auth::id())
-            ->whereIn('status', ['completed', 'submitted'])
+            ->whereNotNull('completed_at')
             ->whereNotNull('discount')
             ->latest('completed_at')
             ->first();

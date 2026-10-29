@@ -166,6 +166,24 @@
             cursor: default;
         }
 
+        /* Locked scholarship type (exam takers → Academic) */
+        .field-input.is-locked,
+        select.field-input:disabled {
+            background-color: #f8fafb;
+            color: var(--text-muted);
+            cursor: not-allowed;
+            opacity: 1;
+        }
+        .lock-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            margin-top: 6px;
+            font-size: 0.72rem;
+            line-height: 1.4;
+            color: var(--green-mid);
+        }
+
         .controls-box {
             background: var(--slate-light);
             border: 1.5px solid var(--slate-border);
@@ -403,17 +421,40 @@
                         {{-- Scholarship Type --}}
                         <div>
                             <label class="field-label">Scholarship Type <span class="req">*</span></label>
-                            <select name="type_of_scholarship_id" class="field-input" required>
-                                <option value="">Select Scholarship</option>
-                                @foreach($scholarshipTypes as $type)
-                                    <option
-                                        value="{{ $type->id }}"
-                                        {{ old('type_of_scholarship_id') == $type->id ? 'selected' : '' }}
-                                        {{ $type->slots <= 0 ? 'disabled' : '' }}>
-                                        {{ $type->name }} — {{ $type->slots }} slot{{ $type->slots === 1 ? '' : 's' }} {{ $type->slots <= 0 ? '(Full)' : 'left' }}
-                                    </option>
-                                @endforeach
-                            </select>
+
+                            @if(!empty($academicId))
+                                {{-- Exam takers are automatically Academic. The disabled select is
+                                     display-only; the hidden input is what actually gets submitted. --}}
+                                <select class="field-input is-locked" disabled>
+                                    @foreach($scholarshipTypes as $type)
+                                        @if($type->id == $academicId)
+                                            <option value="{{ $type->id }}" selected>
+                                                {{ $type->name }} — {{ $type->slots }} slot{{ $type->slots === 1 ? '' : 's' }} {{ $type->slots <= 0 ? '(Full)' : 'left' }}
+                                            </option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                                <input type="hidden" name="type_of_scholarship_id" value="{{ $academicId }}">
+                                <p class="lock-note">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0;margin-top:1px;">
+                                        <rect x="5" y="11" width="14" height="9" rx="2"/>
+                                        <path stroke-linecap="round" d="M8 11V8a4 4 0 018 0v3"/>
+                                    </svg>
+                                    Set automatically to Academic because you have taken the scholarship exam.
+                                </p>
+                            @else
+                                <select name="type_of_scholarship_id" class="field-input" required>
+                                    <option value="">Select Scholarship</option>
+                                    @foreach($scholarshipTypes as $type)
+                                        <option
+                                            value="{{ $type->id }}"
+                                            {{ old('type_of_scholarship_id') == $type->id ? 'selected' : '' }}
+                                            {{ $type->slots <= 0 ? 'disabled' : '' }}>
+                                            {{ $type->name }} — {{ $type->slots }} slot{{ $type->slots === 1 ? '' : 's' }} {{ $type->slots <= 0 ? '(Full)' : 'left' }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            @endif
                         </div>
 
                         {{-- 2×2 Picture --}}

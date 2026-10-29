@@ -30,6 +30,47 @@ class ExamAttempt extends Model
         'archived_at'     => 'datetime',
     ];
 
+    // ── Auto-set scholarship type to Academic once an exam is finished ────
+
+    protected static function booted(): void
+    {
+        static::saved(function (ExamAttempt $attempt) {
+            // An exam counts as finished once completed_at is filled in.
+            if (is_null($attempt->completed_at)) {
+                return;
+            }
+
+            $academicId = static::academicScholarshipId();
+
+            if (! $academicId) {
+                return;
+            }
+
+            // Loop (instead of a bulk update) so the Applicant's activity
+            // logging trait still fires for each change.
+            Applicant::query()
+                ->where('user_id', $attempt->user_id)
+                ->where(function ($q) use ($academicId) {
+                    $q->whereNull('type_of_scholarship_id')
+                      ->orWhere('type_of_scholarship_id', '!=', $academicId);
+                })
+                ->get()
+                ->each(fn (Applicant $applicant) => $applicant->update([
+                    'type_of_scholarship_id' => $academicId,
+                ]));
+        });
+    }
+
+    /**
+     * ID of the "Academic" scholarship type (matched by name).
+     */
+    public static function academicScholarshipId(): ?int
+    {
+        return TypeOfScholarship::query()
+            ->where('name', 'like', '%academic%')
+            ->value('id');
+    }
+
     // ── Relationships ──────────────────────────────────────────────────────
 
     public function exam()

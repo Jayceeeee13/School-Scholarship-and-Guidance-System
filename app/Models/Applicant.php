@@ -48,6 +48,27 @@ class Applicant extends Model
         ];
     }
 
+    // ── Auto-set scholarship type to Academic if the user already finished an exam ──
+
+    protected static function booted(): void
+    {
+        static::creating(function (Applicant $applicant) {
+            if (! $applicant->user_id) {
+                return;
+            }
+
+            // An exam counts as finished once completed_at is filled in.
+            $hasTakenExam = ExamAttempt::query()
+                ->where('user_id', $applicant->user_id)
+                ->whereNotNull('completed_at')
+                ->exists();
+
+            if ($hasTakenExam && $academicId = ExamAttempt::academicScholarshipId()) {
+                $applicant->type_of_scholarship_id = $academicId;
+            }
+        });
+    }
+
     // ── Relationships ────────────────────────────────────────────────────
 
     /**
@@ -99,7 +120,7 @@ class Applicant extends Model
             'user_id',  // applicants.user_id
             'id'        // users.id
         )
-        ->whereIn('status', ['completed', 'submitted'])
+        ->whereNotNull('completed_at')
         ->latest('completed_at');
     }
 

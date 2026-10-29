@@ -36,9 +36,9 @@ class RegisterController extends Controller
 
         // Verify against students table
         $student = Students::whereRaw('TRIM(student_id) = ?', [trim($validated['student_id'])])
-    ->whereRaw('LOWER(TRIM(last_name)) = ?', [strtolower(trim($validated['last_name_enrolled']))])
-    ->whereDate('birth_date', $validated['birthdate_enrolled'])
-    ->first();
+            ->whereRaw('LOWER(TRIM(last_name)) = ?', [strtolower(trim($validated['last_name_enrolled']))])
+            ->whereDate('birth_date', $validated['birthdate_enrolled'])
+            ->first();
 
         if (! $student) {
             return back()->withErrors([
@@ -76,6 +76,10 @@ class RegisterController extends Controller
             'address'    => $student->address,
         ]);
 
+        // Also register the role in the roles relationship so the Users
+        // resource (and hasRole checks) recognise this account as a student.
+        $this->assignStudentRole($user);
+
         $student->update(['user_id' => $user->id]);
 
         return redirect()->route('login')
@@ -98,7 +102,7 @@ class RegisterController extends Controller
             'address'    => ['required', 'string', 'max:255'],
         ]);
 
-        User::create([
+        $user = User::create([
             'name'       => $validated['first_name'] . ' ' . $validated['last_name'],
             'last_name'  => $validated['last_name'],
             'email'      => $validated['email_unenrolled'],
@@ -110,6 +114,9 @@ class RegisterController extends Controller
             'address'    => $validated['address'],
         ]);
 
+        // Same as above: keep the roles relationship in sync.
+        $this->assignStudentRole($user);
+
         return redirect()->route('login')
             ->with('success', 'Account created! You can now log in.');
     }
@@ -117,5 +124,14 @@ class RegisterController extends Controller
     private function studentRoleId(): int
     {
         return Role::where('name', 'student')->value('id') ?? 4;
+    }
+
+    /**
+     * Attach the student role through the many-to-many roles relationship.
+     * syncWithoutDetaching() never creates a duplicate row.
+     */
+    private function assignStudentRole(User $user): void
+    {
+        $user->roles()->syncWithoutDetaching([$this->studentRoleId()]);
     }
 }

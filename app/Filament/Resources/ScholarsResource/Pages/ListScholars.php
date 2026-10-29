@@ -26,12 +26,6 @@ class ListScholars extends ListRecords
 
     protected static string $resource = ScholarsResource::class;
 
-    /**
-     * DTR statuses that still need the Department Head's approval/rejection.
-     * "complete" = all four punches are logged, but not yet approved.
-     */
-    protected const DTR_AWAITING_APPROVAL = ['pending', 'complete'];
-
     public function updatedActiveTab(): void
     {
         $this->resetTable();
@@ -71,37 +65,37 @@ class ListScholars extends ListRecords
      * assignment should be notified.
      */
     protected function notifyAdminAndScholarship(string $title, string $body, ?string $icon = null): void
-    {
-        $recipients = \App\Models\User::whereNull('archived_at')
-            ->get()
-            ->filter(fn ($user) => $user->hasAnyRole(['admin', 'scholarship']));
+{
+    $recipients = \App\Models\User::whereNull('archived_at')
+        ->get()
+        ->filter(fn ($user) => $user->hasAnyRole(['admin', 'scholarship']));
 
-        foreach ($recipients as $recipient) {
-            Notification::make()
-                ->title($title)
-                ->icon($icon ?? 'heroicon-o-bell')
-                ->body($body)
-                ->sendToDatabase($recipient);
-        }
+    foreach ($recipients as $recipient) {
+        Notification::make()
+            ->title($title)
+            ->icon($icon ?? 'heroicon-o-bell')
+            ->body($body)
+            ->sendToDatabase($recipient);
     }
+}
 
     /**
      * Notifies a scholar's assigned Department Head that their submitted
      * DTR has been received by Admin/Scholarship.
      */
     protected function notifyDepartmentHeadOfReceipt(\App\Models\User $departmentHead, string $scholarName, ?string $dateLabel = null): void
-    {
-        $body = $dateLabel
-            ? "The DTR for {$scholarName} ({$dateLabel}) has been received by Admin/Scholarship."
-            : "The DTR for {$scholarName} has been received by Admin/Scholarship.";
+{
+    $body = $dateLabel
+        ? "The DTR for {$scholarName} ({$dateLabel}) has been received by Admin/Scholarship."
+        : "The DTR for {$scholarName} has been received by Admin/Scholarship.";
 
-        Notification::make()
-            ->title('DTR Received')
-            ->icon('heroicon-o-inbox-arrow-down')
-            ->success()
-            ->body($body)
-            ->sendToDatabase($departmentHead);
-    }
+    Notification::make()
+        ->title('DTR Received')
+        ->icon('heroicon-o-inbox-arrow-down')
+        ->success()
+        ->body($body)
+        ->sendToDatabase($departmentHead);
+}
 
     /**
      * Finds the Scholars row that corresponds to a given InstitutionalScholar
@@ -139,35 +133,35 @@ class ListScholars extends ListRecords
                 ->visible(fn (): bool => ! in_array($this->activeTab, ['dtr', 'institutional'])),
 
             Actions\Action::make('configureDtrScholarships')
-                ->label('DTR Scholarship Types')
-                ->icon('heroicon-o-adjustments-horizontal')
-                ->color('gray')
-                ->visible(fn (): bool => $this->activeTab === 'dtr'
-                    && ! auth()->user()->isDepartmentHead()
-                    && auth()->user()->hasAnyRole(['admin', 'scholarship']))
-                ->modalHeading('Which scholarships use DTR?')
-                ->modalDescription('Only scholars under the checked types can have DTR entries and be assigned a Department Head for DTR approval.')
-                ->modalSubmitActionLabel('Save')
-                ->fillForm(fn (): array => [
-                    'types' => TypeOfScholarship::where('uses_dtr', true)->pluck('id')->all(),
-                ])
-                ->form([
-                    Forms\Components\CheckboxList::make('types')
-                        ->label('Types of Scholarship')
-                        ->options(fn () => TypeOfScholarship::orderBy('name')->pluck('name', 'id'))
-                        ->columns(2)
-                        ->bulkToggleable()
-                        ->required(),
-                ])
-                ->action(function (array $data): void {
-                    TypeOfScholarship::query()->update(['uses_dtr' => false]);
-                    TypeOfScholarship::whereIn('id', $data['types'])->update(['uses_dtr' => true]);
+    ->label('DTR Scholarship Types')
+    ->icon('heroicon-o-adjustments-horizontal')
+    ->color('gray')
+    ->visible(fn (): bool => $this->activeTab === 'dtr'
+        && ! auth()->user()->isDepartmentHead()
+        && auth()->user()->hasAnyRole(['admin', 'scholarship']))
+    ->modalHeading('Which scholarships use DTR?')
+    ->modalDescription('Only scholars under the checked types can have DTR entries and be assigned a Department Head for DTR approval.')
+    ->modalSubmitActionLabel('Save')
+    ->fillForm(fn (): array => [
+        'types' => TypeOfScholarship::where('uses_dtr', true)->pluck('id')->all(),
+    ])
+    ->form([
+        Forms\Components\CheckboxList::make('types')
+            ->label('Types of Scholarship')
+            ->options(fn () => TypeOfScholarship::orderBy('name')->pluck('name', 'id'))
+            ->columns(2)
+            ->bulkToggleable()
+            ->required(),
+    ])
+    ->action(function (array $data): void {
+        TypeOfScholarship::query()->update(['uses_dtr' => false]);
+        TypeOfScholarship::whereIn('id', $data['types'])->update(['uses_dtr' => true]);
 
-                    Notification::make()
-                        ->title('DTR scholarship types updated')
-                        ->success()
-                        ->send();
-                }),
+        Notification::make()
+            ->title('DTR scholarship types updated')
+            ->success()
+            ->send();
+    }),
 
             Actions\Action::make('newInstitutionalScholar')
                 ->label('Add Institutional Scholar')
@@ -395,8 +389,7 @@ class ListScholars extends ListRecords
                     return DailyTimeRecord::where('status', 'submitted')->count();
                 }
 
-                // Pending AND complete entries both await Department Head approval.
-                $query = DailyTimeRecord::whereIn('status', self::DTR_AWAITING_APPROVAL);
+                $query = DailyTimeRecord::where('status', 'pending');
 
                 if ($user->isDepartmentHead()) {
                     $query->whereHas('scholar', fn ($q) => $q->where('department_head_id', $user->id));
@@ -421,7 +414,7 @@ class ListScholars extends ListRecords
         if ($this->activeTab === 'institutional') {
             return $table
                 ->query(InstitutionalScholar::query()->where('status', '!=', 'revoked'))
-                ->recordUrl(null)
+                ->recordUrl(null) 
                 ->headerActions([
                     Tables\Actions\Action::make('sync_institutional')
                         ->label('Sync from Scholars')
@@ -630,13 +623,13 @@ class ListScholars extends ListRecords
                         ->placeholder('All Statuses'),
 
                     Tables\Filters\SelectFilter::make('type_of_scholarship')
-                        ->label('Type of Scholarship')
-                        ->options(fn () => \App\Models\TypeOfScholarship::query()
-                            ->orderBy('name')
-                            ->pluck('name', 'name'))
-                        ->multiple()
-                        ->searchable()
-                        ->placeholder('All Scholarships'),
+    ->label('Type of Scholarship')
+    ->options(fn () => \App\Models\TypeOfScholarship::query()
+        ->orderBy('name')
+        ->pluck('name', 'name'))
+    ->multiple()
+    ->searchable()
+    ->placeholder('All Scholarships'),
 
                     Tables\Filters\SelectFilter::make('sex')
                         ->label('Sex')
@@ -684,54 +677,55 @@ class ListScholars extends ListRecords
                         // Carries user_id across so Daily Time Record and other
                         // features that key off scholars.user_id work correctly.
                         Tables\Actions\Action::make('assign_department_head_institutional')
-                            ->label(function (InstitutionalScholar $record): string {
-                                $existing = self::findMatchingScholar($record);
+    ->label(function (InstitutionalScholar $record): string {
+        $existing = self::findMatchingScholar($record);
 
-                                return $existing?->department_head_id
-                                    ? 'Reassign Department Head'
-                                    : 'Assign Department Head';
-                            })
-                            ->icon('heroicon-o-user-plus')
-                            ->color(function (InstitutionalScholar $record): string {
-                                $existing = self::findMatchingScholar($record);
+        return $existing?->department_head_id
+            ? 'Reassign Department Head'
+            : 'Assign Department Head';
+    })
+    ->icon('heroicon-o-user-plus')
+    ->color(function (InstitutionalScholar $record): string {
+        $existing = self::findMatchingScholar($record);
 
-                                return $existing?->department_head_id ? 'gray' : 'info';
-                            })
-                            ->modalHeading('Assign Department Head')
-                            ->modalDescription('This creates (or updates) this scholar\'s record in the main Scholars list and assigns their Department Head.')
-                            ->modalSubmitActionLabel('Save Assignment')
-                            ->visible(fn (InstitutionalScholar $record): bool =>
-                                TypeOfScholarship::nameUsesDtr($record->type_of_scholarship)
-                                && auth()->user()->hasAnyRole(['admin', 'scholarship'])
-                            )
-                            ->form([
-                                Forms\Components\Select::make('department_head_id')
-                                    ->label('Department Head')
-                                    ->options(fn () => \App\Models\User::whereHas('role', fn ($q) => $q->where('name', 'Department Head'))
-                                        ->whereNull('archived_at')
-                                        ->with('department')
-                                        ->get()
-                                        ->mapWithKeys(fn ($u) => [
-                                            $u->id => $u->name . ($u->department ? " — {$u->department->name}" : ''),
-                                        ]))
-                                    ->searchable()
-                                    ->preload()
-                                    ->native(false)
-                                    ->required()
-                                    ->placeholder('Select a Department Head'),
-                            ])
-                            ->fillForm(function (InstitutionalScholar $record): array {
-                                $existing = self::findMatchingScholar($record);
-                                $currentHeadId = $existing?->department_head_id;
+        return $existing?->department_head_id ? 'gray' : 'info';
+    })
+    ->modalHeading('Assign Department Head')
+    ->modalDescription('This creates (or updates) this scholar\'s record in the main Scholars list and assigns their Department Head.')
+    ->modalSubmitActionLabel('Save Assignment')
+    // CHANGED: was str_contains(... 'student representative')
+    ->visible(fn (InstitutionalScholar $record): bool =>
+        TypeOfScholarship::nameUsesDtr($record->type_of_scholarship)
+        && auth()->user()->hasAnyRole(['admin', 'scholarship'])
+    )
+    ->form([
+        Forms\Components\Select::make('department_head_id')
+            ->label('Department Head')
+            ->options(fn () => \App\Models\User::whereHas('role', fn ($q) => $q->where('name', 'Department Head'))
+                ->whereNull('archived_at')
+                ->with('department')
+                ->get()
+                ->mapWithKeys(fn ($u) => [
+                    $u->id => $u->name . ($u->department ? " — {$u->department->name}" : ''),
+                ]))
+            ->searchable()
+            ->preload()
+            ->native(false)
+            ->required()
+            ->placeholder('Select a Department Head'),
+    ])
+    ->fillForm(function (InstitutionalScholar $record): array {
+        $existing = self::findMatchingScholar($record);
+        $currentHeadId = $existing?->department_head_id;
 
-                                $stillActive = $currentHeadId
-                                    ? \App\Models\User::whereNull('archived_at')->where('id', $currentHeadId)->exists()
-                                    : false;
+        $stillActive = $currentHeadId
+            ? \App\Models\User::whereNull('archived_at')->where('id', $currentHeadId)->exists()
+            : false;
 
-                                return [
-                                    'department_head_id' => $stillActive ? $currentHeadId : null,
-                                ];
-                            })
+        return [
+            'department_head_id' => $stillActive ? $currentHeadId : null,
+        ];
+    })
                             ->action(function (InstitutionalScholar $record, array $data): void {
                                 $scholar = self::findMatchingScholar($record) ?? new Scholars();
 
@@ -802,133 +796,133 @@ class ListScholars extends ListRecords
                             ->form(ScholarsResource::scholarFormSchema())
                             ->infolist([
                                 \Filament\Infolists\Components\Section::make('Scholar Information')
-                                    ->icon('heroicon-o-identification')
-                                    ->schema([
-                                        \Filament\Infolists\Components\TextEntry::make('student_id')
-                                            ->label('Student ID')
-                                            ->badge()
-                                            ->color(fn ($state) => $state ? 'primary' : 'gray')
-                                            ->formatStateUsing(fn ($state) => $state ?? 'Not Assigned'),
+        ->icon('heroicon-o-identification')
+        ->schema([
+            \Filament\Infolists\Components\TextEntry::make('student_id')
+                ->label('Student ID')
+                ->badge()
+                ->color(fn ($state) => $state ? 'primary' : 'gray')
+                ->formatStateUsing(fn ($state) => $state ?? 'Not Assigned'),
 
-                                        \Filament\Infolists\Components\TextEntry::make('status')
-                                            ->label('Status')
-                                            ->badge()
-                                            ->color(fn (string $state): string => match ($state) {
-                                                'active'       => 'success',
-                                                'inactive'     => 'warning',
-                                                'graduated'    => 'info',
-                                                'discontinued' => 'danger',
-                                                'revoked'      => 'danger',
-                                                default        => 'gray',
-                                            })
-                                            ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+            \Filament\Infolists\Components\TextEntry::make('status')
+                ->label('Status')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    'active'       => 'success',
+                    'inactive'     => 'warning',
+                    'graduated'    => 'info',
+                    'discontinued' => 'danger',
+                    'revoked'      => 'danger',
+                    default        => 'gray',
+                })
+                ->formatStateUsing(fn (string $state): string => ucfirst($state)),
 
-                                        \Filament\Infolists\Components\TextEntry::make('term.school_year')
-                                            ->label('Term')
-                                            ->formatStateUsing(fn ($state, $record) => $record->term
-                                                ? $record->term->school_year . ' — ' . $record->term->semester
-                                                : '—')
-                                            ->badge()
-                                            ->color('gray'),
-                                    ])
-                                    ->columns(3),
+            \Filament\Infolists\Components\TextEntry::make('term.school_year')
+                ->label('Term')
+                ->formatStateUsing(fn ($state, $record) => $record->term
+                    ? $record->term->school_year . ' — ' . $record->term->semester
+                    : '—')
+                ->badge()
+                ->color('gray'),
+        ])
+        ->columns(3),
 
-                                \Filament\Infolists\Components\Section::make('Personal Information')
-                                    ->icon('heroicon-o-user')
-                                    ->schema([
-                                        \Filament\Infolists\Components\TextEntry::make('first_name')
-                                            ->label('First Name'),
+    \Filament\Infolists\Components\Section::make('Personal Information')
+        ->icon('heroicon-o-user')
+        ->schema([
+            \Filament\Infolists\Components\TextEntry::make('first_name')
+                ->label('First Name'),
 
-                                        \Filament\Infolists\Components\TextEntry::make('middle_name')
-                                            ->label('Middle Name')
-                                            ->placeholder('—'),
+            \Filament\Infolists\Components\TextEntry::make('middle_name')
+                ->label('Middle Name')
+                ->placeholder('—'),
 
-                                        \Filament\Infolists\Components\TextEntry::make('last_name')
-                                            ->label('Last Name'),
+            \Filament\Infolists\Components\TextEntry::make('last_name')
+                ->label('Last Name'),
 
-                                        \Filament\Infolists\Components\TextEntry::make('extension_name')
-                                            ->label('Extension')
-                                            ->placeholder('—'),
+            \Filament\Infolists\Components\TextEntry::make('extension_name')
+                ->label('Extension')
+                ->placeholder('—'),
 
-                                        \Filament\Infolists\Components\TextEntry::make('sex')
-                                            ->label('Sex')
-                                            ->badge()
-                                            ->color(fn (string $state): string => match ($state) {
-                                                'Male'   => 'info',
-                                                'Female' => 'danger',
-                                                default  => 'gray',
-                                            }),
+            \Filament\Infolists\Components\TextEntry::make('sex')
+                ->label('Sex')
+                ->badge()
+                ->color(fn (string $state): string => match ($state) {
+                    'Male'   => 'info',
+                    'Female' => 'danger',
+                    default  => 'gray',
+                }),
 
-                                        \Filament\Infolists\Components\TextEntry::make('birthdate')
-                                            ->label('Birthdate')
-                                            ->date('F d, Y'),
-                                    ])
-                                    ->columns(3),
+            \Filament\Infolists\Components\TextEntry::make('birthdate')
+                ->label('Birthdate')
+                ->date('F d, Y'),
+        ])
+        ->columns(3),
 
-                                \Filament\Infolists\Components\Section::make('Academic Information')
-                                    ->icon('heroicon-o-academic-cap')
-                                    ->schema([
-                                        \Filament\Infolists\Components\TextEntry::make('program')
-                                            ->label('Program')
-                                            ->badge()
-                                            ->color('info'),
+    \Filament\Infolists\Components\Section::make('Academic Information')
+        ->icon('heroicon-o-academic-cap')
+        ->schema([
+            \Filament\Infolists\Components\TextEntry::make('program')
+                ->label('Program')
+                ->badge()
+                ->color('info'),
 
-                                        \Filament\Infolists\Components\TextEntry::make('year_level')
-                                            ->label('Year Level')
-                                            ->formatStateUsing(fn ($state) => match ((string) $state) {
-                                                '1' => '1st Year',
-                                                '2' => '2nd Year',
-                                                '3' => '3rd Year',
-                                                '4' => '4th Year',
-                                                '5' => '5th Year',
-                                                default => $state,
-                                            })
-                                            ->badge()
-                                            ->color('primary'),
-                                    ])
-                                    ->columns(2),
+            \Filament\Infolists\Components\TextEntry::make('year_level')
+                ->label('Year Level')
+                ->formatStateUsing(fn ($state) => match ((string) $state) {
+                    '1' => '1st Year',
+                    '2' => '2nd Year',
+                    '3' => '3rd Year',
+                    '4' => '4th Year',
+                    '5' => '5th Year',
+                    default => $state,
+                })
+                ->badge()
+                ->color('primary'),
+        ])
+        ->columns(2),
 
-                                \Filament\Infolists\Components\Section::make('Scholarship Details')
-                                    ->icon('heroicon-o-star')
-                                    ->schema([
-                                        \Filament\Infolists\Components\TextEntry::make('type_of_scholarship')
-                                            ->label('Type of Scholarship')
-                                            ->badge()
-                                            ->color('success'),
+    \Filament\Infolists\Components\Section::make('Scholarship Details')
+        ->icon('heroicon-o-star')
+        ->schema([
+            \Filament\Infolists\Components\TextEntry::make('type_of_scholarship')
+                ->label('Type of Scholarship')
+                ->badge()
+                ->color('success'),
 
-                                        \Filament\Infolists\Components\TextEntry::make('batch_no')
-                                            ->label('Batch Number')
-                                            ->badge()
-                                            ->color(fn ($state) => $state ? 'warning' : 'gray')
-                                            ->formatStateUsing(fn ($state) => $state ?? 'Not Set'),
+            \Filament\Infolists\Components\TextEntry::make('batch_no')
+                ->label('Batch Number')
+                ->badge()
+                ->color(fn ($state) => $state ? 'warning' : 'gray')
+                ->formatStateUsing(fn ($state) => $state ?? 'Not Set'),
 
-                                        \Filament\Infolists\Components\TextEntry::make('ip_group')
-                                            ->label('IP Group')
-                                            ->placeholder('—'),
+            \Filament\Infolists\Components\TextEntry::make('ip_group')
+                ->label('IP Group')
+                ->placeholder('—'),
 
-                                        \Filament\Infolists\Components\TextEntry::make('pwd')
-                                            ->label('PWD')
-                                            ->badge()
-                                            ->color(fn ($state): string => match ($state) {
-                                                'Yes'   => 'warning',
-                                                'No'    => 'gray',
-                                                default => 'gray',
-                                            })
-                                            ->placeholder('—'),
+            \Filament\Infolists\Components\TextEntry::make('pwd')
+                ->label('PWD')
+                ->badge()
+                ->color(fn ($state): string => match ($state) {
+                    'Yes'   => 'warning',
+                    'No'    => 'gray',
+                    default => 'gray',
+                })
+                ->placeholder('—'),
 
-                                        \Filament\Infolists\Components\TextEntry::make('benefit')
-                                            ->label('Scholarship Benefit')
-                                            ->formatStateUsing(function ($state): string {
-                                                if (is_null($state)) return 'Not set';
-                                                return \App\Models\ExamAttempt::resolveDiscount((int) $state)['label'];
-                                            })
-                                            ->badge()
-                                            ->color(function ($state): string {
-                                                if (is_null($state)) return 'gray';
-                                                return \App\Models\ExamAttempt::resolveDiscount((int) $state)['color'];
-                                            }),
-                                    ])
-                                    ->columns(3),
+            \Filament\Infolists\Components\TextEntry::make('benefit')
+                ->label('Scholarship Benefit')
+                ->formatStateUsing(function ($state): string {
+                    if (is_null($state)) return 'Not set';
+                    return \App\Models\ExamAttempt::resolveDiscount((int) $state)['label'];
+                })
+                ->badge()
+                ->color(function ($state): string {
+                    if (is_null($state)) return 'gray';
+                    return \App\Models\ExamAttempt::resolveDiscount((int) $state)['color'];
+                }),
+        ])
+        ->columns(3),
 
                                 \Filament\Infolists\Components\Section::make('Accomplishment Reports')
                                     ->icon('heroicon-o-document-check')
@@ -960,161 +954,161 @@ class ListScholars extends ListRecords
                             ]),
 
                         Tables\Actions\Action::make('edit_institutional')
-                            ->label('Edit')
-                            ->icon('heroicon-o-pencil-square')
-                            ->color('gray')
-                            ->modalHeading('Edit Institutional Scholar')
-                            ->modalSubmitActionLabel('Save Changes')
-                            ->modalWidth('4xl')
-                            ->fillForm(fn (InstitutionalScholar $record): array => [
-                                'student_id'          => $record->student_id,
-                                'first_name'          => $record->first_name,
-                                'middle_name'         => $record->middle_name,
-                                'last_name'           => $record->last_name,
-                                'extension_name'      => $record->extension_name,
-                                'sex'                 => $record->sex,
-                                'birthdate'           => $record->birthdate?->format('Y-m-d'),
-                                'program'             => $record->program,
-                                'year_level'          => (string) $record->year_level,
-                                'type_of_scholarship' => $record->type_of_scholarship,
-                                'batch_no'            => $record->batch_no,
-                                'ip_group'            => $record->ip_group,
-                                'pwd'                 => $record->pwd,
-                                'benefit'             => $record->benefit,
-                                'status'              => $record->status,
-                                'term_id'             => $record->term_id,
-                            ])
-                            ->form([
-                                Forms\Components\Grid::make(2)
-                                    ->schema([
-                                        Forms\Components\TextInput::make('student_id')
-                                            ->label('Student ID')
-                                            ->numeric()
-                                            ->placeholder('Optional'),
+    ->label('Edit')
+    ->icon('heroicon-o-pencil-square')
+    ->color('gray')
+    ->modalHeading('Edit Institutional Scholar')
+    ->modalSubmitActionLabel('Save Changes')
+    ->modalWidth('4xl')
+    ->fillForm(fn (InstitutionalScholar $record): array => [
+        'student_id'          => $record->student_id,
+        'first_name'          => $record->first_name,
+        'middle_name'         => $record->middle_name,
+        'last_name'           => $record->last_name,
+        'extension_name'      => $record->extension_name,
+        'sex'                 => $record->sex,
+        'birthdate'           => $record->birthdate?->format('Y-m-d'),
+        'program'             => $record->program,
+        'year_level'          => (string) $record->year_level,
+        'type_of_scholarship' => $record->type_of_scholarship,
+        'batch_no'            => $record->batch_no,
+        'ip_group'            => $record->ip_group,
+        'pwd'                 => $record->pwd,
+        'benefit'             => $record->benefit,
+        'status'              => $record->status,
+        'term_id'             => $record->term_id,
+    ])
+    ->form([
+        Forms\Components\Grid::make(2)
+            ->schema([
+                Forms\Components\TextInput::make('student_id')
+                    ->label('Student ID')
+                    ->numeric()
+                    ->placeholder('Optional'),
 
-                                        Forms\Components\Select::make('status')
-                                            ->label('Status')
-                                            ->options([
-                                                'active'       => 'Active',
-                                                'inactive'     => 'Inactive',
-                                                'graduated'    => 'Graduated',
-                                                'discontinued' => 'Discontinued',
-                                                'revoked'      => 'Revoked',
-                                            ])
-                                            ->required()
-                                            ->native(false),
-                                    ]),
+                Forms\Components\Select::make('status')
+                    ->label('Status')
+                    ->options([
+                        'active'       => 'Active',
+                        'inactive'     => 'Inactive',
+                        'graduated'    => 'Graduated',
+                        'discontinued' => 'Discontinued',
+                        'revoked'      => 'Revoked',
+                    ])
+                    ->required()
+                    ->native(false),
+            ]),
 
-                                Forms\Components\Select::make('term_id')
-                                    ->label('Term')
-                                    ->options(function () {
-                                        return Term::orderByDesc('is_active')
-                                            ->orderByDesc('id')
-                                            ->get()
-                                            ->mapWithKeys(fn ($term) => [
-                                                $term->id => $term->school_year . ' — ' . $term->semester
-                                                    . ($term->is_active ? ' (Active)' : ''),
-                                            ]);
-                                    })
-                                    ->required()
-                                    ->native(false)
-                                    ->searchable(),
+        Forms\Components\Select::make('term_id')
+            ->label('Term')
+            ->options(function () {
+                return Term::orderByDesc('is_active')
+                    ->orderByDesc('id')
+                    ->get()
+                    ->mapWithKeys(fn ($term) => [
+                        $term->id => $term->school_year . ' — ' . $term->semester
+                            . ($term->is_active ? ' (Active)' : ''),
+                    ]);
+            })
+            ->required()
+            ->native(false)
+            ->searchable(),
 
-                                Forms\Components\Grid::make(4)
-                                    ->schema([
-                                        Forms\Components\TextInput::make('first_name')
-                                            ->label('First Name')
-                                            ->required()
-                                            ->maxLength(200),
+        Forms\Components\Grid::make(4)
+            ->schema([
+                Forms\Components\TextInput::make('first_name')
+                    ->label('First Name')
+                    ->required()
+                    ->maxLength(200),
 
-                                        Forms\Components\TextInput::make('middle_name')
-                                            ->label('Middle Name')
-                                            ->maxLength(200),
+                Forms\Components\TextInput::make('middle_name')
+                    ->label('Middle Name')
+                    ->maxLength(200),
 
-                                        Forms\Components\TextInput::make('last_name')
-                                            ->label('Last Name')
-                                            ->required()
-                                            ->maxLength(200),
+                Forms\Components\TextInput::make('last_name')
+                    ->label('Last Name')
+                    ->required()
+                    ->maxLength(200),
 
-                                        Forms\Components\TextInput::make('extension_name')
-                                            ->label('Extension')
-                                            ->placeholder('Jr., Sr., III')
-                                            ->maxLength(200),
-                                    ]),
+                Forms\Components\TextInput::make('extension_name')
+                    ->label('Extension')
+                    ->placeholder('Jr., Sr., III')
+                    ->maxLength(200),
+            ]),
 
-                                Forms\Components\Grid::make(2)
-                                    ->schema([
-                                        Forms\Components\Select::make('sex')
-                                            ->label('Sex')
-                                            ->options([
-                                                'Male'   => 'Male',
-                                                'Female' => 'Female',
-                                            ])
-                                            ->required()
-                                            ->native(false),
+        Forms\Components\Grid::make(2)
+            ->schema([
+                Forms\Components\Select::make('sex')
+                    ->label('Sex')
+                    ->options([
+                        'Male'   => 'Male',
+                        'Female' => 'Female',
+                    ])
+                    ->required()
+                    ->native(false),
 
-                                        Forms\Components\DatePicker::make('birthdate')
-                                            ->label('Birthdate')
-                                            ->required()
-                                            ->native(false)
-                                            ->maxDate(now()),
-                                    ]),
+                Forms\Components\DatePicker::make('birthdate')
+                    ->label('Birthdate')
+                    ->required()
+                    ->native(false)
+                    ->maxDate(now()),
+            ]),
 
-                                Forms\Components\Grid::make(2)
-                                    ->schema([
-                                        Forms\Components\TextInput::make('program')
-                                            ->label('Program')
-                                            ->required()
-                                            ->maxLength(200),
+        Forms\Components\Grid::make(2)
+            ->schema([
+                Forms\Components\TextInput::make('program')
+                    ->label('Program')
+                    ->required()
+                    ->maxLength(200),
 
-                                        Forms\Components\Select::make('year_level')
-                                            ->label('Year Level')
-                                            ->options([
-                                                '1' => '1st Year',
-                                                '2' => '2nd Year',
-                                                '3' => '3rd Year',
-                                                '4' => '4th Year',
-                                                '5' => '5th Year',
-                                            ])
-                                            ->required()
-                                            ->native(false),
-                                    ]),
+                Forms\Components\Select::make('year_level')
+                    ->label('Year Level')
+                    ->options([
+                        '1' => '1st Year',
+                        '2' => '2nd Year',
+                        '3' => '3rd Year',
+                        '4' => '4th Year',
+                        '5' => '5th Year',
+                    ])
+                    ->required()
+                    ->native(false),
+            ]),
 
-                                Forms\Components\Grid::make(3)
-                                    ->schema([
-                                        Forms\Components\TextInput::make('type_of_scholarship')
-                                            ->label('Type of Scholarship')
-                                            ->required()
-                                            ->maxLength(255),
+        Forms\Components\Grid::make(3)
+            ->schema([
+                Forms\Components\TextInput::make('type_of_scholarship')
+                    ->label('Type of Scholarship')
+                    ->required()
+                    ->maxLength(255),
 
-                                        Forms\Components\TextInput::make('batch_no')
-                                            ->label('Batch Number')
-                                            ->numeric(),
+                Forms\Components\TextInput::make('batch_no')
+                    ->label('Batch Number')
+                    ->numeric(),
 
-                                        Forms\Components\TextInput::make('ip_group')
-                                            ->label('IP Group')
-                                            ->maxLength(255),
+                Forms\Components\TextInput::make('ip_group')
+                    ->label('IP Group')
+                    ->maxLength(255),
 
-                                        Forms\Components\TextInput::make('pwd')
-                                            ->label('PWD')
-                                            ->maxLength(200),
+                Forms\Components\TextInput::make('pwd')
+                    ->label('PWD')
+                    ->maxLength(200),
 
-                                        Forms\Components\TextInput::make('benefit')
-                                            ->label('Benefit')
-                                            ->numeric()
-                                            ->prefix('₱'),
-                                    ]),
-                            ])
-                            ->action(function (InstitutionalScholar $record, array $data): void {
-                                $record->update($data);
+                Forms\Components\TextInput::make('benefit')
+                    ->label('Benefit')
+                    ->numeric()
+                    ->prefix('₱'),
+            ]),
+    ])
+    ->action(function (InstitutionalScholar $record, array $data): void {
+        $record->update($data);
 
-                                Notification::make()
-                                    ->title('Scholar Updated')
-                                    ->success()
-                                    ->send();
+        Notification::make()
+            ->title('Scholar Updated')
+            ->success()
+            ->send();
 
-                                $this->resetTable();
-                            }),
+        $this->resetTable();
+    }),
 
                         // Tables\Actions\DeleteAction::make(),
                     ])
@@ -1127,209 +1121,210 @@ class ListScholars extends ListRecords
                 ->defaultSort('created_at', 'desc');
         }
 
-        if ($this->activeTab === 'dtr') {
-
-            $isAdminOrScholarship = ! auth()->user()->isDepartmentHead()
-                && auth()->user()->hasAnyRole(['admin', 'scholarship']);
-
-            // ─────────────────────────────────────────────────────────────
-            // ADMIN / SCHOLARSHIP VIEW: one row per scholar per month
-            // ─────────────────────────────────────────────────────────────
-            if ($isAdminOrScholarship) {
-                return $table
-                    ->query(function () {
-                        return DailyTimeRecord::query()
-                            ->select([
-                                'scholar_id',
-                                DB::raw("DATE_FORMAT(date, '%Y-%m') as period"),
-                                DB::raw("MIN(id) as id"), // Filament needs a stable "id" for the row key
-                                DB::raw("SUM(total_hours) as total_hours_sum"),
-                                DB::raw("COUNT(*) as entries_count"),
-                                DB::raw("MAX(office_assigned) as office_assigned"),
-                                DB::raw("MAX(status) as status"), // all rows in a submitted batch share status
-                                DB::raw("MAX(approved_by_id) as approved_by_id"),
-                                DB::raw("MAX(received_by_id) as received_by_id"),
-                            ])
-                            ->whereNull('archived_at')
-                            ->whereIn('status', ['submitted', 'received'])
-                            ->groupBy('scholar_id', DB::raw("DATE_FORMAT(date, '%Y-%m')"))
-                            ->with(['scholar', 'approvedBy', 'receivedBy']);
+                if ($this->activeTab === 'dtr') {
+ 
+    $isAdminOrScholarship = ! auth()->user()->isDepartmentHead()
+        && auth()->user()->hasAnyRole(['admin', 'scholarship']);
+ 
+    // ─────────────────────────────────────────────────────────────
+    // ADMIN / SCHOLARSHIP VIEW: one row per scholar per month
+    // ─────────────────────────────────────────────────────────────
+    if ($isAdminOrScholarship) {
+        return $table
+            ->query(function () {
+                return DailyTimeRecord::query()
+                    ->select([
+                        'scholar_id',
+                        DB::raw("DATE_FORMAT(date, '%Y-%m') as period"),
+                        DB::raw("MIN(id) as id"), // Filament needs a stable "id" for the row key
+                        DB::raw("SUM(total_hours) as total_hours_sum"),
+                        DB::raw("COUNT(*) as entries_count"),
+                        DB::raw("MAX(office_assigned) as office_assigned"),
+                        DB::raw("MAX(status) as status"), // all rows in a submitted batch share status
+                        DB::raw("MAX(approved_by_id) as approved_by_id"),
+                        DB::raw("MAX(received_by_id) as received_by_id"),
+                    ])
+                    ->whereNull('archived_at')
+                    ->whereIn('status', ['submitted', 'received'])
+                    ->groupBy('scholar_id', DB::raw("DATE_FORMAT(date, '%Y-%m')"))
+                    ->with(['scholar', 'approvedBy', 'receivedBy']);
+            })
+            ->recordUrl(null)
+            ->columns([
+                Tables\Columns\TextColumn::make('scholar.full_name')
+                    ->label('Name')
+                    ->getStateUsing(fn ($record) => $record->scholar
+                        ? trim("{$record->scholar->first_name} {$record->scholar->last_name}")
+                        : '—')
+                    ->searchable(query: function (Builder $query, string $search) {
+                        return $query->whereHas('scholar', function ($q) use ($search) {
+                            $q->where('first_name', 'like', "%{$search}%")
+                              ->orWhere('last_name', 'like', "%{$search}%");
+                        });
                     })
-                    ->recordUrl(null)
-                    ->columns([
-                        Tables\Columns\TextColumn::make('scholar.full_name')
-                            ->label('Name')
-                            ->getStateUsing(fn ($record) => $record->scholar
-                                ? trim("{$record->scholar->first_name} {$record->scholar->last_name}")
-                                : '—')
-                            ->searchable(query: function (Builder $query, string $search) {
-                                return $query->whereHas('scholar', function ($q) use ($search) {
-                                    $q->where('first_name', 'like', "%{$search}%")
-                                      ->orWhere('last_name', 'like', "%{$search}%");
-                                });
-                            })
-                            ->sortable(),
-
-                        Tables\Columns\TextColumn::make('office_assigned')
-                            ->label('Office Assigned')
-                            ->placeholder('—'),
-
-                        Tables\Columns\TextColumn::make('period')
-                            ->label('Month')
-                            ->getStateUsing(fn ($record) => \Carbon\Carbon::parse($record->period . '-01')->format('F Y'))
-                            ->sortable(),
-
-                        Tables\Columns\TextColumn::make('entries_count')
-                            ->label('Days Logged')
-                            ->badge()
-                            ->color('info'),
-
-                        Tables\Columns\TextColumn::make('total_hours_sum')
-                            ->label('Total Hrs')
-                            ->numeric(2),
-
-                        Tables\Columns\TextColumn::make('status')
-                            ->badge()
-                            ->color(fn (string $state): string => match ($state) {
-                                'submitted' => 'primary',
-                                'received'  => 'success',
-                                default     => 'gray',
-                            })
-                            ->formatStateUsing(fn (string $state): string => ucfirst($state))
-                            ->sortable(),
-
-                        Tables\Columns\TextColumn::make('approvedBy.name')
-                            ->label('Approved By')
-                            ->placeholder('—'),
-
-                        Tables\Columns\TextColumn::make('receivedBy.name')
-                            ->label('Received By')
-                            ->placeholder('—'),
-                    ])
-                    ->filters([
-                        Tables\Filters\SelectFilter::make('status')
-                            ->options([
-                                'submitted' => 'Submitted',
-                                'received'  => 'Received',
-                            ]),
-                    ])
-                    ->actions([
-                        Tables\Actions\ActionGroup::make([
-
-                            // "View All" opens a modal listing every daily entry in that scholar+month
-                            Tables\Actions\Action::make('viewMonthEntries')
-                                ->label('View Entries')
-                                ->icon('heroicon-o-eye')
-                                ->color('gray')
-                                ->modalHeading(fn ($record) => 'DTR Entries — '
-                                    . trim("{$record->scholar?->first_name} {$record->scholar?->last_name}")
-                                    . ' (' . \Carbon\Carbon::parse($record->period . '-01')->format('F Y') . ')')
-                                ->modalContent(function ($record) {
-                                    $scholarId = $record->scholar_id;
-                                    $period = $record->period;
-
-                                    $start = \Carbon\Carbon::parse($period . '-01')->startOfMonth();
-                                    $end = $start->copy()->endOfMonth();
-
-                                    $entries = DailyTimeRecord::where('scholar_id', $scholarId)
-                                        ->whereBetween('date', [$start, $end])
-                                        ->orderBy('date')
-                                        ->get()
-                                        ->map(fn ($d) => [
-                                            'date'        => $d->date?->format('M d, Y'),
-                                            'am_in'       => $d->am_in ? \Carbon\Carbon::parse($d->am_in)->format('h:i A') : null,
-                                            'am_out'      => $d->am_out ? \Carbon\Carbon::parse($d->am_out)->format('h:i A') : null,
-                                            'pm_in'       => $d->pm_in ? \Carbon\Carbon::parse($d->pm_in)->format('h:i A') : null,
-                                            'pm_out'      => $d->pm_out ? \Carbon\Carbon::parse($d->pm_out)->format('h:i A') : null,
-                                            'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) : '—',
-                                            'remarks'     => $d->remarks,
-                                        ])
-                                        ->toArray();
-
-                                    $scholar = \App\Models\Scholars::find($scholarId);
-                                    $yearLabel = match ((string) $scholar?->year_level) {
-                                        '1' => '1st Year', '2' => '2nd Year', '3' => '3rd Year',
-                                        '4' => '4th Year', '5' => '5th Year', default => $scholar?->year_level,
-                                    };
-
-                                    return view('filament.modals.dtr-submit-preview', [
-                                        'entries'        => $entries,
-                                        'scholarName'    => trim("{$scholar?->first_name} {$scholar?->last_name}"),
-                                        'courseYear'     => trim("{$scholar?->program} - {$yearLabel}", ' -'),
-                                        'monthLabel'     => $start->format('F Y'),
-                                        'officeAssigned' => $record->office_assigned,
-                                        'totalHours'     => collect($entries)->sum(fn ($e) => (float) str_replace(',', '', $e['total_hours'])),
-                                    ]);
-                                })
-                                ->modalSubmitAction(false)
-                                ->modalCancelActionLabel('Close'),
-
-                            Tables\Actions\Action::make('receive')
-                                ->label('Mark Received')
-                                ->icon('heroicon-o-inbox-arrow-down')
-                                ->color('info')
-                                ->requiresConfirmation()
-                                ->modalHeading('Mark DTR as Received')
-                                ->modalDescription('This finalizes every entry in this scholar\'s submitted batch for this month.')
-                                ->modalSubmitActionLabel('Yes, Mark Received')
-                                ->visible(fn ($record): bool => $record->status === 'submitted')
-                                ->action(function ($record): void {
-                                    $start = \Carbon\Carbon::parse($record->period . '-01')->startOfMonth();
-                                    $end = $start->copy()->endOfMonth();
-
-                                    $updated = DailyTimeRecord::where('scholar_id', $record->scholar_id)
-                                        ->whereBetween('date', [$start, $end])
-                                        ->where('status', 'submitted')
-                                        ->update([
-                                            'status'         => 'received',
-                                            'received_by_id' => auth()->id(),
-                                            'received_at'    => now(),
-                                        ]);
-
-                                    Notification::make()
-                                        ->title('DTR Marked as Received')
-                                        ->success()
-                                        ->body("{$updated} entrie(s) marked as received.")
-                                        ->send();
-
-                                    $this->resetTable();
-
-                                    // Notify the scholar's Department Head.
-                                    $scholar = \App\Models\Scholars::find($record->scholar_id);
-
-                                    if ($scholar?->departmentHead) {
-                                        $scholarName = trim("{$scholar->first_name} {$scholar->last_name}");
-                                        $monthLabel = $start->format('F Y');
-
-                                        $this->notifyDepartmentHeadOfReceipt(
-                                            $scholar->departmentHead,
-                                            $scholarName,
-                                            $monthLabel
-                                        );
-                                    }
-                                }),
-                        ])
-                        ->label('Actions')
-                        ->icon('heroicon-m-ellipsis-vertical')
-                        ->size('sm')
+                    ->sortable(),
+ 
+                Tables\Columns\TextColumn::make('office_assigned')
+                    ->label('Office Assigned')
+                    ->placeholder('—'),
+ 
+                Tables\Columns\TextColumn::make('period')
+                    ->label('Month')
+                    ->getStateUsing(fn ($record) => \Carbon\Carbon::parse($record->period . '-01')->format('F Y'))
+                    ->sortable(),
+ 
+                Tables\Columns\TextColumn::make('entries_count')
+                    ->label('Days Logged')
+                    ->badge()
+                    ->color('info'),
+ 
+                Tables\Columns\TextColumn::make('total_hours_sum')
+                    ->label('Total Hrs')
+                    ->numeric(2),
+ 
+                Tables\Columns\TextColumn::make('status')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'submitted' => 'primary',
+                        'received'  => 'success',
+                        default     => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                    ->sortable(),
+ 
+                Tables\Columns\TextColumn::make('approvedBy.name')
+                    ->label('Approved By')
+                    ->placeholder('—'),
+ 
+                Tables\Columns\TextColumn::make('receivedBy.name')
+                    ->label('Received By')
+                    ->placeholder('—'),
+            ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('status')
+                    ->options([
+                        'submitted' => 'Submitted',
+                        'received'  => 'Received',
+                    ]),
+            ])
+            ->actions([
+                Tables\Actions\ActionGroup::make([
+ 
+                    // "View All" opens a modal listing every daily entry in that scholar+month
+                    Tables\Actions\Action::make('viewMonthEntries')
+                        ->label('View Entries')
+                        ->icon('heroicon-o-eye')
                         ->color('gray')
-                        ->button(),
-                    ])
-                    ->defaultSort('period', 'desc');
-            }
+                        ->modalHeading(fn ($record) => 'DTR Entries — '
+                            . trim("{$record->scholar?->first_name} {$record->scholar?->last_name}")
+                            . ' (' . \Carbon\Carbon::parse($record->period . '-01')->format('F Y') . ')')
+                        ->modalContent(function ($record) {
+                            $scholarId = $record->scholar_id;
+                            $period = $record->period;
+ 
+                            $start = \Carbon\Carbon::parse($period . '-01')->startOfMonth();
+                            $end = $start->copy()->endOfMonth();
+ 
+                            $entries = DailyTimeRecord::where('scholar_id', $scholarId)
+                                ->whereBetween('date', [$start, $end])
+                                ->orderBy('date')
+                                ->get()
+                                ->map(fn ($d) => [
+                                    'date'        => $d->date?->format('M d, Y'),
+                                    'am_in'       => $d->am_in ? \Carbon\Carbon::parse($d->am_in)->format('h:i A') : null,
+                                    'am_out'      => $d->am_out ? \Carbon\Carbon::parse($d->am_out)->format('h:i A') : null,
+                                    'pm_in'       => $d->pm_in ? \Carbon\Carbon::parse($d->pm_in)->format('h:i A') : null,
+                                    'pm_out'      => $d->pm_out ? \Carbon\Carbon::parse($d->pm_out)->format('h:i A') : null,
+                                    'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) : '—',
+                                    'remarks'     => $d->remarks,
+                                ])
+                                ->toArray();
+ 
+                            $scholar = \App\Models\Scholars::find($scholarId);
+                            $yearLabel = match ((string) $scholar?->year_level) {
+                                '1' => '1st Year', '2' => '2nd Year', '3' => '3rd Year',
+                                '4' => '4th Year', '5' => '5th Year', default => $scholar?->year_level,
+                            };
+ 
+                            return view('filament.modals.dtr-submit-preview', [
+                                'entries'        => $entries,
+                                'scholarName'    => trim("{$scholar?->first_name} {$scholar?->last_name}"),
+                                'courseYear'     => trim("{$scholar?->program} - {$yearLabel}", ' -'),
+                                'monthLabel'     => $start->format('F Y'),
+                                'officeAssigned' => $record->office_assigned,
+                                'totalHours'     => collect($entries)->sum(fn ($e) => (float) str_replace(',', '', $e['total_hours'])),
+                            ]);
+                        })
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Close'),
+ 
+                    Tables\Actions\Action::make('receive')
+                        ->label('Mark Received')
+                        ->icon('heroicon-o-inbox-arrow-down')
+                        ->color('info')
+                        ->requiresConfirmation()
+                        ->modalHeading('Mark DTR as Received')
+                        ->modalDescription('This finalizes every entry in this scholar\'s submitted batch for this month.')
+                        ->modalSubmitActionLabel('Yes, Mark Received')
+                        ->visible(fn ($record): bool => $record->status === 'submitted')
+                        ->action(function ($record): void {
+                            $start = \Carbon\Carbon::parse($record->period . '-01')->startOfMonth();
+                            $end = $start->copy()->endOfMonth();
+ 
+                            $updated = DailyTimeRecord::where('scholar_id', $record->scholar_id)
+                                ->whereBetween('date', [$start, $end])
+                                ->where('status', 'submitted')
+                                ->update([
+                                    'status'         => 'received',
+                                    'received_by_id' => auth()->id(),
+                                    'received_at'    => now(),
+                                ]);
+ 
+                            Notification::make()
+                                ->title('DTR Marked as Received')
+                                ->success()
+                                ->body("{$updated} entrie(s) marked as received.")
+                                ->send();
+ 
+                            $this->resetTable();
 
-            // ─────────────────────────────────────────────────────────────
-            // DEPARTMENT HEAD VIEW: individual daily rows
-            // ─────────────────────────────────────────────────────────────
-            return $table
-                ->query(function () {
-                    $query = DailyTimeRecord::query()
-                        ->whereNull('archived_at')
-                        ->with(['scholar', 'approvedBy', 'receivedBy']);
+                            // Notify the scholar's Department Head.
+                            $scholar = \App\Models\Scholars::find($record->scholar_id);
 
-                    return $this->scopeDtrQueryToRole($query);
-                })
-                ->recordUrl(null)
+                            if ($scholar?->departmentHead) {
+                                $scholarName = trim("{$scholar->first_name} {$scholar->last_name}");
+                                $monthLabel = $start->format('F Y');
+
+                                $this->notifyDepartmentHeadOfReceipt(
+                                    $scholar->departmentHead,
+                                    $scholarName,
+                                    $monthLabel
+                                );
+                            }
+                        }),
+                ])
+                ->label('Actions')
+                ->icon('heroicon-m-ellipsis-vertical')
+                ->size('sm')
+                ->color('gray')
+                ->button(),
+            ])
+            ->defaultSort('period', 'desc');
+    }
+ 
+    // ─────────────────────────────────────────────────────────────
+    // DEPARTMENT HEAD VIEW: unchanged, individual daily rows
+    // ─────────────────────────────────────────────────────────────
+    return $table
+        ->query(function () {
+            $query = DailyTimeRecord::query()
+                ->whereNull('archived_at')
+                ->with(['scholar', 'approvedBy', 'receivedBy']);
+ 
+            return $this->scopeDtrQueryToRole($query);
+        })
+        ->recordUrl(null)
+         
                 ->columns([
                     Tables\Columns\TextColumn::make('scholar.full_name')
                         ->label('Name')
@@ -1372,7 +1367,6 @@ class ListScholars extends ListRecords
 
                     Tables\Columns\TextColumn::make('month_label')
                         ->label('Month')
-                        ->togglable()
                         ->getStateUsing(fn (DailyTimeRecord $record) => $record->month_label)
                         ->sortable(query: fn (Builder $query, string $direction) => $query->orderBy('date', $direction))
                         ->toggleable(),
@@ -1386,37 +1380,31 @@ class ListScholars extends ListRecords
                         ->label('AM In')
                         ->getStateUsing(fn (DailyTimeRecord $record) => self::formatPunch($record->am_in, $record->am_in_location))
                         ->wrap()
-                        ->togglable()
                         ->placeholder('—'),
 
                     Tables\Columns\TextColumn::make('am_out')
                         ->label('AM Out')
                         ->getStateUsing(fn (DailyTimeRecord $record) => self::formatPunch($record->am_out, $record->am_out_location))
                         ->wrap()
-                        ->togglable()
                         ->placeholder('—'),
 
                     Tables\Columns\TextColumn::make('pm_in')
                         ->label('PM In')
                         ->getStateUsing(fn (DailyTimeRecord $record) => self::formatPunch($record->pm_in, $record->pm_in_location))
                         ->wrap()
-                        ->togglable()
                         ->placeholder('—'),
 
                     Tables\Columns\TextColumn::make('pm_out')
                         ->label('PM Out')
                         ->getStateUsing(fn (DailyTimeRecord $record) => self::formatPunch($record->pm_out, $record->pm_out_location))
                         ->wrap()
-                        ->togglable()
                         ->placeholder('—'),
 
                     Tables\Columns\TextColumn::make('total_hours')
                         ->label('Total Hrs')
                         ->numeric(2)
-                        ->togglable()
                         ->placeholder('—'),
-
-                    Tables\Columns\TextColumn::make('attendance_status')
+                                            Tables\Columns\TextColumn::make('attendance_status')
                         ->label('Attendance')
                         ->badge()
                         ->color(fn (?string $state): string => match ($state) {
@@ -1430,19 +1418,18 @@ class ListScholars extends ListRecords
                         ->formatStateUsing(fn ($record) => $record->attendance_status_label)
                         ->placeholder('—'),
 
-                    Tables\Columns\TextColumn::make('excused_reason')
-                        ->label('Excused Reason')
-                        ->placeholder('—')
-                        ->wrap()
-                        ->limit(60)
-                        ->tooltip(fn ($state) => $state)
-                        ->toggleable(),
+                        Tables\Columns\TextColumn::make('excused_reason')
+    ->label('Excused Reason')
+    ->placeholder('—')
+    ->wrap()
+    ->limit(60)
+    ->tooltip(fn ($state) => $state)
+    ->toggleable(),
 
                     Tables\Columns\TextColumn::make('status')
                         ->badge()
                         ->color(fn (string $state): string => match ($state) {
                             'pending'   => 'warning',
-                            'complete'  => 'warning',
                             'approved'  => 'info',
                             'submitted' => 'primary',
                             'received'  => 'success',
@@ -1452,7 +1439,6 @@ class ListScholars extends ListRecords
                         ->formatStateUsing(fn (string $state): string => ucfirst($state))
                         ->tooltip(fn (string $state): string => match ($state) {
                             'pending'   => 'Awaiting Department Head approval.',
-                            'complete'  => 'All punches logged — awaiting Department Head approval.',
                             'approved'  => 'Approved by Department Head — not yet sent to Admin/Scholarship.',
                             'submitted' => 'Sent to Admin/Scholarship, awaiting receipt.',
                             'received'  => 'Received and finalized by Admin/Scholarship.',
@@ -1485,15 +1471,13 @@ class ListScholars extends ListRecords
 
                             return [
                                 'pending'   => 'Pending',
-                                'complete'  => 'Complete',
                                 'approved'  => 'Approved',
                                 'submitted' => 'Submitted',
                                 'received'  => 'Received',
                                 'rejected'  => 'Rejected',
                             ];
                         }),
-
-                    Tables\Filters\SelectFilter::make('attendance_status')
+                                            Tables\Filters\SelectFilter::make('attendance_status')
                         ->label('Attendance')
                         ->options(DailyTimeRecord::ATTENDANCE_STATUSES),
 
@@ -1603,7 +1587,6 @@ class ListScholars extends ListRecords
                                             ->badge()
                                             ->color(fn (string $state): string => match ($state) {
                                                 'pending'   => 'warning',
-                                                'complete'  => 'warning',
                                                 'approved'  => 'info',
                                                 'submitted' => 'primary',
                                                 'received'  => 'success',
@@ -1636,8 +1619,7 @@ class ListScholars extends ListRecords
                                             ->columnSpanFull(),
                                     ])
                                     ->columns(2),
-
-                                \Filament\Infolists\Components\Section::make('Attendance')
+                                                                    \Filament\Infolists\Components\Section::make('Attendance')
                                     ->icon('heroicon-o-clipboard-document-check')
                                     ->schema([
                                         \Filament\Infolists\Components\TextEntry::make('attendance_status')
@@ -1654,10 +1636,10 @@ class ListScholars extends ListRecords
                                             ->formatStateUsing(fn ($record) => $record->attendance_status_label)
                                             ->placeholder('Not recorded'),
 
-                                        \Filament\Infolists\Components\TextEntry::make('excused_reason')
-                                            ->label('Excused Reason')
-                                            ->placeholder('—')
-                                            ->columnSpanFull(),
+                                            \Filament\Infolists\Components\TextEntry::make('excused_reason')
+            ->label('Excused Reason')
+            ->placeholder('—')
+            ->columnSpanFull(),
 
                                         \Filament\Infolists\Components\TextEntry::make('attendance_notes')
                                             ->label('Notes')
@@ -1668,119 +1650,119 @@ class ListScholars extends ListRecords
                             ]),
 
                         Tables\Actions\Action::make('edit_dtr')
-                            ->label('Edit')
-                            ->icon('heroicon-o-pencil-square')
-                            ->color('gray')
-                            ->modalHeading('Edit Daily Time Record')
-                            ->modalSubmitActionLabel('Save Changes')
-                            ->modalWidth('4xl')
-                            ->fillForm(fn (DailyTimeRecord $record): array => [
-                                'scholar_id'         => $record->scholar_id,
-                                'office_assigned'    => $record->office_assigned,
-                                'date'               => $record->date?->format('Y-m-d'),
-                                'am_in'              => $record->am_in,
-                                'am_in_location'     => $record->am_in_location,
-                                'am_out'             => $record->am_out,
-                                'am_out_location'    => $record->am_out_location,
-                                'pm_in'              => $record->pm_in,
-                                'pm_in_location'     => $record->pm_in_location,
-                                'pm_out'             => $record->pm_out,
-                                'pm_out_location'    => $record->pm_out_location,
-                                'total_hours'        => $record->total_hours,
-                                'remarks'            => $record->remarks,
-                            ])
-                            ->form([
-                                Forms\Components\Select::make('scholar_id')
-                                    ->label('Scholar (Student Representatives)')
-                                    ->options(function () {
-                                        $query = Scholars::where('type_of_scholarship', 'Student Representatives');
+    ->label('Edit')
+    ->icon('heroicon-o-pencil-square')
+    ->color('gray')
+    ->modalHeading('Edit Daily Time Record')
+    ->modalSubmitActionLabel('Save Changes')
+    ->modalWidth('4xl')
+    ->fillForm(fn (DailyTimeRecord $record): array => [
+        'scholar_id'         => $record->scholar_id,
+        'office_assigned'    => $record->office_assigned,
+        'date'               => $record->date?->format('Y-m-d'),
+        'am_in'              => $record->am_in,
+        'am_in_location'     => $record->am_in_location,
+        'am_out'             => $record->am_out,
+        'am_out_location'    => $record->am_out_location,
+        'pm_in'              => $record->pm_in,
+        'pm_in_location'     => $record->pm_in_location,
+        'pm_out'             => $record->pm_out,
+        'pm_out_location'    => $record->pm_out_location,
+        'total_hours'        => $record->total_hours,
+        'remarks'            => $record->remarks,
+    ])
+    ->form([
+        Forms\Components\Select::make('scholar_id')
+            ->label('Scholar (Student Representatives)')
+            ->options(function () {
+                $query = Scholars::where('type_of_scholarship', 'Student Representatives');
 
-                                        if (auth()->user()->isDepartmentHead()) {
-                                            $query->where('department_head_id', auth()->id());
-                                        }
+                if (auth()->user()->isDepartmentHead()) {
+                    $query->where('department_head_id', auth()->id());
+                }
 
-                                        return $query->get()->mapWithKeys(fn ($s) => [
-                                            $s->id => "{$s->first_name} {$s->last_name}",
-                                        ]);
-                                    })
-                                    ->searchable()
-                                    ->preload()
-                                    ->required()
-                                    ->native(false),
+                return $query->get()->mapWithKeys(fn ($s) => [
+                    $s->id => "{$s->first_name} {$s->last_name}",
+                ]);
+            })
+            ->searchable()
+            ->preload()
+            ->required()
+            ->native(false),
 
-                                Forms\Components\Select::make('office_assigned')
-                                    ->label('Office Assigned')
-                                    ->options(fn () => Department::active()->pluck('name', 'name'))
-                                    ->searchable()
-                                    ->preload()
-                                    ->native(false)
-                                    ->required(),
+        Forms\Components\Select::make('office_assigned')
+            ->label('Office Assigned')
+            ->options(fn () => Department::active()->pluck('name', 'name'))
+            ->searchable()
+            ->preload()
+            ->native(false)
+            ->required(),
 
-                                Forms\Components\DatePicker::make('date')
-                                    ->label('Date')
-                                    ->required()
-                                    ->native(false)
-                                    ->displayFormat('M d, Y')
-                                    ->maxDate(now()),
+        Forms\Components\DatePicker::make('date')
+            ->label('Date')
+            ->required()
+            ->native(false)
+            ->displayFormat('M d, Y')
+            ->maxDate(now()),
 
-                                Forms\Components\Grid::make(2)->schema([
-                                    Forms\Components\TimePicker::make('am_in')->label('AM In')->seconds(false)
-                                        ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
-                                    Forms\Components\TextInput::make('am_in_location')->label('AM In Location')->maxLength(150),
-                                ]),
-                                Forms\Components\Grid::make(2)->schema([
-                                    Forms\Components\TimePicker::make('am_out')->label('AM Out')->seconds(false)
-                                        ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
-                                    Forms\Components\TextInput::make('am_out_location')->label('AM Out Location')->maxLength(150),
-                                ]),
-                                Forms\Components\Grid::make(2)->schema([
-                                    Forms\Components\TimePicker::make('pm_in')->label('PM In')->seconds(false)
-                                        ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
-                                    Forms\Components\TextInput::make('pm_in_location')->label('PM In Location')->maxLength(150),
-                                ]),
-                                Forms\Components\Grid::make(2)->schema([
-                                    Forms\Components\TimePicker::make('pm_out')->label('PM Out')->seconds(false)
-                                        ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
-                                    Forms\Components\TextInput::make('pm_out_location')->label('PM Out Location')->maxLength(150),
-                                ]),
+        Forms\Components\Grid::make(2)->schema([
+            Forms\Components\TimePicker::make('am_in')->label('AM In')->seconds(false)
+                ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
+            Forms\Components\TextInput::make('am_in_location')->label('AM In Location')->maxLength(150),
+        ]),
+        Forms\Components\Grid::make(2)->schema([
+            Forms\Components\TimePicker::make('am_out')->label('AM Out')->seconds(false)
+                ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
+            Forms\Components\TextInput::make('am_out_location')->label('AM Out Location')->maxLength(150),
+        ]),
+        Forms\Components\Grid::make(2)->schema([
+            Forms\Components\TimePicker::make('pm_in')->label('PM In')->seconds(false)
+                ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
+            Forms\Components\TextInput::make('pm_in_location')->label('PM In Location')->maxLength(150),
+        ]),
+        Forms\Components\Grid::make(2)->schema([
+            Forms\Components\TimePicker::make('pm_out')->label('PM Out')->seconds(false)
+                ->live()->afterStateUpdated(fn (callable $get, callable $set) => $this->recalculateTotalHours($get, $set)),
+            Forms\Components\TextInput::make('pm_out_location')->label('PM Out Location')->maxLength(150),
+        ]),
 
-                                Forms\Components\TextInput::make('total_hours')
-                                    ->label('Total Hours')
-                                    ->numeric()
-                                    ->step(0.01)
-                                    ->readOnly()
-                                    ->suffix('hrs')
-                                    ->dehydrated(true)
-                                    ->columnSpanFull(),
+        Forms\Components\TextInput::make('total_hours')
+            ->label('Total Hours')
+            ->numeric()
+            ->step(0.01)
+            ->readOnly()
+            ->suffix('hrs')
+            ->dehydrated(true)
+            ->columnSpanFull(),
 
-                                Forms\Components\Textarea::make('remarks')
-                                    ->label('Remarks')
-                                    ->rows(2),
-                            ])
-                            ->action(function (DailyTimeRecord $record, array $data): void {
-                                $data['total_hours'] = DailyTimeRecord::calculateTotalHours(
-                                    $data['am_in'] ?? null,
-                                    $data['am_out'] ?? null,
-                                    $data['pm_in'] ?? null,
-                                    $data['pm_out'] ?? null,
-                                );
+        Forms\Components\Textarea::make('remarks')
+            ->label('Remarks')
+            ->rows(2),
+    ])
+    ->action(function (DailyTimeRecord $record, array $data): void {
+        $data['total_hours'] = DailyTimeRecord::calculateTotalHours(
+            $data['am_in'] ?? null,
+            $data['am_out'] ?? null,
+            $data['pm_in'] ?? null,
+            $data['pm_out'] ?? null,
+        );
 
-                                $record->update($data);
+        $record->update($data);
 
-                                $this->logCustomActivity(
-                                    $record,
-                                    'dtr',
-                                    'updated',
-                                    "Updated DTR entry for {$record->date?->format('M d, Y')} ({$record->office_assigned})"
-                                );
+        $this->logCustomActivity(
+            $record,
+            'dtr',
+            'updated',
+            "Updated DTR entry for {$record->date?->format('M d, Y')} ({$record->office_assigned})"
+        );
 
-                                Notification::make()
-                                    ->title('DTR entry updated')
-                                    ->success()
-                                    ->send();
-                            }),
+        Notification::make()
+            ->title('DTR entry updated')
+            ->success()
+            ->send();
+    }),
 
-                        Tables\Actions\Action::make('setAttendance')
+                                                    Tables\Actions\Action::make('setAttendance')
                             ->label(fn (DailyTimeRecord $record): string => $record->attendance_status
                                 ? 'Edit Attendance Remarks'
                                 : 'Add Attendance Remarks')
@@ -1838,7 +1820,7 @@ class ListScholars extends ListRecords
                             ->modalDescription('This marks the entry as Approved. It will then need to be Submitted to Admin/Scholarship separately.')
                             ->modalSubmitActionLabel('Yes, Approve')
                             ->visible(fn (DailyTimeRecord $record): bool =>
-                                in_array($record->status, self::DTR_AWAITING_APPROVAL)
+                                $record->status === 'pending'
                                 && (auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
                             )
                             ->action(function (DailyTimeRecord $record): void {
@@ -1863,90 +1845,90 @@ class ListScholars extends ListRecords
                             }),
 
                         Tables\Actions\Action::make('submit')
-                            ->label(fn (DailyTimeRecord $record): string => 'Submit All for ' . trim("{$record->scholar?->first_name} {$record->scholar?->last_name}"))
-                            ->icon('heroicon-o-paper-airplane')
-                            ->color('primary')
-                            ->modalHeading(fn (DailyTimeRecord $record) => 'Submit DTR Entries — ' . trim("{$record->scholar?->first_name} {$record->scholar?->last_name}"))
-                            ->modalSubmitActionLabel('Yes, Submit All')
-                            ->visible(fn (DailyTimeRecord $record): bool =>
-                                $record->status === 'approved'
-                                && (auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
-                            )
-                            ->modalContent(function (DailyTimeRecord $record) {
-                                $scholarId = $record->scholar_id;
-                                $scholar = $record->scholar;
-                                $scholarName = trim("{$scholar?->first_name} {$scholar?->last_name}");
+    ->label(fn (DailyTimeRecord $record): string => 'Submit All for ' . trim("{$record->scholar?->first_name} {$record->scholar?->last_name}"))
+    ->icon('heroicon-o-paper-airplane')
+    ->color('primary')
+    ->modalHeading(fn (DailyTimeRecord $record) => 'Submit DTR Entries — ' . trim("{$record->scholar?->first_name} {$record->scholar?->last_name}"))
+    ->modalSubmitActionLabel('Yes, Submit All')
+    ->visible(fn (DailyTimeRecord $record): bool =>
+        $record->status === 'approved'
+        && (auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
+    )
+    ->modalContent(function (DailyTimeRecord $record) {
+    $scholarId = $record->scholar_id;
+    $scholar = $record->scholar;
+    $scholarName = trim("{$scholar?->first_name} {$scholar?->last_name}");
 
-                                $yearLabel = match ((string) $scholar?->year_level) {
-                                    '1' => '1st Year', '2' => '2nd Year', '3' => '3rd Year',
-                                    '4' => '4th Year', '5' => '5th Year', default => $scholar?->year_level,
-                                };
-                                $courseYear = trim("{$scholar?->program} - {$yearLabel}", ' -');
+    $yearLabel = match ((string) $scholar?->year_level) {
+        '1' => '1st Year', '2' => '2nd Year', '3' => '3rd Year',
+        '4' => '4th Year', '5' => '5th Year', default => $scholar?->year_level,
+    };
+    $courseYear = trim("{$scholar?->program} - {$yearLabel}", ' -');
 
-                                $records = DailyTimeRecord::where('scholar_id', $scholarId)
-                                    ->where('status', 'approved')
-                                    ->whereNull('archived_at')
-                                    ->orderBy('date')
-                                    ->get();
+    $records = DailyTimeRecord::where('scholar_id', $scholarId)
+        ->where('status', 'approved')
+        ->whereNull('archived_at')
+        ->orderBy('date')
+        ->get();
 
-                                // If entries span more than one month, show the range; otherwise show the single month.
-                                $months = $records->pluck('date')->filter()->map(fn ($d) => $d->format('F Y'))->unique();
-                                $monthLabel = $months->count() > 1
-                                    ? $months->first() . ' – ' . $months->last()
-                                    : $months->first();
+    // If entries span more than one month, show the range; otherwise show the single month.
+    $months = $records->pluck('date')->filter()->map(fn ($d) => $d->format('F Y'))->unique();
+    $monthLabel = $months->count() > 1
+        ? $months->first() . ' – ' . $months->last()
+        : $months->first();
 
-                                $entries = $records->map(fn ($d) => [
-                                    'date'        => $d->date?->format('M d, Y'),
-                                    'am_in'       => $d->am_in ? \Carbon\Carbon::parse($d->am_in)->format('h:i A') : null,
-                                    'am_out'      => $d->am_out ? \Carbon\Carbon::parse($d->am_out)->format('h:i A') : null,
-                                    'pm_in'       => $d->pm_in ? \Carbon\Carbon::parse($d->pm_in)->format('h:i A') : null,
-                                    'pm_out'      => $d->pm_out ? \Carbon\Carbon::parse($d->pm_out)->format('h:i A') : null,
-                                    'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) : '—',
-                                    'remarks'     => $d->remarks,
-                                ])->toArray();
+    $entries = $records->map(fn ($d) => [
+        'date'        => $d->date?->format('M d, Y'),
+        'am_in'       => $d->am_in ? \Carbon\Carbon::parse($d->am_in)->format('h:i A') : null,
+        'am_out'      => $d->am_out ? \Carbon\Carbon::parse($d->am_out)->format('h:i A') : null,
+        'pm_in'       => $d->pm_in ? \Carbon\Carbon::parse($d->pm_in)->format('h:i A') : null,
+        'pm_out'      => $d->pm_out ? \Carbon\Carbon::parse($d->pm_out)->format('h:i A') : null,
+        'total_hours' => $d->total_hours ? number_format($d->total_hours, 2) : '—',
+        'remarks'     => $d->remarks,
+    ])->toArray();
 
-                                return view('filament.modals.dtr-submit-preview', [
-                                    'entries'        => $entries,
-                                    'scholarName'    => $scholarName,
-                                    'courseYear'     => $courseYear,
-                                    'monthLabel'     => $monthLabel,
-                                    'officeAssigned' => $records->first()?->office_assigned,
-                                    'totalHours'     => $records->sum('total_hours'),
-                                ]);
-                            })
-                            ->action(function (DailyTimeRecord $record): void {
-                                $scholarId = $record->scholar_id;
-                                $scholarName = trim("{$record->scholar?->first_name} {$record->scholar?->last_name}");
+    return view('filament.modals.dtr-submit-preview', [
+        'entries'        => $entries,
+        'scholarName'    => $scholarName,
+        'courseYear'     => $courseYear,
+        'monthLabel'     => $monthLabel,
+        'officeAssigned' => $records->first()?->office_assigned,
+        'totalHours'     => $records->sum('total_hours'),
+    ]);
+})
+    ->action(function (DailyTimeRecord $record): void {
+        $scholarId = $record->scholar_id;
+        $scholarName = trim("{$record->scholar?->first_name} {$record->scholar?->last_name}");
 
-                                $records = DailyTimeRecord::where('scholar_id', $scholarId)
-                                    ->where('status', 'approved')
-                                    ->whereNull('archived_at')
-                                    ->get();
+        $records = DailyTimeRecord::where('scholar_id', $scholarId)
+            ->where('status', 'approved')
+            ->whereNull('archived_at')
+            ->get();
 
-                                foreach ($records as $dtr) {
-                                    $dtr->update(['status' => 'submitted']);
+        foreach ($records as $dtr) {
+            $dtr->update(['status' => 'submitted']);
 
-                                    $this->logCustomActivity(
-                                        $dtr,
-                                        'dtr',
-                                        'submitted',
-                                        "Submitted DTR for {$dtr->scholar?->first_name} {$dtr->scholar?->last_name} to Admin/Scholarship ({$dtr->date?->format('M d, Y')})"
-                                    );
-                                }
+            $this->logCustomActivity(
+                $dtr,
+                'dtr',
+                'submitted',
+                "Submitted DTR for {$dtr->scholar?->first_name} {$dtr->scholar?->last_name} to Admin/Scholarship ({$dtr->date?->format('M d, Y')})"
+            );
+        }
 
-                                Notification::make()
-                                    ->title('DTR Entries Submitted')
-                                    ->success()
-                                    ->body("{$records->count()} DTR entrie(s) for {$scholarName} have been sent to Admin and Scholarship.")
-                                    ->send();
+        Notification::make()
+            ->title('DTR Entries Submitted')
+            ->success()
+            ->body("{$records->count()} DTR entrie(s) for {$scholarName} have been sent to Admin and Scholarship.")
+            ->send();
 
-                                // Notify every Admin/Scholarship user that DTR entries are awaiting receipt.
-                                $this->notifyAdminAndScholarship(
-                                    'DTR Submitted for Review',
-                                    "{$records->count()} DTR entrie(s) for {$scholarName} have been submitted and are awaiting receipt.",
-                                    'heroicon-o-paper-airplane'
-                                );
-                            }),
+        // Notify every Admin/Scholarship user that DTR entries are awaiting receipt.
+        $this->notifyAdminAndScholarship(
+            'DTR Submitted for Review',
+            "{$records->count()} DTR entrie(s) for {$scholarName} have been submitted and are awaiting receipt.",
+            'heroicon-o-paper-airplane'
+        );
+    }),
 
                         Tables\Actions\Action::make('reject')
                             ->label('Reject')
@@ -1963,7 +1945,7 @@ class ListScholars extends ListRecords
                                     ->rows(2),
                             ])
                             ->visible(fn (DailyTimeRecord $record): bool =>
-                                in_array($record->status, self::DTR_AWAITING_APPROVAL)
+                                $record->status === 'pending'
                                 && (auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
                             )
                             ->action(function (DailyTimeRecord $record, array $data): void {

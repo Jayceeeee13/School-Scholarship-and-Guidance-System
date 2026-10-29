@@ -401,7 +401,9 @@ class ReferralsResource extends Resource
 
                                                         Forms\Components\TextInput::make('from_where')
                                                             ->label('From')
-                                                            ->placeholder('Sender name / office')
+                                                            ->afterStateHydrated(fn ($component, $state) => $component->state($state ?: 'Guidance Office'))
+                                                            ->readOnly()
+                                                            ->dehydrated()
                                                             ->maxLength(200),
                                                     ]),
 
@@ -541,15 +543,65 @@ class ReferralsResource extends Resource
 
                                                         Forms\Components\Select::make('time_slot_id')
                                                             ->label('Time Slot')
-                                                            ->options(fn () => \App\Models\CounselingTimeSlot::where('is_active', true)
-                                                                ->orderBy('name')
-                                                                ->pluck('name', 'id')
-                                                                ->toArray())
+                                                            ->options(function (Get $get) {
+                                                                $date  = $get('session_date');
+                                                                $slots = \App\Models\CounselingTimeSlot::where('is_active', true)
+                                                                    ->get()
+                                                                    ->sortBy(fn ($s) => CounselingAppointmentsResource::getSlotStartMinutes($s->name))
+                                                                    ->values();
+
+                                                                if (! $date) {
+                                                                    return $slots->mapWithKeys(fn ($s) => [$s->id => $s->name . ' ✅ Available'])->toArray();
+                                                                }
+
+                                                                $reserved = \App\Models\CounselingAppointments::query()
+                                                                    ->whereDate('counseling_date', $date)
+                                                                    ->whereNotIn('status', ['cancelled', 'rejected'])
+                                                                    ->pluck('time_slot_id')
+                                                                    ->toArray();
+
+                                                                $isToday = \Carbon\Carbon::parse($date)->isToday();
+
+                                                                return $slots->mapWithKeys(function ($s) use ($reserved, $isToday) {
+                                                                    $label = $s->name;
+
+                                                                    if (in_array($s->id, $reserved)) {
+                                                                        $label .= ' 🔴 Reserved';
+                                                                    } elseif ($isToday && CounselingAppointmentsResource::isTimeSlotPast($s->name)) {
+                                                                        $label .= ' ⏰ Past';
+                                                                    } else {
+                                                                        $label .= ' ✅ Available';
+                                                                    }
+
+                                                                    return [$s->id => $label];
+                                                                })->toArray();
+                                                            })
+                                                            ->disableOptionWhen(function ($value, Get $get) {
+                                                                $date = $get('session_date');
+                                                                if (! $date) return false;
+
+                                                                $isReserved = \App\Models\CounselingAppointments::query()
+                                                                    ->whereDate('counseling_date', $date)
+                                                                    ->where('time_slot_id', $value)
+                                                                    ->whereNotIn('status', ['cancelled', 'rejected'])
+                                                                    ->exists();
+
+                                                                if ($isReserved) return true;
+
+                                                                if (\Carbon\Carbon::parse($date)->isToday()) {
+                                                                    $slot = \App\Models\CounselingTimeSlot::find($value);
+                                                                    return $slot && CounselingAppointmentsResource::isTimeSlotPast($slot->name);
+                                                                }
+
+                                                                return false;
+                                                            })
                                                             ->required()
                                                             ->searchable()
-                                                            ->preload()
+                                                            ->live()
                                                             ->native(false)
-                                                            ->placeholder('Select time slot'),
+                                                            ->disabled(fn (Get $get) => ! $get('session_date'))
+                                                            ->dehydrated()
+                                                            ->placeholder(fn (Get $get) => $get('session_date') ? 'Choose an available time slot' : 'Select a date first'),
                                                     ]),
 
                                                 Forms\Components\Textarea::make('purpose')

@@ -601,7 +601,7 @@ class CounselingAppointmentsResource extends Resource
      * Extracts the start time from a slot name like "9:00 am - 10:00 am"
      * or "11:00 am - 12:00 nn" and checks if that time has already passed today.
      */
-    protected static function isTimeSlotPast(string $slotName): bool
+    public static function isTimeSlotPast(string $slotName): bool
     {
         // Grab the first time pattern before the dash, e.g. "9:00 am"
         if (!preg_match('/^\s*(\d{1,2}:\d{2})\s*(am|pm|nn)/i', $slotName, $matches)) {
@@ -629,7 +629,7 @@ class CounselingAppointmentsResource extends Resource
      * Converts a slot name like "9:00am-10:00am" or "11:00am-12:00nn"
      * into total minutes since midnight, for chronological sorting.
      */
-    protected static function getSlotStartMinutes(string $slotName): int
+    public static function getSlotStartMinutes(string $slotName): int
     {
         if (!preg_match('/^\s*(\d{1,2}):(\d{2})\s*(am|pm|nn)/i', $slotName, $matches)) {
             return 0; // unparseable — push to the front, harmless

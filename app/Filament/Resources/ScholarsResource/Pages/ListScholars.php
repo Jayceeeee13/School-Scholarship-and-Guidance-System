@@ -1820,7 +1820,7 @@ class ListScholars extends ListRecords
                             ->modalDescription('This marks the entry as Approved. It will then need to be Submitted to Admin/Scholarship separately.')
                             ->modalSubmitActionLabel('Yes, Approve')
                             ->visible(fn (DailyTimeRecord $record): bool =>
-                                $record->status === 'pending'
+                                $record->status === 'pending', 'complete'
                                 && (auth()->user()->isDepartmentHead() || auth()->user()->isAdmin())
                             )
                             ->action(function (DailyTimeRecord $record): void {

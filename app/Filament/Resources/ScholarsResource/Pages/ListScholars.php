@@ -1372,6 +1372,7 @@ class ListScholars extends ListRecords
 
                     Tables\Columns\TextColumn::make('month_label')
                         ->label('Month')
+                        ->togglable()
                         ->getStateUsing(fn (DailyTimeRecord $record) => $record->month_label)
                         ->sortable(query: fn (Builder $query, string $direction) => $query->orderBy('date', $direction))
                         ->toggleable(),
@@ -1385,29 +1386,34 @@ class ListScholars extends ListRecords
                         ->label('AM In')
                         ->getStateUsing(fn (DailyTimeRecord $record) => self::formatPunch($record->am_in, $record->am_in_location))
                         ->wrap()
+                        ->togglable()
                         ->placeholder('—'),
 
                     Tables\Columns\TextColumn::make('am_out')
                         ->label('AM Out')
                         ->getStateUsing(fn (DailyTimeRecord $record) => self::formatPunch($record->am_out, $record->am_out_location))
                         ->wrap()
+                        ->togglable()
                         ->placeholder('—'),
 
                     Tables\Columns\TextColumn::make('pm_in')
                         ->label('PM In')
                         ->getStateUsing(fn (DailyTimeRecord $record) => self::formatPunch($record->pm_in, $record->pm_in_location))
                         ->wrap()
+                        ->togglable()
                         ->placeholder('—'),
 
                     Tables\Columns\TextColumn::make('pm_out')
                         ->label('PM Out')
                         ->getStateUsing(fn (DailyTimeRecord $record) => self::formatPunch($record->pm_out, $record->pm_out_location))
                         ->wrap()
+                        ->togglable()
                         ->placeholder('—'),
 
                     Tables\Columns\TextColumn::make('total_hours')
                         ->label('Total Hrs')
                         ->numeric(2)
+                        ->togglable()
                         ->placeholder('—'),
 
                     Tables\Columns\TextColumn::make('attendance_status')

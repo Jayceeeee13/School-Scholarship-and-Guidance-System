@@ -407,9 +407,11 @@ class CounselingAppointmentsResource extends Resource
                                                             ->maxLength(200),
 
                                                         Forms\Components\TextInput::make('from_where')
-                                                            ->label('From')
-                                                            ->placeholder('Sender name / office')
-                                                            ->maxLength(200),
+                                                        ->label('From')
+                                                        ->default('Guidance Office')
+                                                        ->readOnly()
+                                                        ->dehydrated()
+                                                        ->maxLength(200),
                                                     ]),
 
                                                 Forms\Components\Grid::make(2)

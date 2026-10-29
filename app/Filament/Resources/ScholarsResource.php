@@ -137,7 +137,6 @@ class ScholarsResource extends Resource
 
                             Forms\Components\TextInput::make('middle_name')
                                 ->label('Middle Name')
-                                ->required()
                                 ->maxLength(200),
 
                             Forms\Components\TextInput::make('last_name')

@@ -6,18 +6,23 @@ use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Personnels;
-use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\ImageEntry;
+use Filament\Infolists\Components\Section;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Infolist;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class UserResource extends Resource
@@ -42,6 +47,16 @@ class UserResource extends Resource
         return Role::whereIn('id', $roleIds)
             ->where('name', 'Department Head')
             ->exists();
+    }
+
+    /**
+     * Gender options, shared by the user and personnel forms.
+     * ASSUMPTION: a `genders` table with `id` and `name` columns.
+     * Adjust here if yours is different.
+     */
+    public static function genderOptions(): array
+    {
+        return DB::table('genders')->orderBy('name')->pluck('name', 'id')->all();
     }
 
     public static function form(Form $form): Form
@@ -110,7 +125,6 @@ class UserResource extends Resource
                         $set('contact_no', $personnel->contact_no);
                         $set('birthdate', $personnel->birthdate);
                         $set('address', $personnel->address);
-                        $set('gender_id', $personnel->gender_id);
 
                         // Auto-fill profile picture from personnel.
                         // FileUpload state is an array of uuid => file path.
@@ -132,7 +146,52 @@ class UserResource extends Resource
                 TextInput::make('email')
                     ->email()
                     ->required()
-                    ->disabled(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles'))),
+                    ->maxLength(100)
+                    ->dehydrated()
+                    ->disabled(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles')))
+                    ->unique('users', 'email', ignoreRecord: true)
+                    // The email is synced to the personnel record, so it must
+                    // not collide with a DIFFERENT personnel's email.
+                    ->rule(function (?User $record) {
+                        return function (string $attribute, $value, $fail) use ($record) {
+                            $exists = Personnels::where('email', $value)
+                                ->when(
+                                    $record?->personnel_id,
+                                    fn ($q) => $q->where('id', '!=', $record->personnel_id)
+                                )
+                                ->exists();
+
+                            if ($exists) {
+                                $fail('This email is already used by another personnel record.');
+                            }
+                        };
+                    }),
+
+                TextInput::make('contact_no')
+                    ->label('Contact Number')
+                    ->tel()
+                    ->maxLength(11)
+                    ->minLength(11)
+                    ->rule('regex:/^[0-9]+$/')
+                    ->validationMessages([
+                        'regex' => 'Contact number can only contain digits.',
+                        'min'   => 'Contact number must be exactly 11 digits.',
+                        'max'   => 'Contact number must be exactly 11 digits.',
+                    ])
+                    ->extraInputAttributes([
+                        'onkeypress' => "return /^[0-9]$/.test(event.key)",
+                        'maxlength'  => '11',
+                    ])
+                    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
+
+                DatePicker::make('birthdate')
+                    ->label('Date of Birth')
+                    ->native(false)
+                    ->displayFormat('M d, Y')
+                    ->maxDate(now()),
+
+                TextInput::make('address')
+                    ->maxLength(100),
 
                 TextInput::make('password')
                     ->label('Password')
@@ -142,6 +201,77 @@ class UserResource extends Resource
                     ->required()
                     ->default('GVCFI@2026')
                     ->dehydrateStateUsing(fn ($state) => bcrypt($state)),
+            ]);
+    }
+
+    /**
+     * Read-only "View User" page.
+     * (Used instead of the form so the password hash is never displayed.)
+     */
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Section::make('Account')
+                    ->columns(2)
+                    ->schema([
+                        ImageEntry::make('avatar')
+                            ->label('Profile Picture')
+                            ->disk('public')
+                            ->circular()
+                            ->defaultImageUrl(fn (User $record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->name) . '&background=random')
+                            ->columnSpanFull(),
+
+                        TextEntry::make('name')
+                            ->label('Name'),
+
+                        TextEntry::make('email')
+                            ->label('Email')
+                            ->copyable(),
+
+                        TextEntry::make('roles.name')
+                            ->label('Roles')
+                            ->badge()
+                            ->placeholder('—'),
+
+                        TextEntry::make('department.name')
+                            ->label('Department')
+                            ->placeholder('—'),
+                    ]),
+
+                Section::make('Personal Information')
+                    ->columns(2)
+                    ->schema([
+                        TextEntry::make('personnel.position')
+                            ->label('Position')
+                            ->placeholder('—'),
+
+                        TextEntry::make('contact_no')
+                            ->label('Contact No.')
+                            ->placeholder('—'),
+
+                        TextEntry::make('birthdate')
+                            ->label('Date of Birth')
+                            ->date('M d, Y')
+                            ->placeholder('—'),
+
+                        TextEntry::make('address')
+                            ->label('Address')
+                            ->placeholder('—'),
+                    ]),
+
+                Section::make('Status')
+                    ->columns(2)
+                    ->schema([
+                        TextEntry::make('created_at')
+                            ->label('Created')
+                            ->dateTime('M d, Y h:i A'),
+
+                        TextEntry::make('archived_at')
+                            ->label('Archived At')
+                            ->dateTime('M d, Y h:i A')
+                            ->placeholder('Active'),
+                    ]),
             ]);
     }
 
@@ -164,7 +294,8 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
-                // Tables\Actions\EditAction::make(),
+                Tables\Actions\ViewAction::make(),
+                Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -186,11 +317,17 @@ class UserResource extends Resource
         return [
             'index'  => Pages\ListUsers::route('/'),
             'create' => Pages\CreateUser::route('/create'),
+            'view'   => Pages\ViewUser::route('/{record}'),
             'edit'   => Pages\EditUser::route('/{record}/edit'),
         ];
     }
 
     public static function canViewAny(): bool
+    {
+        return auth()->user()->hasRole('admin');
+    }
+
+    public static function canView($record): bool
     {
         return auth()->user()->hasRole('admin');
     }

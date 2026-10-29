@@ -199,6 +199,7 @@ class UserResource extends Resource
                     ->revealable()
                     ->disabled()
                     ->required()
+                    ->hiddenOn('edit')
                     ->default('GVCFI@2026')
                     ->dehydrateStateUsing(fn ($state) => bcrypt($state)),
             ]);

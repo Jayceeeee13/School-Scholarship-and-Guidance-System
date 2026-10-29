@@ -77,16 +77,22 @@ class UserResource extends Resource
                     ->nullable(),
 
                 CheckboxList::make('roles')
-                    ->label('Roles')
-                    ->relationship('roles', 'name')
-                    ->columns(2)
-                    ->required()
-                    ->live()
-                    ->afterStateUpdated(function (Set $set, $state) {
-                        if (self::hasDepartmentHeadRole($state)) {
-                            $set('password', 'GVCFI@2026');
-                        }
-                    }),
+    ->label('Roles')
+    ->relationship(
+        'roles',
+        'name',
+        fn ($query, string $operation) => $operation === 'create'
+            ? $query->where('name', '!=', 'Student')
+            : $query
+    )
+    ->columns(2)
+    ->required()
+    ->live()
+    ->afterStateUpdated(function (Set $set, $state) {
+        if (self::hasDepartmentHeadRole($state)) {
+            $set('password', 'GVCFI@2026');
+        }
+    }),
 
                 Select::make('department_id')
                     ->label('Department')

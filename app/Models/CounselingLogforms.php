@@ -23,7 +23,9 @@ class CounselingLogforms extends Model
         'walkin_student_id',
         'support_needed_id',
         'concern',
-        'term_id', 
+        'contact_no',
+        'address',
+        'term_id',
         'remarks',
         'follow_up_required',
         'archived_at',
@@ -75,9 +77,9 @@ class CounselingLogforms extends Model
     }
 
     public function term(): BelongsTo
-{
-    return $this->belongsTo(Term::class);
-}
+    {
+        return $this->belongsTo(Term::class);
+    }
 
     public function referral(): BelongsTo
     {
@@ -176,7 +178,7 @@ class CounselingLogforms extends Model
         }
 
         if ($this->referral) {
-            return '—';
+            return $this->contact_no ?: '—';
         }
 
         return $this->appointment?->contact_no ?? '—';
@@ -189,7 +191,7 @@ class CounselingLogforms extends Model
         }
 
         if ($this->referral) {
-            return '—';
+            return $this->address ?: '—';
         }
 
         return $this->appointment?->present_address ?? '—';

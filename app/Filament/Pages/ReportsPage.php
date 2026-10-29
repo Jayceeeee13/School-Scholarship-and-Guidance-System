@@ -31,6 +31,23 @@ class ReportsPage extends Page implements HasForms
     // ── Scholarship categories ──────────────────────────────────────────────
     public const SCHOLARSHIP_CATEGORIES = ['TES', 'TDP', 'CMSP'];
 
+    // ── Programs with a PRC board exam (lowercase; full names + acronyms) ───
+    public const BOARD_PROGRAMS = [
+        'bachelor of elementary education',
+        'bachelor of early childhood education',
+        'bachelor of secondary education major in english',
+        'bachelor of secondary education major in mathematics',
+        'bachelor of technology and livelihood education major in home economics',
+        'bachelor of technology and livelihood education major in industrial arts',
+        'bachelor of technology and livelihood education major in information communication technology',
+        'bachelor of science in mechanical engineering',
+        'bachelor of science in criminology',
+        // acronyms
+        'beed', 'beced', 'bsed-eng', 'bsed-math',
+        'btled-he', 'btled-ia', 'btled-ict',
+        'bsme', 'bscrim',
+    ];
+
     // ── Filter state ────────────────────────────────────────────────────────
     public ?string $school_year_filter = null;
 
@@ -80,6 +97,15 @@ class ReportsPage extends Page implements HasForms
                     ->compact(),
             ])
             ->statePath('');
+    }
+
+    // ── Board program check ─────────────────────────────────────────────────
+    // NOTE: change `course` to your actual column name (e.g. program, program_name)
+    protected function isBoardProgram($scholar): bool
+    {
+        $program = strtolower(trim(preg_replace('/\s+/', ' ', $scholar->course ?? '')));
+
+        return in_array($program, self::BOARD_PROGRAMS, true);
     }
 
     // ── Resolve term pair ───────────────────────────────────────────────────
@@ -145,10 +171,11 @@ class ReportsPage extends Page implements HasForms
         $ipMale   = $male->filter(fn ($s) => ! empty($s->ip_group));
         $ipFemale = $female->filter(fn ($s) => ! empty($s->ip_group));
 
-        $withBoardMale   = $male->filter(fn ($s) => str_contains(strtolower($s->type_of_scholarship ?? ''), 'board'));
-        $withBoardFemale = $female->filter(fn ($s) => str_contains(strtolower($s->type_of_scholarship ?? ''), 'board'));
-        $noneBoardMale   = $male->filter(fn ($s) => ! str_contains(strtolower($s->type_of_scholarship ?? ''), 'board'));
-        $noneBoardFemale = $female->filter(fn ($s) => ! str_contains(strtolower($s->type_of_scholarship ?? ''), 'board'));
+        // Board / None Board — based on the scholar's program/course
+        $withBoardMale   = $male->filter(fn ($s) => $this->isBoardProgram($s));
+        $withBoardFemale = $female->filter(fn ($s) => $this->isBoardProgram($s));
+        $noneBoardMale   = $male->reject(fn ($s) => $this->isBoardProgram($s));
+        $noneBoardFemale = $female->reject(fn ($s) => $this->isBoardProgram($s));
 
         return [
             'total_male'        => $male->count(),

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Filament\Pages\ReportsPage;
 use App\Models\Scholars;
 use App\Models\Term;
 use Illuminate\Http\Request;
@@ -54,6 +55,22 @@ class ReportsPrintController extends Controller
         ]);
     }
 
+    // Board program check — uses the same list as the Reports page
+    private function isBoardProgram($scholar): bool
+    {
+        $program = strtolower(trim(preg_replace('/\s+/', ' ', $scholar->program ?? '')));
+
+        return in_array($program, ReportsPage::BOARD_PROGRAMS, true);
+    }
+
+    // PWD if the pwd column has any real value (e.g. "pilay", "yes")
+    private function isPwd($scholar): bool
+    {
+        $value = strtolower(trim($scholar->pwd ?? ''));
+
+        return $value !== '' && ! in_array($value, ['no', 'none', 'n/a', 'na', 'null', '0', 'false', '-'], true);
+    }
+
     private function termStats(?Term $term, ?string $cat = null): array
     {
         $empty = [
@@ -81,14 +98,14 @@ class ReportsPrintController extends Controller
             'total_male'        => $male->count(),
             'total_female'      => $female->count(),
             'total'             => $scholars->count(),
-            'pwd_male'          => $male->filter(fn ($s) => strtolower($s->pwd ?? '') === 'yes')->count(),
-            'pwd_female'        => $female->filter(fn ($s) => strtolower($s->pwd ?? '') === 'yes')->count(),
+            'pwd_male'          => $male->filter(fn ($s) => $this->isPwd($s))->count(),
+            'pwd_female'        => $female->filter(fn ($s) => $this->isPwd($s))->count(),
             'ip_male'           => $male->filter(fn ($s) => ! empty($s->ip_group))->count(),
             'ip_female'         => $female->filter(fn ($s) => ! empty($s->ip_group))->count(),
-            'none_board_male'   => $male->filter(fn ($s) => ! str_contains(strtolower($s->type_of_scholarship ?? ''), 'board'))->count(),
-            'none_board_female' => $female->filter(fn ($s) => ! str_contains(strtolower($s->type_of_scholarship ?? ''), 'board'))->count(),
-            'with_board_male'   => $male->filter(fn ($s) => str_contains(strtolower($s->type_of_scholarship ?? ''), 'board'))->count(),
-            'with_board_female' => $female->filter(fn ($s) => str_contains(strtolower($s->type_of_scholarship ?? ''), 'board'))->count(),
+            'none_board_male'   => $male->reject(fn ($s) => $this->isBoardProgram($s))->count(),
+            'none_board_female' => $female->reject(fn ($s) => $this->isBoardProgram($s))->count(),
+            'with_board_male'   => $male->filter(fn ($s) => $this->isBoardProgram($s))->count(),
+            'with_board_female' => $female->filter(fn ($s) => $this->isBoardProgram($s))->count(),
         ];
     }
 }

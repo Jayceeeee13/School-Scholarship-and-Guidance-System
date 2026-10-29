@@ -58,7 +58,6 @@ class ListUsers extends ListRecords
      *   contact_no     →  contact_no
      *   birthdate      →  birthdate
      *   address        →  address
-     *   gender_id      →  gender_id
      *   profile        →  avatar
      */
     protected function syncPersonnelToUser(Personnels $personnel): bool
@@ -75,7 +74,6 @@ class ListUsers extends ListRecords
             'contact_no' => $personnel->contact_no,
             'birthdate'  => $personnel->birthdate,
             'address'    => $personnel->address,
-            'gender_id'  => $personnel->gender_id,
             'avatar'     => $personnel->profile,
         ]);
 
@@ -157,11 +155,6 @@ class ListUsers extends ListRecords
                 ->extraInputAttributes([
                     'style' => 'text-transform: capitalize;',
                 ]),
-
-            Forms\Components\Select::make('gender_id')
-                ->label('Gender')
-                ->options(fn () => UserResource::genderOptions())
-                ->native(false),
 
             Forms\Components\DatePicker::make('birthdate')
                 ->label('Date of Birth')
@@ -510,7 +503,6 @@ class ListUsers extends ListRecords
                                 'middle_name' => $record->middle_name,
                                 'last_name'   => $record->last_name,
                                 'position'    => $record->position,
-                                'gender_id'   => $record->gender_id,
                                 'birthdate'   => $record->birthdate,
                                 'age'         => $record->age,
                                 'contact_no'  => $record->contact_no,
@@ -822,16 +814,22 @@ class ListUsers extends ListRecords
                         ->url(fn (User $record): string => UserResource::getUrl('edit', ['record' => $record]))
                         ->visible(fn (User $record): bool => UserResource::canEdit($record)),
 
+                    // Archive with an optional cascade (checkbox)
                     Tables\Actions\Action::make('archiveUser')
                         ->label('Archive')
                         ->icon('heroicon-o-archive-box')
                         ->color('danger')
                         ->requiresConfirmation()
                         ->modalHeading('Archive User')
-                        ->modalDescription('Are you sure you want to archive this user? They will immediately lose access, and their linked personnel profile, scholarships, appointments, referrals, DTRs and accomplishment reports will be archived too.')
+                        ->modalDescription('Are you sure you want to archive this user? They will immediately lose access.')
                         ->modalSubmitActionLabel('Yes, Archive')
                         ->visible(fn (User $record): bool => $record->id !== auth()->id())
                         ->form([
+                            Forms\Components\Checkbox::make('archive_records')
+                                ->label('Also archive all related records')
+                                ->helperText('Includes their linked Personnel profile (if any), scholar records, DTR entries, counseling appointments, referrals, and accomplishment reports tied to their student profile.')
+                                ->default(false),
+
                             Forms\Components\TextInput::make('confirm_password')
                                 ->label('Confirm your password to continue')
                                 ->password()
@@ -845,28 +843,46 @@ class ListUsers extends ListRecords
                                     };
                                 }),
                         ])
-                        ->action(function (User $record): void {
-                            $summary = [];
+                        ->action(function (User $record, array $data): void {
+                            $summary = null;
 
                             // All-or-nothing: if any step fails, nothing is archived.
-                            DB::transaction(function () use ($record, &$summary) {
+                            DB::transaction(function () use ($record, $data, &$summary) {
                                 $record->update(['archived_at' => now()]);
 
-                                $summary = $this->cascadeArchiveUserRecords($record);
+                                if ($data['archive_records'] ?? false) {
+                                    $summary = $this->cascadeArchiveUserRecords($record);
+                                }
                             });
 
-                            $details = $this->formatArchiveSummary($summary);
+                            if ($summary !== null) {
+                                $details = $this->formatArchiveSummary($summary);
+
+                                $this->logCustomActivity(
+                                    $record,
+                                    'user',
+                                    'archived',
+                                    "Archived user {$record->name} (cascaded: {$details})"
+                                );
+
+                                Notification::make()
+                                    ->title('User archived')
+                                    ->body("Also archived: {$details}.")
+                                    ->success()
+                                    ->send();
+
+                                return;
+                            }
 
                             $this->logCustomActivity(
                                 $record,
                                 'user',
                                 'archived',
-                                "Archived user {$record->name} (cascaded: {$details})"
+                                "Archived user {$record->name}"
                             );
 
                             Notification::make()
                                 ->title('User archived')
-                                ->body("Also archived: {$details}.")
                                 ->success()
                                 ->send();
                         }),

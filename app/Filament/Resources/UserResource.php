@@ -105,6 +105,7 @@ class UserResource extends Resource
 
                 Select::make('personnel_id')
                     ->label('Select Personnel')
+                    ->hiddenOn('edit')
                     ->options(
                         Personnels::whereDoesntHave('user') // only personnels without a user
                             ->get()

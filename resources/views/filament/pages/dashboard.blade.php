@@ -10,6 +10,15 @@
     $isGuidance = $user->hasRole('Guidance') || $user->hasRole('guidance');
     $isDepartmentHead = $user->hasRole('Department Head') || $user->hasRole('department head');
 
+    // Role-specific layouts: used only when the user has just that one role.
+    $guidanceOnly = $isGuidance && ! $isAdmin && ! $isScholarship && ! $isDepartmentHead;
+    $scholarshipOnly = $isScholarship && ! $isAdmin && ! $isGuidance && ! $isDepartmentHead;
+
+    $statGridClass = ($guidanceOnly || $scholarshipOnly) ? 'db-grid-4' : 'db-grid-3';
+    $layoutClass = $guidanceOnly ? 'gd-layout' : ($scholarshipOnly ? 'sc-layout' : 'db-stack');
+    $chartRowClass = ($guidanceOnly || $scholarshipOnly) ? 'gd-contents' : 'db-grid-2';
+    $tableRowClass = ($guidanceOnly || $scholarshipOnly) ? 'gd-contents' : 'db-grid-3';
+
     if ($isAdmin) {
         $avatarColor = '#2563eb';
         $roleLabel = 'Administrator';
@@ -98,6 +107,16 @@
         ->where('status', 'pending')
         ->count();
 
+    $approvedAppts = \App\Models\CounselingAppointments::query()
+        ->when($dateRange, fn ($q) => $q->whereBetween('created_at', $dateRange))
+        ->where('status', 'approved')
+        ->count();
+
+    $completedAppts = \App\Models\CounselingAppointments::query()
+        ->when($dateRange, fn ($q) => $q->whereBetween('created_at', $dateRange))
+        ->where('status', 'completed')
+        ->count();
+
     $supportNeeds = \App\Models\CounselingAppointments::query()
         ->with('supportNeeded')
         ->when($dateRange, fn ($q) => $q->whereBetween('created_at', $dateRange))
@@ -145,6 +164,8 @@
         ->whereDate('counseling_date', \Carbon\Carbon::today())
         ->orderBy('time_slot_id')
         ->get();
+
+    $todayActiveCount = $todayAppts->whereNotIn('status', ['cancelled', 'rejected'])->count();
 
     $weekAppts = \App\Models\CounselingAppointments::with('timeSlot')
         ->whereBetween('counseling_date', [
@@ -384,6 +405,44 @@
         .db-grid-4, .db-grid-3, .db-grid-2 { grid-template-columns:1fr; }
     }
 
+    /* ── Role-based layouts (Guidance / Scholarship) ───────────────── */
+    .db-stack { display:flex; flex-direction:column; gap:1.25rem; }
+    .gd-contents { display:contents; }
+
+    /* Guidance: chart | week  /  latest (full width) */
+    .gd-layout {
+        display:grid;
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+        gap:1.25rem;
+        grid-template-areas:
+            "chart  week"
+            "latest latest";
+    }
+
+    /* Scholarship: chart | latest applicants */
+    .sc-layout {
+        display:grid;
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+        gap:1.25rem;
+        grid-template-areas:
+            "chart latest";
+    }
+
+    .gd-layout .gd-chart,  .sc-layout .gd-chart  { grid-area:chart; }
+    .gd-layout .gd-week                          { grid-area:week; }
+    .gd-layout .gd-latest, .sc-layout .gd-latest { grid-area:latest; }
+
+    @media(max-width:900px) {
+        .gd-layout {
+            grid-template-columns:1fr;
+            grid-template-areas:"chart" "week" "latest";
+        }
+        .sc-layout {
+            grid-template-columns:1fr;
+            grid-template-areas:"chart" "latest";
+        }
+    }
+
     .db-welcome { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
     .db-welcome-left { display:flex; align-items:center; gap:1rem; }
     .db-avatar { width:52px;height:52px;border-radius:50%;object-fit:cover;box-shadow:0 4px 6px rgba(0,0,0,.15);flex-shrink:0; }
@@ -424,17 +483,21 @@
     .db-card-sm { padding:.875rem 1rem !important; }
 
     .pill { display:inline-block;padding:1px 7px;border-radius:9999px;font-size:.65rem;font-weight:600; }
-    .pill-pending  { background:#fef3c7;color:#92400e; }
-    .pill-approved { background:#d1fae5;color:#065f46; }
-    .pill-rejected { background:#fee2e2;color:#991b1b; }
-    .pill-info     { background:#dbeafe;color:#1e40af; }
-    .pill-time     { background:#ede9fe;color:#5b21b6; }
+    .pill-pending   { background:#fef3c7;color:#92400e; }
+    .pill-approved  { background:#d1fae5;color:#065f46; }
+    .pill-rejected  { background:#fee2e2;color:#991b1b; }
+    .pill-completed { background:#dbeafe;color:#1e40af; }
+    .pill-cancelled { background:#f3f4f6;color:#4b5563; }
+    .pill-info      { background:#dbeafe;color:#1e40af; }
+    .pill-time      { background:#ede9fe;color:#5b21b6; }
 
     .db-apt-item { display:flex;align-items:center;justify-content:space-between;padding:.375rem .625rem;border-radius:6px;border:1px solid;margin-bottom:.375rem;text-decoration:none;transition:box-shadow .15s; }
     .db-apt-item:hover { box-shadow:0 2px 8px rgba(0,0,0,.1); }
-    .db-apt-pending  { border-color:#fed7aa;background:#fff7ed; }
-    .db-apt-approved { border-color:#bbf7d0;background:#f0fdf4; }
-    .db-apt-rejected { border-color:#fecaca;background:#fef2f2; }
+    .db-apt-pending   { border-color:#fed7aa;background:#fff7ed; }
+    .db-apt-approved  { border-color:#bbf7d0;background:#f0fdf4; }
+    .db-apt-rejected  { border-color:#fecaca;background:#fef2f2; }
+    .db-apt-completed { border-color:#bfdbfe;background:#eff6ff; }
+    .db-apt-cancelled { border-color:#e5e7eb;background:#f9fafb; }
     .db-apt-name { font-weight:600;font-size:.75rem;color:#111827;margin:0; }
     .dark .db-apt-name { color:#f9fafb; }
     .db-apt-time { font-size:.6875rem;color:#6b7280;margin:1px 0 0; }
@@ -848,12 +911,14 @@
     @else
 
         {{-- ================================================================
-             EXISTING ADMIN / SCHOLARSHIP / GUIDANCE DASHBOARD
-             (restored original Chart.js charts + full tables — unchanged)
+             ADMIN / SCHOLARSHIP / GUIDANCE DASHBOARD
+             - Admin:       3 stat cards, 2 charts, 3 tables (original layout)
+             - Scholarship: 4 stat cards, chart + latest applicants
+             - Guidance:    4 stat cards, chart + this week, latest appointments
              ================================================================ --}}
 
-        {{-- ROW — 3 Stat Cards --}}
-        <div class="db-grid-3">
+        {{-- ROW — Stat Cards --}}
+        <div class="{{ $statGridClass }}">
 
             @if($isAdmin || $isScholarship)
             <div class="db-card db-stat">
@@ -863,7 +928,7 @@
                 <div>
                     <p class="db-stat-label">Total Institutional Scholarship Applicants</p>
                     <p class="db-stat-value" style="color:#1d4ed8;">{{ $totalApplicants }}</p>
-                    <p class="db-stat-sub" style="color:#6b7280;">All time applicants</p>
+                    <p class="db-stat-sub" style="color:#6b7280;">{{ $schoolYear ? 'Selected period' : 'All time applicants' }}</p>
                 </div>
             </div>
 
@@ -892,306 +957,371 @@
             </div>
             @endif
 
+            {{-- Scholarship-only extra cards --}}
+            @if($scholarshipOnly)
+            <div class="db-card db-stat">
+                <div class="db-stat-icon" style="background:#ede9fe;">
+                    <svg width="20" height="20" fill="none" stroke="#7c3aed" stroke-width="2" viewBox="0 0 24 24"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                </div>
+                <div>
+                    <p class="db-stat-label">Total Scholars</p>
+                    <p class="db-stat-value" style="color:#7c3aed;">{{ $totalScholars }}</p>
+                    <p class="db-stat-sub" style="color:#6b7280;">{{ $inactiveScholars }} inactive</p>
+                </div>
+            </div>
+
+            <div class="db-card db-stat">
+                <div class="db-stat-icon" style="background:#d1fae5;">
+                    <svg width="20" height="20" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
+                <div>
+                    <p class="db-stat-label">Active Scholars</p>
+                    <p class="db-stat-value" style="color:#059669;">{{ $activeScholars }}</p>
+                    <p class="db-stat-sub" style="color:#6b7280;">Currently receiving benefits</p>
+                </div>
+            </div>
+            @endif
+
+            {{-- Guidance-only extra cards --}}
+            @if($guidanceOnly)
+            <div class="db-card db-stat">
+                <div class="db-stat-icon" style="background:#fce7f3;">
+                    <svg width="20" height="20" fill="none" stroke="#be185d" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <div>
+                    <p class="db-stat-label">Today's Appointments</p>
+                    <p class="db-stat-value" style="color:#be185d;">{{ $todayActiveCount }}</p>
+                    <p class="db-stat-sub" style="color:#6b7280;">{{ now()->format('l, M j') }}</p>
+                </div>
+            </div>
+
+            <div class="db-card db-stat">
+                <div class="db-stat-icon" style="background:#d1fae5;">
+                    <svg width="20" height="20" fill="none" stroke="#059669" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>
+                </div>
+                <div>
+                    <p class="db-stat-label">Approved Appointments</p>
+                    <p class="db-stat-value" style="color:#059669;">{{ $approvedAppts }}</p>
+                    <p class="db-stat-sub" style="color:#6b7280;">Scheduled and confirmed</p>
+                </div>
+            </div>
+
+            <div class="db-card db-stat">
+                <div class="db-stat-icon" style="background:#dbeafe;">
+                    <svg width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/></svg>
+                </div>
+                <div>
+                    <p class="db-stat-label">Completed Sessions</p>
+                    <p class="db-stat-value" style="color:#2563eb;">{{ $completedAppts }}</p>
+                    <p class="db-stat-sub" style="color:#6b7280;">Counseling done</p>
+                </div>
+            </div>
+            @endif
+
         </div>
 
-        {{-- ROW — 2 Charts (Chart.js, restored original) --}}
-        <div class="db-grid-2">
+        {{-- Charts + tables (layout depends on role) --}}
+        <div class="{{ $layoutClass }}">
 
-            @if($isAdmin || $isScholarship)
-            {{--
-                FIX: Dropped the custom canvas belowLabels plugin entirely.
-                Now using Chart.js built-in x-axis ticks with maxRotation/minRotation=45
-                and label truncation (max 14 chars). This lets Chart.js handle spacing
-                automatically — no overlap possible. Full name shown in tooltip on hover.
-                Count + % rendered above each bar via a clean afterDatasetsDraw plugin.
-            --}}
-            <div class="db-card"
-                wire:key="scholar-chart-{{ $schoolYear }}-{{ $semester }}"
-                x-data="{
-                    init() {
-                        const draw = () => {
-                            const canvas = this.$refs.scholarBar;
-                            if (!canvas || !window.Chart) return;
-                            if (canvas._chart) canvas._chart.destroy();
+            {{-- ROW — Charts --}}
+            <div class="{{ $chartRowClass }}">
 
-                            const data = {{ $scholarChartData }};
-                            const total = data.counts.reduce((a, b) => a + b, 0);
+                @if($isAdmin || $isScholarship)
+                {{--
+                    Scholars by Scholarship Type.
+                    Uses Chart.js built-in x-axis ticks rotated 45° with labels truncated to
+                    13 chars (full name shown in the tooltip on hover). Count + % are drawn
+                    above each bar by the afterDatasetsDraw plugin.
+                --}}
+                <div class="db-card gd-chart"
+                    wire:key="scholar-chart-{{ $schoolYear }}-{{ $semester }}"
+                    x-data="{
+                        init() {
+                            const draw = () => {
+                                const canvas = this.$refs.scholarBar;
+                                if (!canvas || !window.Chart) return;
+                                if (canvas._chart) canvas._chart.destroy();
 
-                            const truncate = (str, max) => str.length > max ? str.slice(0, max - 1) + '…' : str;
-                            const shortLabels = data.labels.map(l => truncate(l, 13));
+                                const data = {{ $scholarChartData }};
+                                const total = data.counts.reduce((a, b) => a + b, 0);
 
-                            canvas._chart = new window.Chart(canvas, {
-                                type: 'bar',
-                                data: {
-                                    labels: shortLabels,
-                                    datasets: [{
-                                        data: data.counts,
-                                        backgroundColor: data.colors,
-                                        borderRadius: 6,
-                                        borderSkipped: false,
-                                        barPercentage: 0.55,
-                                        categoryPercentage: 0.65,
-                                    }]
-                                },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    layout: { padding: { top: 24 } },
-                                    plugins: {
-                                        legend: { display: false },
-                                        tooltip: {
-                                            callbacks: {
-                                                title: (items) => data.labels[items[0].dataIndex],
-                                                label: (ctx) => {
-                                                    const pct = total > 0 ? Math.round(ctx.parsed.y / total * 100) : 0;
-                                                    return ' ' + ctx.parsed.y + ' grantees (' + pct + '%)';
+                                const truncate = (str, max) => str.length > max ? str.slice(0, max - 1) + '…' : str;
+                                const shortLabels = data.labels.map(l => truncate(l, 13));
+
+                                canvas._chart = new window.Chart(canvas, {
+                                    type: 'bar',
+                                    data: {
+                                        labels: shortLabels,
+                                        datasets: [{
+                                            data: data.counts,
+                                            backgroundColor: data.colors,
+                                            borderRadius: 6,
+                                            borderSkipped: false,
+                                            barPercentage: 0.55,
+                                            categoryPercentage: 0.65,
+                                        }]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        layout: { padding: { top: 24 } },
+                                        plugins: {
+                                            legend: { display: false },
+                                            tooltip: {
+                                                callbacks: {
+                                                    title: (items) => data.labels[items[0].dataIndex],
+                                                    label: (ctx) => {
+                                                        const pct = total > 0 ? Math.round(ctx.parsed.y / total * 100) : 0;
+                                                        return ' ' + ctx.parsed.y + ' grantees (' + pct + '%)';
+                                                    }
                                                 }
+                                            }
+                                        },
+                                        scales: {
+                                            x: {
+                                                grid: { display: false },
+                                                border: { display: false },
+                                                ticks: {
+                                                    color: '#374151',
+                                                    font: { size: 10, weight: '600' },
+                                                    maxRotation: 45,
+                                                    minRotation: 45,
+                                                    autoSkip: false,
+                                                }
+                                            },
+                                            y: {
+                                                beginAtZero: true,
+                                                grid: { color: '#f3f4f6' },
+                                                ticks: { font: { size: 11 }, color: '#9ca3af', precision: 0 }
                                             }
                                         }
                                     },
-                                    scales: {
-                                        x: {
-                                            grid: { display: false },
-                                            border: { display: false },
-                                            ticks: {
-                                                color: '#374151',
-                                                font: { size: 10, weight: '600' },
-                                                maxRotation: 45,
-                                                minRotation: 45,
-                                                autoSkip: false,
-                                            }
-                                        },
-                                        y: {
-                                            beginAtZero: true,
-                                            grid: { color: '#f3f4f6' },
-                                            ticks: { font: { size: 11 }, color: '#9ca3af', precision: 0 }
+                                    plugins: [{
+                                        id: 'aboveBar',
+                                        afterDatasetsDraw(chart) {
+                                            const ctx = chart.ctx;
+                                            const meta = chart.getDatasetMeta(0);
+                                            meta.data.forEach((bar, i) => {
+                                                const count = data.counts[i];
+                                                const pct   = total > 0 ? Math.round(count / total * 100) : 0;
+                                                ctx.save();
+                                                ctx.textAlign    = 'center';
+                                                ctx.textBaseline = 'bottom';
+                                                ctx.font         = 'bold 10px sans-serif';
+                                                ctx.fillStyle    = '#111827';
+                                                ctx.fillText(count, bar.x, bar.y - 2);
+                                                ctx.font      = '9px sans-serif';
+                                                ctx.fillStyle = '#9ca3af';
+                                                ctx.fillText(pct + '%', bar.x, bar.y - 14);
+                                                ctx.restore();
+                                            });
+                                        }
+                                    }]
+                                });
+                            };
+
+                            if (window.Chart) { draw(); }
+                            else {
+                                const s = document.createElement('script');
+                                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+                                s.onload = draw;
+                                document.head.appendChild(s);
+                            }
+                        }
+                    }"
+                >
+                    <p class="db-section-label">Scholars by Scholarship Type</p>
+                    <div class="db-chart-wrap" style="height:{{ $scholarshipOnly ? '340px' : '300px' }};">
+                        <canvas x-ref="scholarBar" style="width:100%;height:100%;"></canvas>
+                    </div>
+                </div>
+                @endif
+
+                @if($isAdmin || $isGuidance)
+                <div class="db-card gd-chart"
+                    wire:key="support-chart-{{ $schoolYear }}-{{ $semester }}"
+                    x-data="{
+                        init() {
+                            const draw = () => {
+                                const canvas = this.$refs.supportBar;
+                                if (!canvas || !window.Chart) return;
+                                if (canvas._chart) canvas._chart.destroy();
+                                const data = {{ $supportChartData }};
+                                if (!data.counts.length) return;
+                                canvas._chart = new window.Chart(canvas, {
+                                    type: 'bar',
+                                    data: {
+                                        labels: data.labels,
+                                        datasets: [{ data: data.counts, backgroundColor: data.colors, borderColor: data.colors, borderWidth:1, borderRadius:6, borderSkipped:false }]
+                                    },
+                                    options: {
+                                        responsive: true, maintainAspectRatio: false,
+                                        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                                        scales: {
+                                            x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#9ca3af' } },
+                                            y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 }, color: '#9ca3af' } }
                                         }
                                     }
-                                },
-                                plugins: [{
-                                    id: 'aboveBar',
-                                    afterDatasetsDraw(chart) {
-                                        const ctx = chart.ctx;
-                                        const meta = chart.getDatasetMeta(0);
-                                        meta.data.forEach((bar, i) => {
-                                            const count = data.counts[i];
-                                            const pct   = total > 0 ? Math.round(count / total * 100) : 0;
-                                            ctx.save();
-                                            ctx.textAlign    = 'center';
-                                            ctx.textBaseline = 'bottom';
-                                            ctx.font         = 'bold 10px sans-serif';
-                                            ctx.fillStyle    = '#111827';
-                                            ctx.fillText(count, bar.x, bar.y - 2);
-                                            ctx.font      = '9px sans-serif';
-                                            ctx.fillStyle = '#9ca3af';
-                                            ctx.fillText(pct + '%', bar.x, bar.y - 14);
-                                            ctx.restore();
-                                        });
-                                    }
-                                }]
-                            });
-                        };
-
-                        if (window.Chart) { draw(); }
-                        else {
-                            const s = document.createElement('script');
-                            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
-                            s.onload = draw;
-                            document.head.appendChild(s);
+                                });
+                            };
+                            if (window.Chart) { draw(); }
+                            else {
+                                const s = document.createElement('script');
+                                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+                                s.onload = draw; document.head.appendChild(s);
+                            }
                         }
-                    }
-                }"
-            >
-                <p class="db-section-label">Scholars by Scholarship Type</p>
-                <div class="db-chart-wrap" style="height:300px;">
-                    <canvas x-ref="scholarBar" style="width:100%;height:100%;"></canvas>
-                </div>
-            </div>
-            @endif
-
-            @if($isAdmin || $isGuidance)
-            <div class="db-card"
-                wire:key="support-chart-{{ $schoolYear }}-{{ $semester }}"
-                x-data="{
-                    init() {
-                        const draw = () => {
-                            const canvas = this.$refs.supportBar;
-                            if (!canvas || !window.Chart) return;
-                            if (canvas._chart) canvas._chart.destroy();
-                            const data = {{ $supportChartData }};
-                            if (!data.counts.length) return;
-                            canvas._chart = new window.Chart(canvas, {
-                                type: 'bar',
-                                data: {
-                                    labels: data.labels,
-                                    datasets: [{ data: data.counts, backgroundColor: data.colors, borderColor: data.colors, borderWidth:1, borderRadius:6, borderSkipped:false }]
-                                },
-                                options: {
-                                    responsive: true, maintainAspectRatio: false,
-                                    plugins: { legend: { display: false }, tooltip: { enabled: true } },
-                                    scales: {
-                                        x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#9ca3af' } },
-                                        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 }, color: '#9ca3af' } }
-                                    }
-                                }
-                            });
-                        };
-                        if (window.Chart) { draw(); }
-                        else {
-                            const s = document.createElement('script');
-                            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
-                            s.onload = draw; document.head.appendChild(s);
-                        }
-                    }
-                }"
-            >
-                <p class="db-section-label">Support Needs Distribution</p>
-                <p style="font-size:.75rem;color:#9ca3af;margin:-8px 0 10px;">
-                    Total: {{ $supportTotal }} appointments | {{ $supportUnique }} support types
-                </p>
-                <div class="db-chart-wrap" style="height:240px;">
-                    <canvas x-ref="supportBar" style="width:100%;height:100%;"></canvas>
-                </div>
-            </div>
-            @endif
-
-        </div>
-
-        {{-- ROW — 3 Tables (restored original: Type/Time columns, View links, Week Overview) --}}
-        <div class="db-grid-3">
-
-            {{-- Latest Applicants --}}
-            @if($isAdmin || $isScholarship)
-            <div class="db-card db-card-sm">
-                <div class="db-table-head">
-                    <div>
-                        <p class="db-table-title">Latest Applicants</p>
-                        <p class="db-table-desc">Most recently submitted</p>
+                    }"
+                >
+                    <p class="db-section-label">Support Needs Distribution</p>
+                    <p style="font-size:.75rem;color:#9ca3af;margin:-8px 0 10px;">
+                        Total: {{ $supportTotal }} appointments | {{ $supportUnique }} support types
+                    </p>
+                    <div class="db-chart-wrap" style="height:{{ $guidanceOnly ? '320px' : '240px' }};">
+                        <canvas x-ref="supportBar" style="width:100%;height:100%;"></canvas>
                     </div>
-                    <a href="{{ url('/admin/applicants') }}" class="db-view-link">View all →</a>
                 </div>
-                <div class="db-table-wrap">
-                    <table class="db-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Student</th>
-                                <th>Type</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($latestApplicants as $applicant)
-                            <tr>
-                                <td style="color:#6b7280;white-space:nowrap;">{{ $applicant->created_at->format('M d, Y') }}</td>
-                                <td style="font-weight:600;">{{ trim($applicant->first_name . ' ' . $applicant->last_name) }}</td>
-                                <td><span class="pill pill-info">{{ optional($applicant->typeOfScholarship)->name ?? '—' }}</span></td>
-                                <td><span class="pill pill-{{ $applicant->status }}">{{ ucfirst($applicant->status) }}</span></td>
-                                <td><a href="{{ route('filament.admin.resources.applicants.edit', ['record' => $applicant->id]) }}" class="db-view-link">View</a></td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="5" class="db-empty">No applicants{{ $schoolYear ? ' for this period.' : ' yet.' }}</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            @endif
-
-            {{-- Latest Appointments --}}
-            @if($isAdmin || $isGuidance)
-            <div class="db-card db-card-sm">
-                <div class="db-table-head">
-                    <div>
-                        <p class="db-table-title">Latest Appointments</p>
-                        <p class="db-table-desc">Most recent appointments</p>
-                    </div>
-                    <a href="{{ url('/admin/counseling-appointments') }}" class="db-view-link">View all →</a>
-                </div>
-                <div class="db-table-wrap">
-                    <table class="db-table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Time</th>
-                                <th>Student</th>
-                                <th>Status</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($latestAppointments as $apt)
-                            <tr>
-                                <td style="color:#6b7280;white-space:nowrap;">{{ $apt->counseling_date->format('M d, Y') }}</td>
-                                <td><span class="pill pill-time">{{ optional($apt->timeSlot)->name ?? '—' }}</span></td>
-                                <td style="font-weight:600;">{{ $apt->full_name }}</td>
-                                <td><span class="pill pill-{{ $apt->status }}">{{ ucfirst($apt->status) }}</span></td>
-                                <td><a href="{{ route('filament.admin.resources.counseling-appointments.edit', ['record' => $apt->id]) }}" class="db-view-link">View</a></td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="5" class="db-empty">No appointments{{ $schoolYear ? ' for this period.' : ' yet.' }}</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            @endif
-
-            {{-- This Week's Appointments --}}
-            @if($isAdmin || $isGuidance)
-            <div class="db-card db-card-sm">
-                <div class="db-table-head">
-                    <div>
-                        <p class="db-table-title">This Week's Appointments</p>
-                        <p class="db-table-desc">{{ now()->format('M j') }} – {{ now()->endOfWeek()->format('M j, Y') }}</p>
-                    </div>
-                    <a href="{{ url('/admin-calendar') }}" class="db-view-link">Calendar →</a>
-                </div>
-
-                <p style="font-size:.6875rem;font-weight:600;color:#374151;margin:0 0 .375rem;">
-                    📅 Today ({{ now()->format('D, M j') }})
-                </p>
-
-                @if($todayAppts->count() > 0)
-                    @foreach($todayAppts as $apt)
-                        <a href="{{ route('filament.admin.resources.counseling-appointments.edit', ['record' => $apt->id]) }}"
-                           class="db-apt-item db-apt-{{ $apt->status }}">
-                            <div style="display:flex;align-items:center;gap:.625rem;">
-                                <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                <div>
-                                    <p class="db-apt-name">{{ $apt->first_name }} {{ $apt->last_name }}</p>
-                                    <p class="db-apt-time">{{ optional($apt->timeSlot)->name ?? 'No time set' }}</p>
-                                </div>
-                            </div>
-                            <span class="pill pill-{{ $apt->status }}">{{ ucfirst($apt->status) }}</span>
-                        </a>
-                    @endforeach
-                @else
-                    <p style="font-size:.8125rem;color:#9ca3af;padding:.5rem 0;">No appointments today.</p>
                 @endif
 
-                @if($weekAppts->count() > 0)
-                <p style="font-size:.6875rem;font-weight:600;color:#374151;margin:.625rem 0 .375rem;">📆 Week Overview</p>
-                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;">
-                    @foreach($weekAppts as $date => $dayApts)
-                    <div class="db-week-card">
-                        <p class="db-week-day">{{ \Carbon\Carbon::parse($date)->format('D, M j') }}</p>
-                        <p class="db-week-count">{{ $dayApts->count() }} {{ $dayApts->count() === 1 ? 'appointment' : 'appointments' }}</p>
-                        <div style="display:flex;gap:4px;margin-top:5px;align-items:center;">
-                            @foreach($dayApts->take(3) as $a)
-                                <span class="db-dot" style="background:{{ $a->status === 'pending' ? '#f59e0b' : ($a->status === 'approved' ? '#10b981' : '#ef4444') }};"></span>
-                            @endforeach
-                            @if($dayApts->count() > 3)
-                                <span style="font-size:.7rem;color:#9ca3af;">+{{ $dayApts->count() - 3 }}</span>
-                            @endif
+            </div>
+
+            {{-- ROW — Tables --}}
+            <div class="{{ $tableRowClass }}">
+
+                {{-- Latest Applicants --}}
+                @if($isAdmin || $isScholarship)
+                <div class="db-card db-card-sm gd-latest">
+                    <div class="db-table-head">
+                        <div>
+                            <p class="db-table-title">Latest Applicants</p>
+                            <p class="db-table-desc">Most recently submitted</p>
                         </div>
+                        <a href="{{ url('/admin/applicants') }}" class="db-view-link">View all →</a>
                     </div>
-                    @endforeach
+                    <div class="db-table-wrap">
+                        <table class="db-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Student</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($latestApplicants as $applicant)
+                                <tr>
+                                    <td style="color:#6b7280;white-space:nowrap;">{{ $applicant->created_at->format('M d, Y') }}</td>
+                                    <td style="font-weight:600;">{{ trim($applicant->first_name . ' ' . $applicant->last_name) }}</td>
+                                    <td><span class="pill pill-info">{{ optional($applicant->typeOfScholarship)->name ?? '—' }}</span></td>
+                                    <td><span class="pill pill-{{ $applicant->status }}">{{ ucfirst($applicant->status) }}</span></td>
+                                    <td><a href="{{ route('filament.admin.resources.applicants.edit', ['record' => $applicant->id]) }}" class="db-view-link">View</a></td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="5" class="db-empty">No applicants{{ $schoolYear ? ' for this period.' : ' yet.' }}</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
                 @endif
+
+                {{-- Latest Appointments --}}
+                @if($isAdmin || $isGuidance)
+                <div class="db-card db-card-sm gd-latest">
+                    <div class="db-table-head">
+                        <div>
+                            <p class="db-table-title">Latest Appointments</p>
+                            <p class="db-table-desc">Most recent appointments</p>
+                        </div>
+                        <a href="{{ url('/admin/counseling-appointments') }}" class="db-view-link">View all →</a>
+                    </div>
+                    <div class="db-table-wrap">
+                        <table class="db-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Student</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($latestAppointments as $apt)
+                                <tr>
+                                    <td style="color:#6b7280;white-space:nowrap;">{{ $apt->counseling_date->format('M d, Y') }}</td>
+                                    <td><span class="pill pill-time">{{ optional($apt->timeSlot)->name ?? '—' }}</span></td>
+                                    <td style="font-weight:600;">{{ $apt->full_name }}</td>
+                                    <td><span class="pill pill-{{ $apt->status }}">{{ ucfirst($apt->status) }}</span></td>
+                                    <td><a href="{{ route('filament.admin.resources.counseling-appointments.edit', ['record' => $apt->id]) }}" class="db-view-link">View</a></td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="5" class="db-empty">No appointments{{ $schoolYear ? ' for this period.' : ' yet.' }}</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                @endif
+
+                {{-- This Week's Appointments --}}
+                @if($isAdmin || $isGuidance)
+                <div class="db-card db-card-sm gd-week">
+                    <div class="db-table-head">
+                        <div>
+                            <p class="db-table-title">This Week's Appointments</p>
+                            <p class="db-table-desc">{{ now()->format('M j') }} – {{ now()->endOfWeek()->format('M j, Y') }}</p>
+                        </div>
+                        <a href="{{ url('/admin-calendar') }}" class="db-view-link">Calendar →</a>
+                    </div>
+
+                    <p style="font-size:.6875rem;font-weight:600;color:#374151;margin:0 0 .375rem;">
+                        📅 Today ({{ now()->format('D, M j') }})
+                    </p>
+
+                    @if($todayAppts->count() > 0)
+                        @foreach($todayAppts as $apt)
+                            <a href="{{ route('filament.admin.resources.counseling-appointments.edit', ['record' => $apt->id]) }}"
+                               class="db-apt-item db-apt-{{ $apt->status }}">
+                                <div style="display:flex;align-items:center;gap:.625rem;">
+                                    <svg width="14" height="14" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    <div>
+                                        <p class="db-apt-name">{{ $apt->first_name }} {{ $apt->last_name }}</p>
+                                        <p class="db-apt-time">{{ optional($apt->timeSlot)->name ?? 'No time set' }}</p>
+                                    </div>
+                                </div>
+                                <span class="pill pill-{{ $apt->status }}">{{ ucfirst($apt->status) }}</span>
+                            </a>
+                        @endforeach
+                    @else
+                        <p style="font-size:.8125rem;color:#9ca3af;padding:.5rem 0;">No appointments today.</p>
+                    @endif
+
+                    @if($weekAppts->count() > 0)
+                    <p style="font-size:.6875rem;font-weight:600;color:#374151;margin:.625rem 0 .375rem;">📆 Week Overview</p>
+                    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;">
+                        @foreach($weekAppts as $date => $dayApts)
+                        <div class="db-week-card">
+                            <p class="db-week-day">{{ \Carbon\Carbon::parse($date)->format('D, M j') }}</p>
+                            <p class="db-week-count">{{ $dayApts->count() }} {{ $dayApts->count() === 1 ? 'appointment' : 'appointments' }}</p>
+                            <div style="display:flex;gap:4px;margin-top:5px;align-items:center;">
+                                @foreach($dayApts->take(3) as $a)
+                                    <span class="db-dot" style="background:{{ match($a->status) { 'pending' => '#f59e0b', 'approved' => '#10b981', 'completed' => '#3b82f6', 'cancelled' => '#9ca3af', default => '#ef4444' } }};"></span>
+                                @endforeach
+                                @if($dayApts->count() > 3)
+                                    <span style="font-size:.7rem;color:#9ca3af;">+{{ $dayApts->count() - 3 }}</span>
+                                @endif
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                    @endif
+                </div>
+                @endif
+
             </div>
-            @endif
 
         </div>
 

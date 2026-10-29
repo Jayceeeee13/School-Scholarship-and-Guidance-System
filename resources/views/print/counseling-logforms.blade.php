@@ -312,9 +312,9 @@
                     @forelse ($logforms as $index => $log)
                         <tr>
                             <td class="col-no">{{ $index + 1 }}</td>
-                            <td>{{ $log->appointment?->full_name ?? '—' }}</td>
-                            <td>{{ $log->appointment?->course_and_year ?? '—' }}</td>
-                            <td>{{ $log->appointment?->contact_no ?? '—' }}</td>
+                            <td>{{ $log->display_name }}</td>
+                            <td>{{ $log->display_course }}</td>
+                            <td>{{ $log->display_contact }}</td>
                             <td>{{ $log->concern ?? '—' }}</td>
                             <td>{{ $log->remarks ?? '—' }}</td>
                         </tr>

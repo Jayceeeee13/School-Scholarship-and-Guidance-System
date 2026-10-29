@@ -15,6 +15,7 @@ class CounselingLogformsPrintController extends Controller
     public function print(Request $request)
     {
         $query = CounselingLogforms::query()
+            ->with(['appointment', 'walkInStudent.program', 'referral'])
             ->whereNull('archived_at') // match the table, which hides archived logforms
             ->orderBy('created_at');
 

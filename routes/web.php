@@ -278,6 +278,16 @@ Route::get('/test-auth', function () {
     ]);
 });
 
+Route::get('/debug-inst', function () {
+    return [
+        'columns' => \Illuminate\Support\Facades\Schema::getColumnListing('institutional_scholars'),
+        'groups' => \App\Models\InstitutionalScholar::selectRaw('term_id, type_of_scholarship, status, count(*) as n')
+            ->groupBy('term_id', 'type_of_scholarship', 'status')
+            ->get(),
+        'types' => \App\Models\TypeOfScholarship::select('id', 'name', 'is_active')->get(),
+    ];
+})->middleware('auth');
+
 
 
 Route::get('/test-calendar-direct', function () {

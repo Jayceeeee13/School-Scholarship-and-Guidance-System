@@ -742,6 +742,7 @@ class ListCounselingLogforms extends ListRecords
                         })
                         ->deselectRecordsAfterCompletion(),
                 ]),
-            ]);
+            ])
+                        ->defaultSort('created_at', 'desc');
     }
 }

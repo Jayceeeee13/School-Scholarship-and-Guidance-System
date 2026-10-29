@@ -100,7 +100,7 @@ class ReportsPage extends Page implements HasForms
     }
 
     // ── Board program check ─────────────────────────────────────────────────
-        protected function isBoardProgram($scholar): bool
+    protected function isBoardProgram($scholar): bool
     {
         $program = strtolower(trim(preg_replace('/\s+/', ' ', $scholar->program ?? '')));
 
@@ -233,50 +233,37 @@ class ReportsPage extends Page implements HasForms
         $scholarshipTypes = TypeOfScholarship::active()
             ->orderBy('name')
             ->pluck('name')
+            ->map(fn ($n) => trim($n))
             ->toArray();
 
+        // Exact (trimmed, case-insensitive) match — avoids LIKE double counting
+        $countFor = function (?Term $term, string $type): int {
+            if (! $term) {
+                return 0;
+            }
+
+            return InstitutionalScholar::where('term_id', $term->id)
+                ->where('status', '!=', 'revoked')
+                ->whereRaw('LOWER(TRIM(type_of_scholarship)) = ?', [strtolower(trim($type))])
+                ->count();
+        };
+
         $rows = [];
-
         foreach ($scholarshipTypes as $type) {
-            $t1Count = $term1
-                ? InstitutionalScholar::where('term_id', $term1->id)
-                    ->where('status', '!=', 'revoked')
-                    ->whereRaw('LOWER(type_of_scholarship) LIKE ?', ['%' . strtolower($type) . '%'])
-                    ->count()
-                : 0;
-
-            $t2Count = $term2
-                ? InstitutionalScholar::where('term_id', $term2->id)
-                    ->where('status', '!=', 'revoked')
-                    ->whereRaw('LOWER(type_of_scholarship) LIKE ?', ['%' . strtolower($type) . '%'])
-                    ->count()
-                : 0;
-
             $rows[] = [
                 'type'     => $type,
-                't1_count' => $t1Count,
-                't2_count' => $t2Count,
+                't1_count' => $countFor($term1, $type),
+                't2_count' => $countFor($term2, $type),
             ];
         }
-
-        $grandT1 = $term1
-            ? InstitutionalScholar::where('term_id', $term1->id)
-                ->where('status', '!=', 'revoked')
-                ->count()
-            : 0;
-
-        $grandT2 = $term2
-            ? InstitutionalScholar::where('term_id', $term2->id)
-                ->where('status', '!=', 'revoked')
-                ->count()
-            : 0;
 
         return [
             'term1'    => $term1,
             'term2'    => $term2,
             'rows'     => $rows,
-            'grand_t1' => $grandT1,
-            'grand_t2' => $grandT2,
+            // Grand total = sum of the rows, so it always matches the table
+            'grand_t1' => collect($rows)->sum('t1_count'),
+            'grand_t2' => collect($rows)->sum('t2_count'),
         ];
     }
 

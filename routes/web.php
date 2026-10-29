@@ -278,19 +278,6 @@ Route::get('/test-auth', function () {
     ]);
 });
 
-Route::get('/debug-cmsp', function () {
-    $grouped = \App\Models\Scholars::selectRaw('type_of_scholarship, term_id, status, count(*) as n')
-        ->where('type_of_scholarship', 'like', '%cmsp%')
-        ->groupBy('type_of_scholarship', 'term_id', 'status')
-        ->get();
-
-    return [
-        'columns' => \Illuminate\Support\Facades\Schema::getColumnListing('scholars'),
-        'cmsp_groups' => $grouped,
-        'terms' => \App\Models\Term::select('id', 'school_year', 'semester', 'is_active')->get(),
-    ];
-})->middleware('auth');
-
 
 
 Route::get('/test-calendar-direct', function () {

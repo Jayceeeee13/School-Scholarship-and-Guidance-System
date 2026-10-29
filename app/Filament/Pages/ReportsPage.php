@@ -103,7 +103,7 @@ class ReportsPage extends Page implements HasForms
     // NOTE: change `course` to your actual column name (e.g. program, program_name)
     protected function isBoardProgram($scholar): bool
     {
-        $program = strtolower(trim(preg_replace('/\s+/', ' ', $scholar->course ?? '')));
+        $program = strtolower(trim(preg_replace('/\s+/', ' ', $scholar->program ?? '')));
 
         return in_array($program, self::BOARD_PROGRAMS, true);
     }

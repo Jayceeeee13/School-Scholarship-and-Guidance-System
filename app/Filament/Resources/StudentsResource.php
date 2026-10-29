@@ -318,6 +318,18 @@ TextInput::make('mothers_lastname')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('email')
                     ->searchable(),
+                Tables\Columns\IconColumn::make('has_account')
+                ->label('Account')
+                ->getStateUsing(fn (Students $record): bool => filled($record->user_id))
+                ->boolean()
+                ->trueIcon('heroicon-o-check-circle')
+                ->falseIcon('heroicon-o-x-circle')
+                ->trueColor('success')
+                ->falseColor('danger')
+                ->tooltip(fn (Students $record): string => filled($record->user_id)
+                    ? 'Has a user account'
+                    : 'No user account yet')
+                ->alignCenter(),
                 Tables\Columns\TextColumn::make('fathers_firstname')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -516,6 +528,16 @@ TextInput::make('mothers_lastname')
                     )
                     ->placeholder('All Terms')
                     ->searchable(),
+                    Tables\Filters\TernaryFilter::make('has_account')
+    ->label('User Account')
+    ->placeholder('All students')
+    ->trueLabel('With account')
+    ->falseLabel('Without account')
+    ->queries(
+        true:  fn (Builder $query) => $query->whereNotNull('user_id'),
+        false: fn (Builder $query) => $query->whereNull('user_id'),
+        blank: fn (Builder $query) => $query,
+    ),
             ])
             ->filtersLayout(Tables\Enums\FiltersLayout::AboveContent)
             ->actions([

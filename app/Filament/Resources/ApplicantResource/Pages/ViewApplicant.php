@@ -63,9 +63,9 @@ class ViewApplicant extends ViewRecord
                         ->send();
                 })
                 ->visible(fn ($record): bool => $record->status === 'pending')
-                ->disabled(fn ($record): bool => !$record->hasCompleteRequirements())
+                ->disabled(fn ($record): bool => ! ApplicantResource::hasCompleteRequirements($record))
                 ->tooltip(fn ($record): ?string =>
-                    !$record->hasCompleteRequirements()
+                    ! ApplicantResource::hasCompleteRequirements($record)
                         ? 'Cannot approve: Requirements incomplete'
                         : null
                 ),
@@ -116,22 +116,22 @@ class ViewApplicant extends ViewRecord
                                     }),
 
                                 Infolists\Components\TextEntry::make('requirements_progress')
-                                    ->label('Requirements Progress')
-                                    ->state(function ($record) {
-                                        $total     = \App\Models\Requirement::where('type_of_application_id', $record->type_of_application_id)->count();
-                                        $submitted = $record->submittedRequirements()->count();
-                                        return "$submitted / $total";
-                                    })
-                                    ->badge()
-                                    ->color(function ($record) {
-                                        $total     = \App\Models\Requirement::where('type_of_application_id', $record->type_of_application_id)->count();
-                                        $submitted = $record->submittedRequirements()->count();
-                                        if ($total === 0) return 'gray';
-                                        if ($submitted === $total) return 'success';
-                                        if ($submitted > 0) return 'warning';
-                                        return 'danger';
-                                    })
-                                    ->icon('heroicon-o-document-check'),
+                                ->label('Requirements Progress')
+                                ->state(function ($record) {
+                                    $p = ApplicantResource::requirementProgress($record);
+
+                                    return "{$p['submitted']} / {$p['total']}";
+                                })
+                                ->badge()
+                                ->color(function ($record) {
+                                    $p = ApplicantResource::requirementProgress($record);
+
+                                    if ($p['total'] === 0) return 'gray';
+                                    if ($p['submitted'] >= $p['total']) return 'success';
+                                    if ($p['submitted'] > 0) return 'warning';
+                                    return 'danger';
+                                })
+                                ->icon('heroicon-o-document-check'),
 
                                 Infolists\Components\TextEntry::make('created_at')
                                     ->label('Applied On')

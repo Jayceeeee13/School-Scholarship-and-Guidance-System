@@ -61,6 +61,7 @@ class CounselingAppointmentController extends Controller
 
     $reserved = \App\Models\CounselingAppointments::query()
         ->whereDate('counseling_date', $date)
+        ->whereNotIn('status', ['cancelled', 'rejected'])
         ->pluck('time_slot_id')
         ->toArray();
 
@@ -72,7 +73,6 @@ class CounselingAppointmentController extends Controller
         ])
     );
 }
-
     public function index()
     {
         $appointments = CounselingAppointments::latest()->paginate(15);

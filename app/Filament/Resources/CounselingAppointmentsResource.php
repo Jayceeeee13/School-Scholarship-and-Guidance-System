@@ -149,9 +149,10 @@ class CounselingAppointmentsResource extends Resource
                                                         }
 
                                                         $reserved = \App\Models\CounselingAppointments::query()
-                                                            ->whereDate('counseling_date', $selectedDate)
-                                                            ->when($currentRecordId, fn ($q) => $q->where('id', '!=', $currentRecordId))
-                                                            ->pluck('time_slot_id')->toArray();
+                                                        ->whereDate('counseling_date', $selectedDate)
+                                                        ->whereNotIn('status', ['cancelled', 'rejected'])
+                                                        ->when($currentRecordId, fn ($q) => $q->where('id', '!=', $currentRecordId))
+                                                        ->pluck('time_slot_id')->toArray();
 
                                                         $isToday = \Carbon\Carbon::parse($selectedDate)->isToday();
 
@@ -170,15 +171,16 @@ class CounselingAppointmentsResource extends Resource
                                                         })->toArray();
                                                     })
                                                     ->disableOptionWhen(function ($value, callable $get) {
-                                                        $selectedDate = $get('counseling_date');
-                                                        if (!$selectedDate) return false;
+                                                    $selectedDate = $get('counseling_date');
+                                                    if (!$selectedDate) return false;
 
-                                                        // Disable if reserved by another appointment
-                                                        $isReserved = \App\Models\CounselingAppointments::query()
-                                                            ->whereDate('counseling_date', $selectedDate)
-                                                            ->where('time_slot_id', $value)
-                                                            ->when($get('id'), fn ($q) => $q->where('id', '!=', $get('id')))
-                                                            ->exists();
+                                                    // Disable if reserved by another appointment (ignore cancelled/rejected — those free up the slot)
+                                                    $isReserved = \App\Models\CounselingAppointments::query()
+                                                        ->whereDate('counseling_date', $selectedDate)
+                                                        ->where('time_slot_id', $value)
+                                                        ->whereNotIn('status', ['cancelled', 'rejected'])
+                                                        ->when($get('id'), fn ($q) => $q->where('id', '!=', $get('id')))
+                                                        ->exists();
 
                                                         if ($isReserved) return true;
 
@@ -199,9 +201,10 @@ class CounselingAppointmentsResource extends Resource
                                                         if (!$selectedDate) return 'Please select a date first to see time slot availability';
                                                         $total     = \App\Models\CounselingTimeSlot::where('is_active', true)->count();
                                                         $reserved  = \App\Models\CounselingAppointments::query()
-                                                            ->whereDate('counseling_date', $selectedDate)
-                                                            ->when($get('id'), fn ($q) => $q->where('id', '!=', $get('id')))
-                                                            ->distinct('time_slot_id')->count('time_slot_id');
+                                                        ->whereDate('counseling_date', $selectedDate)
+                                                        ->whereNotIn('status', ['cancelled', 'rejected'])
+                                                        ->when($get('id'), fn ($q) => $q->where('id', '!=', $get('id')))
+                                                        ->distinct('time_slot_id')->count('time_slot_id');
                                                         $available = $total - $reserved;
                                                         return $available === 0
                                                             ? '🔴 All time slots are reserved for this date. Please choose another date.'

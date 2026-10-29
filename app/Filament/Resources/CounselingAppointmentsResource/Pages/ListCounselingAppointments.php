@@ -523,17 +523,18 @@ if ($this->activeTab === 'all') {
                                         }
 
                                         $reserved =
-                                            CounselingAppointments::whereDate(
-                                                'counseling_date',
-                                                $selectedDate
-                                            )
-                                            ->where(
-                                                'id',
-                                                '!=',
-                                                $record->id
-                                            )
-                                            ->pluck('time_slot_id')
-                                            ->toArray();
+                                        CounselingAppointments::whereDate(
+                                            'counseling_date',
+                                            $selectedDate
+                                        )
+                                        ->whereNotIn('status', ['cancelled', 'rejected'])
+                                        ->where(
+                                            'id',
+                                            '!=',
+                                            $record->id
+                                        )
+                                        ->pluck('time_slot_id')
+                                        ->toArray();
 
                                         return $timeSlots->mapWithKeys(
                                             fn ($s) => [
@@ -566,19 +567,15 @@ if ($this->activeTab === 'all') {
                                         }
 
                                         return CounselingAppointments::whereDate(
-                                            'counseling_date',
-                                            $selectedDate
+                                        'counseling_date',
+                                        $selectedDate
+                                    )
+                                        ->whereNotIn('status', ['cancelled', 'rejected'])
+                                        ->where(
+                                            'time_slot_id',
+                                            $value
                                         )
-                                            ->where(
-                                                'id',
-                                                '!=',
-                                                $record->id
-                                            )
-                                            ->where(
-                                                'time_slot_id',
-                                                $value
-                                            )
-                                            ->exists();
+                                        ->exists();
                                     }
                                 )
                                 ->required()
@@ -742,13 +739,13 @@ if ($this->activeTab === 'all') {
                                         }
 
                                         $reserved =
-                                            CounselingAppointments::whereDate(
-                                                'counseling_date',
-                                                $selectedDate
-                                            )
-                                            ->pluck('time_slot_id')
-                                            ->toArray();
-
+                                        CounselingAppointments::whereDate(
+                                            'counseling_date',
+                                            $selectedDate
+                                        )
+                                        ->whereNotIn('status', ['cancelled', 'rejected'])
+                                        ->pluck('time_slot_id')
+                                        ->toArray();
                                         return $timeSlots->mapWithKeys(
                                             fn ($s) => [
                                                 $s->id =>

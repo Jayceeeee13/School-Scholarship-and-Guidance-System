@@ -24,6 +24,52 @@ class ListCounselingAppointments extends ListRecords
 
     /*
     |--------------------------------------------------------------------------
+    | Slot helpers (cancelled / rejected appointments free up their slot)
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * IDs of time slots already taken on a given date.
+     * Cancelled and rejected appointments do NOT count as taken.
+     */
+    protected function reservedSlotIds($date, ?int $exceptId = null): array
+    {
+        return CounselingAppointments::query()
+            ->whereDate('counseling_date', $date)
+            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
+            ->pluck('time_slot_id')
+            ->toArray();
+    }
+
+    /**
+     * Builds the "slot name + Reserved/Available" option list.
+     */
+    protected function slotOptions($date, ?int $exceptId = null)
+    {
+        $timeSlots = \App\Models\CounselingTimeSlot::where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        if (! $date) {
+            return $timeSlots->pluck('name', 'id');
+        }
+
+        $reserved = $this->reservedSlotIds($date, $exceptId);
+
+        return $timeSlots->mapWithKeys(
+            fn ($s) => [
+                $s->id => $s->name . (
+                    in_array($s->id, $reserved)
+                        ? ' 🔴 Reserved'
+                        : ' ✅ Available'
+                ),
+            ]
+        );
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | Table Query
     |--------------------------------------------------------------------------
     */
@@ -40,18 +86,18 @@ class ListCounselingAppointments extends ListRecords
         }
 
         if ($this->activeTab === 'follow_ups') {
-    $query->where(function ($q) {
-        $q->whereNotNull('parent_appointment_id')
-          ->orWhereNotNull('source_logform_id')
-          ->orWhereNotNull('referral_id');
-    });
-}
+            $query->where(function ($q) {
+                $q->whereNotNull('parent_appointment_id')
+                    ->orWhereNotNull('source_logform_id')
+                    ->orWhereNotNull('referral_id');
+            });
+        }
 
-if ($this->activeTab === 'all') {
-    $query->whereNull('parent_appointment_id')
-          ->whereNull('source_logform_id')
-          ->whereNull('referral_id');
-}
+        if ($this->activeTab === 'all') {
+            $query->whereNull('parent_appointment_id')
+                ->whereNull('source_logform_id')
+                ->whereNull('referral_id');
+        }
 
         return $query
             ->withCount('followUps')
@@ -100,17 +146,17 @@ if ($this->activeTab === 'all') {
                 ),
 
             'follow_ups' => Tab::make('Follow-ups')
-    ->icon('heroicon-o-arrow-path-rounded-square')
-    ->badgeColor('info')
-    ->badge(
-        fn () => CounselingAppointments::whereNull('archived_at')
-            ->where(function ($q) {
-                $q->whereNotNull('parent_appointment_id')
-                  ->orWhereNotNull('source_logform_id')
-                  ->orWhereNotNull('referral_id');
-            })
-            ->count()
-    ),
+                ->icon('heroicon-o-arrow-path-rounded-square')
+                ->badgeColor('info')
+                ->badge(
+                    fn () => CounselingAppointments::whereNull('archived_at')
+                        ->where(function ($q) {
+                            $q->whereNotNull('parent_appointment_id')
+                                ->orWhereNotNull('source_logform_id')
+                                ->orWhereNotNull('referral_id');
+                        })
+                        ->count()
+                ),
         ];
     }
 
@@ -127,11 +173,7 @@ if ($this->activeTab === 'all') {
 
             ->columns([
 
-                /*
-                |--------------------------------------------------------------------------
-                | Shared Columns
-                |--------------------------------------------------------------------------
-                */
+                /* Shared Columns */
 
                 Tables\Columns\TextColumn::make('full_name')
                     ->label('Student Name')
@@ -168,58 +210,37 @@ if ($this->activeTab === 'all') {
                     ->searchable()
                     ->sortable(),
 
-                /*
-                |--------------------------------------------------------------------------
-                | Appointment / Follow-up Columns
-                |--------------------------------------------------------------------------
-                */
+                /* Appointment / Follow-up Columns */
 
                 Tables\Columns\TextColumn::make('counseling_date')
                     ->label('Date')
                     ->date('M d, Y')
                     ->sortable()
-                    ->hidden(
-                        fn () => $this->activeTab === 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab === 'endorsed'),
 
                 Tables\Columns\TextColumn::make('timeSlot.name')
                     ->label('Time Slot')
                     ->sortable()
-                    ->hidden(
-                        fn () => $this->activeTab === 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab === 'endorsed'),
 
                 Tables\Columns\TextColumn::make('modeOfCounseling.name')
                     ->label('Mode')
                     ->badge()
-                    ->hidden(
-                        fn () => $this->activeTab === 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab === 'endorsed'),
 
                 Tables\Columns\TextColumn::make('supportNeeded.name')
                     ->label('Support Needed')
                     ->wrap()
-                    ->hidden(
-                        fn () => $this->activeTab === 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab === 'endorsed'),
 
                 Tables\Columns\TextColumn::make('follow_ups_count')
                     ->label('Follow-ups')
                     ->counts('followUps')
                     ->badge()
                     ->color('info')
-                    ->hidden(
-                        fn () => $this->activeTab === 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab === 'endorsed'),
 
-                /*
-                |--------------------------------------------------------------------------
-                | STATUS
-                |--------------------------------------------------------------------------
-                |
-                | Added "completed" status.
-                |
-                */
+                /* STATUS */
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
@@ -241,30 +262,22 @@ if ($this->activeTab === 'all') {
                             default => ucfirst($state ?? 'Unknown'),
                         }
                     )
-                    ->hidden(
-                        fn () => $this->activeTab === 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab === 'endorsed'),
 
-                    Tables\Columns\TextColumn::make('cancellation_reason')
-    ->label('Cancellation Reason')
-    ->limit(50)
-    ->tooltip(fn ($state) => $state)
-    ->placeholder('—')
-    ->toggleable(isToggledHiddenByDefault: true)
-    ->hidden(fn () => $this->activeTab === 'endorsed'),
+                Tables\Columns\TextColumn::make('cancellation_reason')
+                    ->label('Cancellation Reason')
+                    ->limit(50)
+                    ->tooltip(fn ($state) => $state)
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->hidden(fn () => $this->activeTab === 'endorsed'),
 
-                /*
-                |--------------------------------------------------------------------------
-                | Endorsement Columns
-                |--------------------------------------------------------------------------
-                */
+                /* Endorsement Columns */
 
                 Tables\Columns\TextColumn::make('endorsement.to_where')
                     ->label('Endorsed To')
                     ->default('-')
-                    ->hidden(
-                        fn () => $this->activeTab !== 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab !== 'endorsed'),
 
                 Tables\Columns\TextColumn::make('endorsement.date')
                     ->label('Endorse Date')
@@ -274,17 +287,13 @@ if ($this->activeTab === 'all') {
                                 ? \Carbon\Carbon::parse($state)->format('M d, Y')
                                 : '-'
                     )
-                    ->hidden(
-                        fn () => $this->activeTab !== 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab !== 'endorsed'),
 
                 Tables\Columns\TextColumn::make('endorsement.issue')
                     ->label('Issue')
                     ->limit(50)
                     ->default('-')
-                    ->hidden(
-                        fn () => $this->activeTab !== 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab !== 'endorsed'),
 
                 Tables\Columns\TextColumn::make('endorsed_by')
                     ->label('Endorsed By')
@@ -298,9 +307,7 @@ if ($this->activeTab === 'all') {
                                 )
                                 : '-'
                     )
-                    ->hidden(
-                        fn () => $this->activeTab !== 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab !== 'endorsed'),
             ])
 
             /*
@@ -313,29 +320,18 @@ if ($this->activeTab === 'all') {
 
                 Tables\Filters\SelectFilter::make('mode_of_couseling_id')
                     ->label('Mode of Counseling')
-                    ->relationship(
-                        'modeOfCounseling',
-                        'name'
-                    ),
+                    ->relationship('modeOfCounseling', 'name'),
 
                 Tables\Filters\SelectFilter::make('support_needed_id')
                     ->label('Support Needed')
-                    ->relationship(
-                        'supportNeeded',
-                        'name'
-                    ),
+                    ->relationship('supportNeeded', 'name'),
 
                 Tables\Filters\Filter::make('counseling_date')
                     ->form([
-
-                        \Filament\Forms\Components\DatePicker::make(
-                            'date_from'
-                        )
+                        \Filament\Forms\Components\DatePicker::make('date_from')
                             ->label('From Date'),
 
-                        \Filament\Forms\Components\DatePicker::make(
-                            'date_until'
-                        )
+                        \Filament\Forms\Components\DatePicker::make('date_until')
                             ->label('Until Date'),
                     ])
                     ->query(
@@ -343,50 +339,40 @@ if ($this->activeTab === 'all') {
                             $query
                                 ->when(
                                     $data['date_from'] ?? null,
-                                    fn ($q) =>
-                                        $q->whereDate(
-                                            'counseling_date',
-                                            '>=',
-                                            $data['date_from']
-                                        )
+                                    fn ($q) => $q->whereDate('counseling_date', '>=', $data['date_from'])
                                 )
                                 ->when(
                                     $data['date_until'] ?? null,
-                                    fn ($q) =>
-                                        $q->whereDate(
-                                            'counseling_date',
-                                            '<=',
-                                            $data['date_until']
-                                        )
+                                    fn ($q) => $q->whereDate('counseling_date', '<=', $data['date_until'])
                                 )
                     ),
 
-                    Tables\Filters\SelectFilter::make('term')
-        ->label('School Year & Semester')
-        ->options(fn () => \App\Models\Term::query()
-            ->whereNotNull('starts_on')
-            ->whereNotNull('ends_on')
-            ->orderByDesc('starts_on')
-            ->get()
-            ->mapWithKeys(fn ($term) => [$term->id => $term->label])
-            ->all())
-        ->placeholder('All terms')
-        ->query(function (Builder $query, array $data): Builder {
-            if (blank($data['value'] ?? null)) {
-                return $query;
-            }
+                Tables\Filters\SelectFilter::make('term')
+                    ->label('School Year & Semester')
+                    ->options(fn () => \App\Models\Term::query()
+                        ->whereNotNull('starts_on')
+                        ->whereNotNull('ends_on')
+                        ->orderByDesc('starts_on')
+                        ->get()
+                        ->mapWithKeys(fn ($term) => [$term->id => $term->label])
+                        ->all())
+                    ->placeholder('All terms')
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (blank($data['value'] ?? null)) {
+                            return $query;
+                        }
 
-            $term = \App\Models\Term::find($data['value']);
+                        $term = \App\Models\Term::find($data['value']);
 
-            if (! $term?->starts_on || ! $term?->ends_on) {
-                return $query;
-            }
+                        if (! $term?->starts_on || ! $term?->ends_on) {
+                            return $query;
+                        }
 
-            return $query->whereBetween('counseling_date', [
-                $term->starts_on->toDateString(),
-                $term->ends_on->toDateString(),
-            ]);
-        }),
+                        return $query->whereBetween('counseling_date', [
+                            $term->starts_on->toDateString(),
+                            $term->ends_on->toDateString(),
+                        ]);
+                    }),
             ])
 
             /*
@@ -397,19 +383,11 @@ if ($this->activeTab === 'all') {
 
             ->actions([
 
-                /*
-                |--------------------------------------------------------------------------
-                | Appointment / Follow-up Actions
-                |--------------------------------------------------------------------------
-                */
+                /* Appointment / Follow-up Actions */
 
                 Tables\Actions\ActionGroup::make([
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Approve
-                    |--------------------------------------------------------------------------
-                    */
+                    /* Approve */
 
                     Tables\Actions\Action::make('approve')
                         ->label('Approve')
@@ -417,20 +395,11 @@ if ($this->activeTab === 'all') {
                         ->color('success')
                         ->requiresConfirmation()
                         ->modalHeading('Approve Appointment')
-                        ->modalDescription(
-                            'Are you sure you want to approve this appointment?'
-                        )
+                        ->modalDescription('Are you sure you want to approve this appointment?')
                         ->modalSubmitActionLabel('Yes, Approve')
                         ->visible(
                             fn ($record): bool =>
-                                ! in_array(
-                                    $record->status,
-                                    [
-                                        'approved',
-                                        'completed',
-                                        'cancelled',
-                                    ]
-                                )
+                                ! in_array($record->status, ['approved', 'completed', 'cancelled'])
                         )
                         ->action(function ($record) {
 
@@ -454,11 +423,7 @@ if ($this->activeTab === 'all') {
                                 ->send();
                         }),
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Reschedule
-                    |--------------------------------------------------------------------------
-                    */
+                    /* Reschedule */
 
                     Tables\Actions\Action::make('reschedule')
                         ->label('Reschedule')
@@ -466,170 +431,70 @@ if ($this->activeTab === 'all') {
                         ->color('warning')
                         ->visible(
                             fn ($record): bool =>
-                                ! in_array(
-                                    $record->status,
-                                    [
-                                        'cancelled',
-                                        'completed',
-                                    ]
-                                )
+                                ! in_array($record->status, ['cancelled', 'completed'])
                         )
                         ->form([
 
-                            \Filament\Forms\Components\DatePicker::make(
-                                'counseling_date'
-                            )
+                            \Filament\Forms\Components\DatePicker::make('counseling_date')
                                 ->label('New Date')
                                 ->required()
                                 ->native(false)
                                 ->displayFormat('F d, Y')
                                 ->minDate(now())
-                                ->disabledDates(
-                                    fn () =>
-                                        \App\Models\InactiveDate::getInactiveDates()
-                                )
+                                ->disabledDates(fn () => \App\Models\InactiveDate::getInactiveDates())
                                 ->live()
-                                ->afterStateUpdated(
-                                    fn (callable $set) =>
-                                        $set('time_slot_id', null)
-                                ),
+                                ->afterStateUpdated(fn (callable $set) => $set('time_slot_id', null)),
 
-                            \Filament\Forms\Components\Select::make(
-                                'time_slot_id'
-                            )
+                            \Filament\Forms\Components\Select::make('time_slot_id')
                                 ->label('New Time Slot')
                                 ->options(
-                                    function (
-                                        callable $get,
-                                        $record
-                                    ) {
-
-                                        $selectedDate =
-                                            $get('counseling_date');
-
-                                        $timeSlots =
-                                            \App\Models\CounselingTimeSlot::where(
-                                                'is_active',
-                                                true
-                                            )
-                                            ->orderBy('name')
-                                            ->get();
-
-                                        if (! $selectedDate) {
-                                            return $timeSlots->pluck(
-                                                'name',
-                                                'id'
-                                            );
-                                        }
-
-                                        $reserved =
-                                        CounselingAppointments::whereDate(
-                                            'counseling_date',
-                                            $selectedDate
-                                        )
-                                        ->whereNotIn('status', ['cancelled', 'rejected'])
-                                        ->where(
-                                            'id',
-                                            '!=',
-                                            $record->id
-                                        )
-                                        ->pluck('time_slot_id')
-                                        ->toArray();
-
-                                        return $timeSlots->mapWithKeys(
-                                            fn ($s) => [
-                                                $s->id =>
-                                                    $s->name .
-                                                    (
-                                                        in_array(
-                                                            $s->id,
-                                                            $reserved
-                                                        )
-                                                            ? ' 🔴 Reserved'
-                                                            : ' ✅ Available'
-                                                    ),
-                                            ]
-                                        );
-                                    }
+                                    fn (callable $get, $record) =>
+                                        $this->slotOptions($get('counseling_date'), $record->id)
                                 )
+                                // FIX: ignore the appointment being rescheduled itself,
+                                // and ignore cancelled / rejected appointments.
                                 ->disableOptionWhen(
-                                    function (
-                                        $value,
-                                        callable $get,
-                                        $record
-                                    ) {
+                                    function ($value, callable $get, $record) {
 
-                                        $selectedDate =
-                                            $get('counseling_date');
+                                        $selectedDate = $get('counseling_date');
 
                                         if (! $selectedDate) {
                                             return false;
                                         }
 
-                                        return CounselingAppointments::whereDate(
-                                        'counseling_date',
-                                        $selectedDate
-                                    )
-                                        ->whereNotIn('status', ['cancelled', 'rejected'])
-                                        ->where(
-                                            'time_slot_id',
-                                            $value
-                                        )
-                                        ->exists();
+                                        return CounselingAppointments::whereDate('counseling_date', $selectedDate)
+                                            ->whereNotIn('status', ['cancelled', 'rejected'])
+                                            ->where('id', '!=', $record->id)
+                                            ->where('time_slot_id', $value)
+                                            ->exists();
                                     }
                                 )
                                 ->required()
                                 ->searchable()
                                 ->native(false)
-                                ->disabled(
-                                    fn (callable $get) =>
-                                        ! $get('counseling_date')
-                                ),
+                                ->disabled(fn (callable $get) => ! $get('counseling_date')),
 
-                            \Filament\Forms\Components\Textarea::make(
-                                'reschedule_reason'
-                            )
-                                ->label(
-                                    'Reason for Rescheduling (Optional)'
-                                )
-                                ->placeholder(
-                                    'e.g., Counselor unavailable, room conflict...'
-                                )
+                            \Filament\Forms\Components\Textarea::make('reschedule_reason')
+                                ->label('Reason for Rescheduling (Optional)')
+                                ->placeholder('e.g., Counselor unavailable, room conflict...')
                                 ->rows(2),
                         ])
                         ->action(
                             function ($record, array $data) {
 
-                                $oldDate =
-                                    \Carbon\Carbon::parse(
-                                        $record->counseling_date
-                                    )->format('M d, Y');
-
-                                $oldSlot =
-                                    $record->timeSlot?->name;
+                                $oldDate = \Carbon\Carbon::parse($record->counseling_date)->format('M d, Y');
+                                $oldSlot = $record->timeSlot?->name;
 
                                 $record->update([
-                                    'counseling_date' =>
-                                        $data['counseling_date'],
-
-                                    'time_slot_id' =>
-                                        $data['time_slot_id'],
-
-                                    'status' =>
-                                        'pending',
-
-                                    'approved_at' =>
-                                        null,
+                                    'counseling_date' => $data['counseling_date'],
+                                    'time_slot_id' => $data['time_slot_id'],
+                                    'status' => 'pending',
+                                    'approved_at' => null,
                                 ]);
 
-                                $record->notifyStudent(
-                                    'rescheduled'
-                                );
+                                $record->notifyStudent('rescheduled');
 
-                                $newDate =
-                                    \Carbon\Carbon::parse(
-                                        $data['counseling_date']
-                                    )->format('M d, Y');
+                                $newDate = \Carbon\Carbon::parse($data['counseling_date'])->format('M d, Y');
 
                                 $this->logCustomActivity(
                                     $record,
@@ -637,248 +502,105 @@ if ($this->activeTab === 'all') {
                                     'rescheduled',
                                     "Rescheduled appointment for {$record->full_name}",
                                     [
-                                        'from_date' =>
-                                            $oldDate,
-
-                                        'from_time_slot' =>
-                                            $oldSlot,
-
-                                        'to_date' =>
-                                            $newDate,
-
-                                        'to_time_slot' =>
-                                            $record->timeSlot?->name,
-
-                                        'reason' =>
-                                            $data['reschedule_reason']
-                                                ?? null,
+                                        'from_date' => $oldDate,
+                                        'from_time_slot' => $oldSlot,
+                                        'to_date' => $newDate,
+                                        'to_time_slot' => $record->timeSlot?->name,
+                                        'reason' => $data['reschedule_reason'] ?? null,
                                     ]
                                 );
 
                                 Notification::make()
-                                    ->title(
-                                        'Appointment Rescheduled'
-                                    )
+                                    ->title('Appointment Rescheduled')
                                     ->success()
-                                    ->body(
-                                        "New date: {$newDate}."
-                                    )
+                                    ->body("New date: {$newDate}.")
                                     ->send();
                             }
                         ),
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Schedule Follow-up
-                    |--------------------------------------------------------------------------
-                    |
-                    | IMPORTANT:
-                    | This is now available only after the current
-                    | appointment has been completed.
-                    |--------------------------------------------------------------------------
-                    */
+                    /* Schedule Follow-up (only after the appointment is completed) */
 
                     Tables\Actions\Action::make('schedule_followup')
                         ->label('Schedule Follow-up')
-                        ->icon(
-                            'heroicon-o-arrow-path-rounded-square'
-                        )
+                        ->icon('heroicon-o-arrow-path-rounded-square')
                         ->color('info')
-
-                        // CHANGED:
-                        // Before: approved
-                        // Now: completed
-                        ->visible(
-                            fn ($record): bool =>
-                                $record->status === 'completed'
-                        )
-
+                        ->visible(fn ($record): bool => $record->status === 'completed')
                         ->form([
 
-                            \Filament\Forms\Components\DatePicker::make(
-                                'counseling_date'
-                            )
+                            \Filament\Forms\Components\DatePicker::make('counseling_date')
                                 ->label('Follow-up Date')
                                 ->required()
                                 ->native(false)
                                 ->displayFormat('F d, Y')
                                 ->minDate(now())
-                                ->disabledDates(
-                                    fn () =>
-                                        \App\Models\InactiveDate::getInactiveDates()
-                                )
+                                ->disabledDates(fn () => \App\Models\InactiveDate::getInactiveDates())
                                 ->live()
-                                ->afterStateUpdated(
-                                    fn (callable $set) =>
-                                        $set('time_slot_id', null)
-                                ),
+                                ->afterStateUpdated(fn (callable $set) => $set('time_slot_id', null)),
 
-                            \Filament\Forms\Components\Select::make(
-                                'time_slot_id'
-                            )
+                            \Filament\Forms\Components\Select::make('time_slot_id')
                                 ->label('Time Slot')
                                 ->options(
-                                    function (callable $get) {
-
-                                        $selectedDate =
-                                            $get('counseling_date');
-
-                                        $timeSlots =
-                                            \App\Models\CounselingTimeSlot::where(
-                                                'is_active',
-                                                true
-                                            )
-                                            ->orderBy('name')
-                                            ->get();
-
-                                        if (! $selectedDate) {
-                                            return $timeSlots->pluck(
-                                                'name',
-                                                'id'
-                                            );
-                                        }
-
-                                        $reserved =
-                                        CounselingAppointments::whereDate(
-                                            'counseling_date',
-                                            $selectedDate
-                                        )
-                                        ->whereNotIn('status', ['cancelled', 'rejected'])
-                                        ->pluck('time_slot_id')
-                                        ->toArray();
-                                        return $timeSlots->mapWithKeys(
-                                            fn ($s) => [
-                                                $s->id =>
-                                                    $s->name .
-                                                    (
-                                                        in_array(
-                                                            $s->id,
-                                                            $reserved
-                                                        )
-                                                            ? ' 🔴 Reserved'
-                                                            : ' ✅ Available'
-                                                    ),
-                                            ]
-                                        );
-                                    }
+                                    fn (callable $get) => $this->slotOptions($get('counseling_date'))
                                 )
+                                // FIX: cancelled / rejected appointments no longer block the slot.
                                 ->disableOptionWhen(
-                                    function (
-                                        $value,
-                                        callable $get
-                                    ) {
+                                    function ($value, callable $get) {
 
-                                        $selectedDate =
-                                            $get('counseling_date');
+                                        $selectedDate = $get('counseling_date');
 
                                         if (! $selectedDate) {
                                             return false;
                                         }
 
-                                        return CounselingAppointments::whereDate(
-                                            'counseling_date',
-                                            $selectedDate
-                                        )
-                                            ->where(
-                                                'time_slot_id',
-                                                $value
-                                            )
+                                        return CounselingAppointments::whereDate('counseling_date', $selectedDate)
+                                            ->whereNotIn('status', ['cancelled', 'rejected'])
+                                            ->where('time_slot_id', $value)
                                             ->exists();
                                     }
                                 )
                                 ->required()
                                 ->searchable()
                                 ->native(false)
-                                ->disabled(
-                                    fn (callable $get) =>
-                                        ! $get('counseling_date')
-                                ),
+                                ->disabled(fn (callable $get) => ! $get('counseling_date')),
 
-                            \Filament\Forms\Components\Select::make(
-                                'mode_of_counseling_id'
-                            )
+                            \Filament\Forms\Components\Select::make('mode_of_counseling_id')
                                 ->label('Mode of Counseling')
-                                ->options(
-                                    \App\Models\ModeOfCounseling::active()
-                                        ->pluck('name', 'id')
-                                )
+                                ->options(\App\Models\ModeOfCounseling::active()->pluck('name', 'id'))
                                 ->searchable()
                                 ->required(),
 
-                            \Filament\Forms\Components\Select::make(
-                                'support_needed_id'
-                            )
+                            \Filament\Forms\Components\Select::make('support_needed_id')
                                 ->label('Support Needed')
-                                ->options(
-                                    \App\Models\SupportNeeded::active()
-                                        ->pluck('name', 'id')
-                                )
+                                ->options(\App\Models\SupportNeeded::active()->pluck('name', 'id'))
                                 ->searchable()
                                 ->required(),
 
-                            \Filament\Forms\Components\Textarea::make(
-                                'concern'
-                            )
-                                ->label(
-                                    'Follow-up Concern/Notes'
-                                )
-                                ->placeholder(
-                                    'What should be addressed in this follow-up session?'
-                                )
+                            \Filament\Forms\Components\Textarea::make('concern')
+                                ->label('Follow-up Concern/Notes')
+                                ->placeholder('What should be addressed in this follow-up session?')
                                 ->rows(3),
                         ])
-
                         ->action(
                             function ($record, array $data) {
 
-                                $followUp =
-                                    CounselingAppointments::create([
-                                        'parent_appointment_id' =>
-                                            $record->id,
+                                $followUp = CounselingAppointments::create([
+                                    'parent_appointment_id' => $record->id,
+                                    'student_id' => $record->student_id,
+                                    'first_name' => $record->first_name,
+                                    'middle_name' => $record->middle_name,
+                                    'last_name' => $record->last_name,
+                                    'course_and_year' => $record->course_and_year,
+                                    'contact_no' => $record->contact_no,
+                                    'present_address' => $record->present_address,
+                                    'counseling_date' => $data['counseling_date'],
+                                    'time_slot_id' => $data['time_slot_id'],
+                                    'mode_of_counseling_id' => $data['mode_of_counseling_id'],
+                                    'support_needed_id' => $data['support_needed_id'],
+                                    'concern' => $data['concern'] ?? null,
+                                    'status' => 'pending',
+                                ]);
 
-                                        'student_id' =>
-                                            $record->student_id,
-
-                                        'first_name' =>
-                                            $record->first_name,
-
-                                        'middle_name' =>
-                                            $record->middle_name,
-
-                                        'last_name' =>
-                                            $record->last_name,
-
-                                        'course_and_year' =>
-                                            $record->course_and_year,
-
-                                        'contact_no' =>
-                                            $record->contact_no,
-
-                                        'present_address' =>
-                                            $record->present_address,
-
-                                        'counseling_date' =>
-                                            $data['counseling_date'],
-
-                                        'time_slot_id' =>
-                                            $data['time_slot_id'],
-
-                                        'mode_of_counseling_id' =>
-                                            $data['mode_of_counseling_id'],
-
-                                        'support_needed_id' =>
-                                            $data['support_needed_id'],
-
-                                        'concern' =>
-                                            $data['concern'] ?? null,
-
-                                        'status' =>
-                                            'pending',
-                                    ]);
-
-                                $followUp->notifyAdmin(
-                                    'follow_up_scheduled'
-                                );
+                                $followUp->notifyAdmin('follow_up_scheduled');
 
                                 $this->logCustomActivity(
                                     $followUp,
@@ -886,72 +608,50 @@ if ($this->activeTab === 'all') {
                                     'follow_up_scheduled',
                                     "Scheduled a follow-up for {$record->full_name}",
                                     [
-                                        'parent_appointment_id' =>
-                                            $record->id,
+                                        'parent_appointment_id' => $record->id,
                                     ]
                                 );
 
                                 Notification::make()
-                                    ->title(
-                                        'Follow-up Scheduled'
-                                    )
+                                    ->title('Follow-up Scheduled')
                                     ->success()
-                                    ->body(
-                                        "Taking you to the Records tab to document this session for {$record->first_name} {$record->last_name}."
-                                    )
+                                    ->body("Taking you to the Records tab to document this session for {$record->first_name} {$record->last_name}.")
                                     ->send();
 
                                 return redirect(
                                     CounselingAppointmentsResource::getUrl(
                                         'edit',
                                         [
-                                            'record' =>
-                                                $followUp->id,
-
-                                            'tab' =>
-                                                '-records-tab',
+                                            'record' => $followUp->id,
+                                            'tab' => '-records-tab',
                                         ]
                                     )
                                 );
                             }
                         ),
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | View Original
-                    |--------------------------------------------------------------------------
-                    */
+                    /* View Original */
 
                     Tables\Actions\Action::make('view_original')
                         ->label('View Original')
-                        ->icon(
-                            'heroicon-o-arrow-uturn-left'
-                        )
+                        ->icon('heroicon-o-arrow-uturn-left')
                         ->color('gray')
                         ->visible(
                             fn ($record): bool =>
-                                $record->isFollowUp() &&
-                                $record->parentAppointment
+                                $record->isFollowUp() && $record->parentAppointment
                         )
                         ->url(
                             fn ($record) =>
                                 CounselingAppointmentsResource::getUrl(
                                     'edit',
                                     [
-                                        'record' =>
-                                            $record->parent_appointment_id,
-
-                                        'tab' =>
-                                            '-personal-information-tab',
+                                        'record' => $record->parent_appointment_id,
+                                        'tab' => '-personal-information-tab',
                                     ]
                                 )
                         ),
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Edit
-                    |--------------------------------------------------------------------------
-                    */
+                    /* Edit */
 
                     Tables\Actions\EditAction::make()
                         ->url(
@@ -959,37 +659,22 @@ if ($this->activeTab === 'all') {
                                 CounselingAppointmentsResource::getUrl(
                                     'edit',
                                     [
-                                        'record' =>
-                                            $record->id,
-
-                                        'tab' =>
-                                            '-personal-information-tab',
+                                        'record' => $record->id,
+                                        'tab' => '-personal-information-tab',
                                     ]
                                 )
                         ),
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Archive
-                    |--------------------------------------------------------------------------
-                    */
+                    /* Archive */
 
                     Tables\Actions\Action::make('archive')
                         ->label('Archive')
-                        ->icon(
-                            'heroicon-o-archive-box'
-                        )
+                        ->icon('heroicon-o-archive-box')
                         ->color('danger')
                         ->requiresConfirmation()
-                        ->modalHeading(
-                            'Archive Appointment'
-                        )
-                        ->modalDescription(
-                            'This will hide the appointment from this list. You can restore it later from Settings → Archived Records.'
-                        )
-                        ->modalSubmitActionLabel(
-                            'Yes, Archive'
-                        )
+                        ->modalHeading('Archive Appointment')
+                        ->modalDescription('This will hide the appointment from this list. You can restore it later from Settings → Archived Records.')
+                        ->modalSubmitActionLabel('Yes, Archive')
                         ->form([
                             Forms\Components\TextInput::make('confirm_password')
                                 ->label('Confirm your password to continue')
@@ -1008,8 +693,7 @@ if ($this->activeTab === 'all') {
                             function ($record): void {
 
                                 $record->update([
-                                    'archived_at' =>
-                                        now(),
+                                    'archived_at' => now(),
                                 ]);
 
                                 $this->logCustomActivity(
@@ -1020,51 +704,32 @@ if ($this->activeTab === 'all') {
                                 );
 
                                 Notification::make()
-                                    ->title(
-                                        'Appointment archived'
-                                    )
+                                    ->title('Appointment archived')
                                     ->success()
                                     ->send();
                             }
                         ),
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | View
-                    |--------------------------------------------------------------------------
-                    */
+                    /* View */
 
                     Tables\Actions\ViewAction::make()
                         ->modalHeading(
-                            fn ($record) =>
-                                'Guidance Records — ' .
-                                $record->full_name
+                            fn ($record) => 'Guidance Records — ' . $record->full_name
                         )
                         ->modalWidth('5xl')
                         ->infolist(
                             fn (Infolist $infolist) =>
-                                CounselingAppointmentsResource::infolist(
-                                    $infolist
-                                )
+                                CounselingAppointmentsResource::infolist($infolist)
                         ),
                 ])
                     ->label('Actions')
-                    ->icon(
-                        'heroicon-m-ellipsis-vertical'
-                    )
+                    ->icon('heroicon-m-ellipsis-vertical')
                     ->size('sm')
                     ->color('gray')
                     ->button()
-                    ->hidden(
-                        fn () =>
-                            $this->activeTab === 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab === 'endorsed'),
 
-                /*
-                |--------------------------------------------------------------------------
-                | Endorsement Actions
-                |--------------------------------------------------------------------------
-                */
+                /* Endorsement Actions */
 
                 Tables\Actions\ActionGroup::make([
 
@@ -1072,50 +737,29 @@ if ($this->activeTab === 'all') {
                         ->label('Print')
                         ->icon('heroicon-o-printer')
                         ->color('gray')
-                        ->url(
-                            fn ($record) =>
-                                route(
-                                    'endorsement.print',
-                                    $record->id
-                                )
-                        )
+                        ->url(fn ($record) => route('endorsement.print', $record->id))
                         ->openUrlInNewTab(),
 
-                    Tables\Actions\EditAction::make(
-                        'edit_endorsement'
-                    )
+                    Tables\Actions\EditAction::make('edit_endorsement')
                         ->url(
                             fn ($record) =>
                                 CounselingAppointmentsResource::getUrl(
                                     'edit',
                                     [
-                                        'record' =>
-                                            $record->id,
-
-                                        'tab' =>
-                                            '-endorsement-tab',
+                                        'record' => $record->id,
+                                        'tab' => '-endorsement-tab',
                                     ]
                                 )
                         ),
 
-                    Tables\Actions\Action::make(
-                        'archive_endorsement'
-                    )
+                    Tables\Actions\Action::make('archive_endorsement')
                         ->label('Archive')
-                        ->icon(
-                            'heroicon-o-archive-box'
-                        )
+                        ->icon('heroicon-o-archive-box')
                         ->color('danger')
                         ->requiresConfirmation()
-                        ->modalHeading(
-                            'Archive Appointment'
-                        )
-                        ->modalDescription(
-                            'This will hide the appointment from this list. You can restore it later from Settings → Archived Records.'
-                        )
-                        ->modalSubmitActionLabel(
-                            'Yes, Archive'
-                        )
+                        ->modalHeading('Archive Appointment')
+                        ->modalDescription('This will hide the appointment from this list. You can restore it later from Settings → Archived Records.')
+                        ->modalSubmitActionLabel('Yes, Archive')
                         ->form([
                             Forms\Components\TextInput::make('confirm_password')
                                 ->label('Confirm your password to continue')
@@ -1134,8 +778,7 @@ if ($this->activeTab === 'all') {
                             function ($record): void {
 
                                 $record->update([
-                                    'archived_at' =>
-                                        now(),
+                                    'archived_at' => now(),
                                 ]);
 
                                 $this->logCustomActivity(
@@ -1146,83 +789,49 @@ if ($this->activeTab === 'all') {
                                 );
 
                                 Notification::make()
-                                    ->title(
-                                        'Appointment archived'
-                                    )
+                                    ->title('Appointment archived')
                                     ->success()
                                     ->send();
                             }
                         ),
-                    Tables\Actions\ViewAction::make(
-                        'view_endorsement'
-                    )
+
+                    Tables\Actions\ViewAction::make('view_endorsement')
                         ->infolist([
 
-                            \Filament\Infolists\Components\Section::make(
-                                'Student Information'
-                            )
+                            \Filament\Infolists\Components\Section::make('Student Information')
                                 ->schema([
 
-                                    \Filament\Infolists\Components\TextEntry::make(
-                                        'full_name'
-                                    )
+                                    \Filament\Infolists\Components\TextEntry::make('full_name')
                                         ->label('Student Name')
-                                        ->getStateUsing(
-                                            fn ($record) =>
-                                                $record->full_name
-                                        ),
+                                        ->getStateUsing(fn ($record) => $record->full_name),
 
-                                    \Filament\Infolists\Components\TextEntry::make(
-                                        'course_and_year'
-                                    )
-                                        ->label(
-                                            'Course & Year'
-                                        ),
+                                    \Filament\Infolists\Components\TextEntry::make('course_and_year')
+                                        ->label('Course & Year'),
                                 ]),
 
-                            \Filament\Infolists\Components\Section::make(
-                                'Endorsement Details'
-                            )
+                            \Filament\Infolists\Components\Section::make('Endorsement Details')
                                 ->schema([
 
-                                    \Filament\Infolists\Components\TextEntry::make(
-                                        'endorsement.to_where'
-                                    )
-                                        ->label(
-                                            'Endorsed To'
-                                        )
+                                    \Filament\Infolists\Components\TextEntry::make('endorsement.to_where')
+                                        ->label('Endorsed To')
                                         ->default('-'),
 
-                                    \Filament\Infolists\Components\TextEntry::make(
-                                        'endorsement.date'
-                                    )
-                                        ->label(
-                                            'Endorse Date'
-                                        )
+                                    \Filament\Infolists\Components\TextEntry::make('endorsement.date')
+                                        ->label('Endorse Date')
                                         ->formatStateUsing(
                                             fn ($state) =>
                                                 $state
-                                                    ? \Carbon\Carbon::parse(
-                                                        $state
-                                                    )->format(
-                                                        'M d, Y'
-                                                    )
+                                                    ? \Carbon\Carbon::parse($state)->format('M d, Y')
                                                     : '-'
                                         ),
 
-                                    \Filament\Infolists\Components\TextEntry::make(
-                                        'endorsement.issue'
-                                    )
+                                    \Filament\Infolists\Components\TextEntry::make('endorsement.issue')
                                         ->label('Issue')
                                         ->default('-')
                                         ->columnSpanFull(),
 
-                                    \Filament\Infolists\Components\TextEntry::make(
-                                        'endorsed_by'
-                                    )
-                                        ->label(
-                                            'Endorsed By'
-                                        )
+                                    \Filament\Infolists\Components\TextEntry::make('endorsed_by')
+                                        ->label('Endorsed By')
                                         ->getStateUsing(
                                             fn ($record) =>
                                                 $record->endorsement?->personnel
@@ -1238,16 +847,11 @@ if ($this->activeTab === 'all') {
                         ]),
                 ])
                     ->label('Actions')
-                    ->icon(
-                        'heroicon-m-ellipsis-vertical'
-                    )
+                    ->icon('heroicon-m-ellipsis-vertical')
                     ->size('sm')
                     ->color('gray')
                     ->button()
-                    ->hidden(
-                        fn () =>
-                            $this->activeTab !== 'endorsed'
-                    ),
+                    ->hidden(fn () => $this->activeTab !== 'endorsed'),
             ]);
     }
 }

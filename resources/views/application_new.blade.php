@@ -591,7 +591,7 @@
                             <label class="field-label">Extension Name</label>
                             <input type="text" name="extension_name" maxlength="20"
                                    value="{{ old('extension_name') }}"
-                                   placeholder="e.g. Jr., Sr., III"
+                                   placeholder="e.g. Jr, Sr, III"
                                    class="field-input {{ $errors->has('extension_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="extension_name">{{ $errors->first('extension_name') }}</p>
                         </div>
@@ -643,10 +643,10 @@
 
                         <div>
                             <label class="field-label">Contact Number</label>
-                            <input type="tel" name="contact_no" maxlength="16" inputmode="tel"
+                            <input type="tel" name="contact_no" maxlength="11" inputmode="numeric" autocomplete="off"
                                    autocomplete="tel"
                                    value="{{ old('contact_no') }}"
-                                   placeholder="09XX-XXX-XXXX"
+                                   placeholder="09XXXXXXXXX"
                                    class="field-input {{ $errors->has('contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="contact_no">{{ $errors->first('contact_no') }}</p>
                         </div>
@@ -723,9 +723,9 @@
 
                         <div>
                             <label class="field-label">Father's Contact No.</label>
-                            <input type="tel" name="fathers_contact_no" maxlength="16" inputmode="tel"
+                            <input type="tel" name="fathers_contact_no" maxlength="11" inputmode="numeric" autocomplete="off"
                                    value="{{ old('fathers_contact_no') }}"
-                                   placeholder="09XX-XXX-XXXX"
+                                   placeholder="09XXXXXXXXX"
                                    class="field-input {{ $errors->has('fathers_contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="fathers_contact_no">{{ $errors->first('fathers_contact_no') }}</p>
                         </div>
@@ -741,9 +741,9 @@
 
                         <div>
                             <label class="field-label">Mother's Contact No.</label>
-                            <input type="tel" name="mothers_contact_no" maxlength="16" inputmode="tel"
+                            <input type="tel" name="mothers_contact_no" maxlength="11" inputmode="numeric" autocomplete="off"
                                    value="{{ old('mothers_contact_no') }}"
-                                   placeholder="09XX-XXX-XXXX"
+                                   placeholder="09XXXXXXXXX"
                                    class="field-input {{ $errors->has('mothers_contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="mothers_contact_no">{{ $errors->first('mothers_contact_no') }}</p>
                         </div>
@@ -759,9 +759,9 @@
 
                         <div>
                             <label class="field-label">Guardian Contact No.</label>
-                            <input type="tel" name="guardian_contact_no" maxlength="16" inputmode="tel"
+                            <input type="tel" name="guardian_contact_no" maxlength="11" inputmode="numeric" autocomplete="off"
                                    value="{{ old('guardian_contact_no') }}"
-                                   placeholder="09XX-XXX-XXXX"
+                                   placeholder="09XXXXXXXXX"
                                    class="field-input {{ $errors->has('guardian_contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="guardian_contact_no">{{ $errors->first('guardian_contact_no') }}</p>
                         </div>
@@ -831,12 +831,29 @@
        Client-side validation — mirrors ApplicationController rules.
        (The server still re-validates everything on submit.)
     ═══════════════════════════════════════════════════════════════ */
-    const NAME_RE  = /^[\p{L}\s\-.']+$/u;
-    const EXT_RE   = /^[A-Za-z.\s]+$/;
-    const PHONE_RE = /^(09\d{9}|\+639\d{9})$/;
+    const NAME_RE  = /^[\p{L}\s]+$/u;   // letters and spaces only
+    const EXT_RE   = /^[A-Za-z\s]+$/;   // letters and spaces only
+    const PHONE_RE = /^09\d{9}$/;       // exactly 11 digits, starting with 09
 
-    const NAME_MSG  = 'may only contain letters, spaces, hyphens, periods, and apostrophes.';
-    const PHONE_MSG = 'must be a valid PH mobile number (e.g. 09171234567).';
+    const NAME_MSG  = 'may only contain letters and spaces.';
+    const PHONE_MSG = 'must be exactly 11 digits and start with 09 (e.g. 09171234567).';
+
+    // Remove anything that is not a letter/space, trim leading space, collapse double spaces.
+    function cleanName(value) {
+        return value
+            .replace(/[^\p{L}\s]/gu, '')
+            .replace(/^\s+/, '')
+            .replace(/\s{2,}/g, ' ');
+    }
+
+    // "juan DELA cruz" -> "Juan Dela Cruz"
+    function toTitleCase(value) {
+        return value
+            .toLowerCase()
+            .replace(/(^|\s)(\p{L})/gu, function (m, space, letter) {
+                return space + letter.toUpperCase();
+            });
+    }
 
     const NAME_FIELDS  = ['first_name', 'middle_name', 'last_name', 'fathers_name', 'mothers_name', 'guardian'];
     const PHONE_FIELDS = ['contact_no', 'fathers_contact_no', 'mothers_contact_no', 'guardian_contact_no'];
@@ -871,7 +888,7 @@
             const t = v.trim();
             if (!t) return '';
             if (t.length > 20) return 'Extension name must not exceed 20 characters.';
-            return EXT_RE.test(t) ? '' : 'Extension name may only contain letters and periods (e.g. Jr., III).';
+            return EXT_RE.test(t) ? '' : 'Extension name may only contain letters (e.g. Jr, Sr, III).';
         },
 
         program_id: (v) => v ? '' : 'Please select a program.',
@@ -956,11 +973,27 @@
             const el = e.target;
 
             if (NAME_FIELDS.includes(el.name)) {
-                el.value = el.value.replace(/[^\p{L}\s\-.']/gu, '');
+                // Letters + spaces only, first letter of every word capitalised.
+                const before = el.value;
+                const pos    = el.selectionStart;
+                const after  = toTitleCase(cleanName(before));
+
+                if (after !== before) {
+                    const newPos = toTitleCase(cleanName(before.slice(0, pos))).length;
+                    el.value = after;
+                    try { el.setSelectionRange(newPos, newPos); } catch (err) {}
+                }
             } else if (el.name === 'extension_name') {
-                el.value = el.value.replace(/[^A-Za-z.\s]/g, '');
+                // Letters + spaces only (kept exactly as typed, e.g. "III").
+                const cleaned = el.value
+                    .replace(/[^A-Za-z\s]/g, '')
+                    .replace(/^\s+/, '')
+                    .replace(/\s{2,}/g, ' ');
+                if (cleaned !== el.value) el.value = cleaned;
             } else if (PHONE_FIELDS.includes(el.name)) {
-                el.value = el.value.replace(/[^\d+\s\-]/g, '');
+                // Digits only, maximum 11.
+                const digits = el.value.replace(/\D/g, '').slice(0, 11);
+                if (digits !== el.value) el.value = digits;
             }
 
             // Once a field shows an error, re-check live so it clears as soon as it's fixed.

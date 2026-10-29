@@ -100,12 +100,20 @@ class ReportsPage extends Page implements HasForms
     }
 
     // ── Board program check ─────────────────────────────────────────────────
-    // NOTE: change `course` to your actual column name (e.g. program, program_name)
-    protected function isBoardProgram($scholar): bool
+        protected function isBoardProgram($scholar): bool
     {
         $program = strtolower(trim(preg_replace('/\s+/', ' ', $scholar->program ?? '')));
 
         return in_array($program, self::BOARD_PROGRAMS, true);
+    }
+
+    // ── PWD check ───────────────────────────────────────────────────────────
+    // A scholar is PWD if the pwd column has any real value (e.g. "pilay", "yes")
+    protected function isPwd($scholar): bool
+    {
+        $value = strtolower(trim($scholar->pwd ?? ''));
+
+        return $value !== '' && ! in_array($value, ['no', 'none', 'n/a', 'na', 'null', '0', 'false', '-'], true);
     }
 
     // ── Resolve term pair ───────────────────────────────────────────────────
@@ -165,8 +173,8 @@ class ReportsPage extends Page implements HasForms
         $male     = $scholars->where('sex', 'Male');
         $female   = $scholars->where('sex', 'Female');
 
-        $pwdMale   = $male->filter(fn ($s) => strtolower($s->pwd ?? '') === 'yes');
-        $pwdFemale = $female->filter(fn ($s) => strtolower($s->pwd ?? '') === 'yes');
+        $pwdMale   = $male->filter(fn ($s) => $this->isPwd($s));
+        $pwdFemale = $female->filter(fn ($s) => $this->isPwd($s));
 
         $ipMale   = $male->filter(fn ($s) => ! empty($s->ip_group));
         $ipFemale = $female->filter(fn ($s) => ! empty($s->ip_group));

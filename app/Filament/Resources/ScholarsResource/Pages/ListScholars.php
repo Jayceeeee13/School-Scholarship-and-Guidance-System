@@ -1363,6 +1363,7 @@ class ListScholars extends ListRecords
                         ->label('Office Assigned')
                         ->searchable()
                         ->sortable()
+                        ->toggleable()
                         ->placeholder('—'),
 
                     Tables\Columns\TextColumn::make('month_label')

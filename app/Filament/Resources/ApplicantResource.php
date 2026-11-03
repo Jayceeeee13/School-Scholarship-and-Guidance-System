@@ -11,19 +11,15 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Textarea;
 use Illuminate\Support\Facades\Hash;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Grid;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables;
-use Illuminate\Support\Facades\Storage;
 use Filament\Tables\Table;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ApplicantResource extends Resource
 {
@@ -48,19 +44,21 @@ class ApplicantResource extends Resource
                             ->options(\App\Models\TypeOfApplication::active()->pluck('name', 'id'))
                             ->searchable()
                             ->required()
-                            ->columnSpan(1), 
-                       Forms\Components\FileUpload::make('picture')
+                            ->columnSpan(1),
+
+                        Forms\Components\FileUpload::make('picture')
                             ->label('2x2 Picture (Optional)')
                             ->image()
                             ->disk('public')
                             ->directory('pictures')
                             ->imageEditor()
-                            ->acceptedFileTypes(['image/jpeg','image/png','image/jpg'])
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/jpg'])
                             ->maxSize(2048)
                             ->nullable(),
-                            ])
-                            ->columns(2)
-                            ->collapsible(),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+
                 Section::make('Personal Information')
                     ->schema([
                         Grid::make(4)
@@ -78,6 +76,7 @@ class ApplicantResource extends Resource
                                         'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
                                     ])
                                     ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+
                                 TextInput::make('middle_name')
                                     ->label('Middle Name')
                                     ->maxLength(100)
@@ -114,7 +113,8 @@ class ApplicantResource extends Resource
                                         'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
                                     ])
                                     ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
-                                                            ]),                        
+                            ]),
+
                         Grid::make(3)
                             ->schema([
                                 Forms\Components\Select::make('program_id')
@@ -137,7 +137,7 @@ class ApplicantResource extends Resource
                                         $program = \App\Models\Program::create($data);
                                         return $program->id;
                                     }),
-                                
+
                                 Forms\Components\Select::make('year_level')
                                     ->label('Year Level')
                                     ->options([
@@ -150,65 +150,64 @@ class ApplicantResource extends Resource
                                     ->required()
                                     ->native(false)
                                     ->searchable(),
-                                
+
                                 Forms\Components\Select::make('gender_id')
                                     ->label('Gender')
                                     ->options(\App\Models\Gender::active()->pluck('name', 'id'))
                                     ->searchable()
                                     ->required(),
                             ]),
-                        
+
                         Grid::make(3)
                             ->schema([
                                 TextInput::make('contact_no')
-    ->label('Contact Number')
-    ->tel()
-    ->required()
-    ->maxLength(11)
-    ->minLength(11)
-    ->rule('regex:/^[0-9]+$/')
-    ->validationMessages([
-        'regex'     => 'Contact number can only contain digits.',
-        'min'       => 'Contact number must be exactly 11 digits.',
-        'max'       => 'Contact number must be exactly 11 digits.',
-    ])
-    ->extraInputAttributes([
-        'onkeypress' => "return /^[0-9]$/.test(event.key)",
-        'maxlength'  => '11',
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
-                                
-                                DatePicker::make('birthdate')
-    ->label('Date of Birth')
-    ->required()
-    ->native(false)
-    ->displayFormat('M d, Y')
-    ->maxDate(now())
-    ->reactive()
-    ->afterStateUpdated(function ($state, callable $set) {
-        if ($state) {
-            $age = \Carbon\Carbon::parse($state)->age;
-            $set('age', $age);
-        } else {
-            $set('age', null);
-        }
-    }),
+                                    ->label('Contact Number')
+                                    ->tel()
+                                    ->required()
+                                    ->maxLength(11)
+                                    ->minLength(11)
+                                    ->rule('regex:/^[0-9]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'Contact number can only contain digits.',
+                                        'min'   => 'Contact number must be exactly 11 digits.',
+                                        'max'   => 'Contact number must be exactly 11 digits.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'onkeypress' => "return /^[0-9]$/.test(event.key)",
+                                        'maxlength'  => '11',
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
 
-TextInput::make('age')
-    ->label('Age')
-    ->numeric()
-    ->readOnly()
-    ->suffix('years old')
-    ->dehydrated(true),
+                                Forms\Components\DatePicker::make('birthdate')
+                                    ->label('Date of Birth')
+                                    ->required()
+                                    ->native(false)
+                                    ->displayFormat('M d, Y')
+                                    ->maxDate(now())
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state) {
+                                            $set('age', \Carbon\Carbon::parse($state)->age);
+                                        } else {
+                                            $set('age', null);
+                                        }
+                                    }),
+
+                                TextInput::make('age')
+                                    ->label('Age')
+                                    ->numeric()
+                                    ->readOnly()
+                                    ->suffix('years old')
+                                    ->dehydrated(true),
                             ]),
-                        
+
                         Grid::make(2)
                             ->schema([
                                 TextInput::make('religion')
                                     ->label('Religion')
                                     ->required()
                                     ->maxLength(100),
-                                
+
                                 TextInput::make('facebook_account')
                                     ->label('Facebook Account')
                                     ->required()
@@ -223,106 +222,106 @@ TextInput::make('age')
                         Grid::make(2)
                             ->schema([
                                 TextInput::make('fathers_name')
-    ->label('Fathers Name')
-    ->required()
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'Last name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
-                                
+                                    ->label('Fathers Name')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'Name can only contain letters, spaces, hyphens, and periods.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'style'      => 'text-transform: capitalize;',
+                                        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+
                                 TextInput::make('fathers_contact_no')
-    ->label('Fathers Contact Number')
-    ->tel()
-    ->required()
-    ->maxLength(11)
-    ->minLength(11)
-    ->rule('regex:/^[0-9]+$/')
-    ->validationMessages([
-        'regex'     => 'Contact number can only contain digits.',
-        'min'       => 'Contact number must be exactly 11 digits.',
-        'max'       => 'Contact number must be exactly 11 digits.',
-    ])
-    ->extraInputAttributes([
-        'onkeypress' => "return /^[0-9]$/.test(event.key)",
-        'maxlength'  => '11',
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
+                                    ->label('Fathers Contact Number')
+                                    ->tel()
+                                    ->required()
+                                    ->maxLength(11)
+                                    ->minLength(11)
+                                    ->rule('regex:/^[0-9]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'Contact number can only contain digits.',
+                                        'min'   => 'Contact number must be exactly 11 digits.',
+                                        'max'   => 'Contact number must be exactly 11 digits.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'onkeypress' => "return /^[0-9]$/.test(event.key)",
+                                        'maxlength'  => '11',
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
                             ]),
-                        
+
                         Grid::make(2)
                             ->schema([
                                 TextInput::make('mothers_name')
-    ->label('Mothers Name')
-    ->required()
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'Last name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
-                                
+                                    ->label('Mothers Name')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'Name can only contain letters, spaces, hyphens, and periods.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'style'      => 'text-transform: capitalize;',
+                                        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+
                                 TextInput::make('mothers_contact_no')
-    ->label('Mothers Contact Number')
-    ->tel()
-    ->required()
-    ->maxLength(11)
-    ->minLength(11)
-    ->rule('regex:/^[0-9]+$/')
-    ->validationMessages([
-        'regex'     => 'Contact number can only contain digits.',
-        'min'       => 'Contact number must be exactly 11 digits.',
-        'max'       => 'Contact number must be exactly 11 digits.',
-    ])
-    ->extraInputAttributes([
-        'onkeypress' => "return /^[0-9]$/.test(event.key)",
-        'maxlength'  => '11',
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
+                                    ->label('Mothers Contact Number')
+                                    ->tel()
+                                    ->required()
+                                    ->maxLength(11)
+                                    ->minLength(11)
+                                    ->rule('regex:/^[0-9]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'Contact number can only contain digits.',
+                                        'min'   => 'Contact number must be exactly 11 digits.',
+                                        'max'   => 'Contact number must be exactly 11 digits.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'onkeypress' => "return /^[0-9]$/.test(event.key)",
+                                        'maxlength'  => '11',
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
                             ]),
-                        
+
                         Grid::make(2)
                             ->schema([
                                 TextInput::make('guardian')
-    ->label('Guardian Name')
-    ->required()
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'Last name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
-                                
+                                    ->label('Guardian Name')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'Name can only contain letters, spaces, hyphens, and periods.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'style'      => 'text-transform: capitalize;',
+                                        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+
                                 TextInput::make('guardian_contact_no')
-    ->label('Guardian Contact Number')
-    ->tel()
-    ->required()
-    ->maxLength(11)
-    ->minLength(11)
-    ->rule('regex:/^[0-9]+$/')
-    ->validationMessages([
-        'regex'     => 'Contact number can only contain digits.',
-        'min'       => 'Contact number must be exactly 11 digits.',
-        'max'       => 'Contact number must be exactly 11 digits.',
-    ])
-    ->extraInputAttributes([
-        'onkeypress' => "return /^[0-9]$/.test(event.key)",
-        'maxlength'  => '11',
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
+                                    ->label('Guardian Contact Number')
+                                    ->tel()
+                                    ->required()
+                                    ->maxLength(11)
+                                    ->minLength(11)
+                                    ->rule('regex:/^[0-9]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'Contact number can only contain digits.',
+                                        'min'   => 'Contact number must be exactly 11 digits.',
+                                        'max'   => 'Contact number must be exactly 11 digits.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'onkeypress' => "return /^[0-9]$/.test(event.key)",
+                                        'maxlength'  => '11',
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
                             ]),
                     ])
                     ->columns(1)
@@ -438,6 +437,9 @@ TextInput::make('age')
      * Submitted / total for one applicant. Cached per request so the column,
      * its color and its tooltip don't each repeat the queries.
      * (Not cached across polls: the table polls every 8s, each poll is a new request.)
+     *
+     * If the queries fail, the error is logged and ['error' => true] is
+     * returned so a single broken row can't take down the whole table.
      */
     public static function requirementProgress(Applicant $applicant): array
     {
@@ -449,19 +451,39 @@ TextInput::make('age')
             return $cache[$key];
         }
 
-        $ids = static::applicableRequirementIds($applicant);
+        try {
+            $ids = static::applicableRequirementIds($applicant);
 
-        $submitted = $applicant->submittedRequirements()
-            ->whereIn('requirements.id', $ids)
-            ->wherePivot('is_submitted', true)
-            ->count();
+            $submitted = $applicant->submittedRequirements()
+                ->whereIn('requirements.id', $ids)
+                ->wherePivot('is_submitted', true)
+                ->count();
 
-        return $cache[$key] = ['submitted' => $submitted, 'total' => $ids->count()];
+            return $cache[$key] = [
+                'submitted' => $submitted,
+                'total'     => $ids->count(),
+                'error'     => false,
+            ];
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('requirementProgress failed', [
+                'applicant_id' => $applicant->id,
+                'error'        => $e->getMessage(),
+                'file'         => $e->getFile(),
+                'line'         => $e->getLine(),
+            ]);
+
+            return $cache[$key] = ['submitted' => 0, 'total' => 0, 'error' => true];
+        }
     }
 
     public static function hasCompleteRequirements(Applicant $applicant): bool
     {
         $progress = static::requirementProgress($applicant);
+
+        // If the check itself failed, never treat the applicant as complete.
+        if ($progress['error'] ?? false) {
+            return false;
+        }
 
         return $progress['submitted'] >= $progress['total'];
     }
@@ -475,49 +497,49 @@ TextInput::make('age')
                     ->label('Application Type')
                     ->sortable()
                     ->searchable(),
-                
+
                 TextColumn::make('first_name')
                     ->label('First Name')
                     ->searchable()
                     ->sortable(),
-                
+
                 TextColumn::make('middle_name')
                     ->label('Middle Name')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 TextColumn::make('last_name')
                     ->label('Last Name')
                     ->searchable()
                     ->sortable(),
-                
+
                 TextColumn::make('extension_name')
                     ->label('Ext.')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 TextColumn::make('program.name')
                     ->label('Program')
                     ->searchable()
                     ->sortable()
                     ->badge()
                     ->color('info'),
-                
+
                 TextColumn::make('year_level')
                     ->label('Year Level')
                     ->searchable()
                     ->sortable()
-                    ->formatStateUsing(fn ($state) => match((string)$state) {
-                        '1' => '1st Year',
-                        '2' => '2nd Year',
-                        '3' => '3rd Year',
-                        '4' => '4th Year',
-                        '5' => '5th Year',
+                    ->formatStateUsing(fn ($state) => match ((string) $state) {
+                        '1'     => '1st Year',
+                        '2'     => '2nd Year',
+                        '3'     => '3rd Year',
+                        '4'     => '4th Year',
+                        '5'     => '5th Year',
                         default => $state,
                     })
                     ->badge()
                     ->color('primary'),
-                
+
                 TextColumn::make('typeOfScholarship.name')
                     ->label('Scholarship Type')
                     ->sortable()
@@ -531,22 +553,30 @@ TextInput::make('age')
                     ->badge()
                     ->getStateUsing(function ($record) {
                         $p = self::requirementProgress($record);
+
                         return "{$p['submitted']}/{$p['total']}";
                     })
                     ->color(function ($record) {
                         $p = self::requirementProgress($record);
 
+                        if ($p['error'] ?? false) return 'gray';
                         if ($p['total'] === 0) return 'gray';
                         if ($p['submitted'] >= $p['total']) return 'success';
                         if ($p['submitted'] > 0) return 'warning';
+
                         return 'danger';
                     })
                     ->tooltip(function ($record) {
                         $p = self::requirementProgress($record);
+
+                        if ($p['error'] ?? false) {
+                            return 'Could not load requirements (see laravel.log)';
+                        }
+
                         return "Submitted: {$p['submitted']} out of {$p['total']} requirements";
                     }),
                 // ── End requirements column ────────────────────────────────────
-                
+
                 TextColumn::make('rejection_reason')
                     ->label('Rejection Reason')
                     ->limit(40)
@@ -556,14 +586,15 @@ TextInput::make('age')
 
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
+                    ->color(fn (?string $state): string => match ($state) {
                         'pending'  => 'warning',
                         'approved' => 'success',
                         'rejected' => 'danger',
+                        default    => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state): string => ucfirst($state))
+                    ->formatStateUsing(fn (?string $state): string => ucfirst($state ?? '—'))
                     ->sortable(),
-                
+
                 TextColumn::make('created_at')
                     ->label('Applied On')
                     ->dateTime('M d, Y')
@@ -575,12 +606,12 @@ TextInput::make('age')
                     ->label('Application Type')
                     ->relationship('typeOfApplication', 'name')
                     ->placeholder('All Types'),
-                
+
                 Tables\Filters\SelectFilter::make('type_of_scholarship_id')
                     ->label('Scholarship Type')
                     ->relationship('typeOfScholarship', 'name')
                     ->placeholder('All Scholarships'),
-                
+
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Status')
                     ->options([
@@ -589,410 +620,415 @@ TextInput::make('age')
                         'rejected' => 'Rejected',
                     ])
                     ->placeholder('All Statuses'),
-                
+
                 Tables\Filters\Filter::make('has_benefit')
                     ->label('Has Benefit')
                     ->query(fn (Builder $query) => $query->whereNotNull('benefit')->where('benefit', '>', 0)),
-                
+
                 Tables\Filters\Filter::make('has_interview')
                     ->label('Has Interview Notes')
                     ->query(fn (Builder $query) => $query->whereNotNull('interview')->where('interview', '!=', '')),
 
-                    Tables\Filters\SelectFilter::make('term')
-    ->label('School Year & Semester')
-    ->options(fn () => \App\Models\Term::query()
-        ->whereNotNull('starts_on')
-        ->whereNotNull('ends_on')
-        ->orderByDesc('starts_on')
-        ->get()
-        ->mapWithKeys(fn ($term) => [$term->id => $term->label])
-        ->all())
-    ->placeholder('All terms')
-    ->query(function (Builder $query, array $data): Builder {
-        if (blank($data['value'] ?? null)) {
-            return $query;
-        }
+                Tables\Filters\SelectFilter::make('term')
+                    ->label('School Year & Semester')
+                    ->options(fn () => \App\Models\Term::query()
+                        ->whereNotNull('starts_on')
+                        ->whereNotNull('ends_on')
+                        ->orderByDesc('starts_on')
+                        ->get()
+                        ->mapWithKeys(fn ($term) => [$term->id => $term->label])
+                        ->all())
+                    ->placeholder('All terms')
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (blank($data['value'] ?? null)) {
+                            return $query;
+                        }
 
-        $term = \App\Models\Term::find($data['value']);
+                        $term = \App\Models\Term::find($data['value']);
 
-        if (! $term?->starts_on || ! $term?->ends_on) {
-            return $query;
-        }
+                        if (! $term?->starts_on || ! $term?->ends_on) {
+                            return $query;
+                        }
 
-        // created_at is a datetime, so cover the whole last day of the term
-        return $query->whereBetween('created_at', [
-            $term->starts_on->copy()->startOfDay(),
-            $term->ends_on->copy()->endOfDay(),
-        ]);
-    }),
+                        // created_at is a datetime, so cover the whole last day of the term
+                        return $query->whereBetween('created_at', [
+                            $term->starts_on->copy()->startOfDay(),
+                            $term->ends_on->copy()->endOfDay(),
+                        ]);
+                    }),
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\Action::make('approve')
-    ->label('Approve')
-    ->icon('heroicon-o-check-circle')
-    ->color('success')
-    ->requiresConfirmation()
-    ->modalHeading('Approve Application')
-    ->modalDescription('Are you sure you want to approve this application? This will create an institutional scholar record.')
-    ->modalSubmitActionLabel('Yes, Approve')
-    ->action(function (Applicant $record) {
-        // ── Guard: already approved ──────────────────────────────────────
-        if ($record->status !== 'pending') {
-            Notification::make()
-                ->title('Already Processed')
-                ->warning()
-                ->body('This application has already been processed.')
-                ->send();
-            return;
-        }
+                        ->label('Approve')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Approve Application')
+                        ->modalDescription('Are you sure you want to approve this application? This will create an institutional scholar record.')
+                        ->modalSubmitActionLabel('Yes, Approve')
+                        ->action(function (Applicant $record) {
+                            // ── Guard: already processed ─────────────────────────────────────
+                            if ($record->status !== 'pending') {
+                                Notification::make()
+                                    ->title('Already Processed')
+                                    ->warning()
+                                    ->body('This application has already been processed.')
+                                    ->send();
+                                return;
+                            }
 
-        // ── Guard: no remaining slots ─────────────────────────────────────
-        $scholarshipTypeModel = $record->typeOfScholarship;
+                            // ── Guard: no remaining slots ─────────────────────────────────────
+                            $scholarshipTypeModel = $record->typeOfScholarship;
 
-        if ($scholarshipTypeModel && $scholarshipTypeModel->slots <= 0) {
-            Notification::make()
-                ->title('No Slots Available')
-                ->danger()
-                ->body("There are no remaining slots for {$scholarshipTypeModel->name}.")
-                ->send();
-            return;
-        }
+                            if ($scholarshipTypeModel && $scholarshipTypeModel->slots <= 0) {
+                                Notification::make()
+                                    ->title('No Slots Available')
+                                    ->danger()
+                                    ->body("There are no remaining slots for {$scholarshipTypeModel->name}.")
+                                    ->send();
+                                return;
+                            }
 
-        try {
-            \Illuminate\Support\Facades\DB::transaction(function () use ($record, $scholarshipTypeModel) {
+                            try {
+                                \Illuminate\Support\Facades\DB::transaction(function () use ($record, $scholarshipTypeModel) {
 
-                // ── 1. Mark application as approved ─────────────────────
-                $record->update(['status' => 'approved']);
+                                    // ── 1. Mark application as approved ─────────────────────
+                                    $record->update(['status' => 'approved']);
 
-                // ── 2. Resolve related data ──────────────────────────────
-                $student    = $record->user_id
-                    ? \App\Models\Students::where('user_id', $record->user_id)->first()
-                    : null;
-                $studentId  = $student?->student_id;
+                                    // ── 2. Resolve related data ──────────────────────────────
+                                    $student = $record->user_id
+                                        ? \App\Models\Students::where('user_id', $record->user_id)->first()
+                                        : null;
+                                    $studentId = $student?->student_id;
 
-                $program         = $record->program?->name ?? '';
-                $sex             = $record->gender?->name ?? '';
-                $scholarshipType = $record->typeOfScholarship?->name ?? '';
+                                    $program         = $record->program?->name ?? '';
+                                    $sex             = $record->gender?->name ?? '';
+                                    $scholarshipType = $record->typeOfScholarship?->name ?? '';
 
-                // ── 3. Resolve active term ───────────────────────────────
-                $activeTerm = \App\Models\Term::where('is_active', true)->first();
+                                    // ── 3. Resolve active term ───────────────────────────────
+                                    $activeTerm = \App\Models\Term::where('is_active', true)->first();
 
-                // ── 4. Guard: prevent duplicate institutional scholar records ──
-                $alreadyScholar = InstitutionalScholar::where(function ($q) use ($studentId, $record) {
-                        if ($studentId) {
-                            $q->where('student_id', $studentId);
-                        } else {
-                            $q->where('first_name', $record->first_name)
-                              ->where('last_name',  $record->last_name)
-                              ->where('birthdate',  $record->birthdate);
-                        }
-                    })
-                    ->when($activeTerm, fn ($q) => $q->where('term_id', $activeTerm->id))
-                    ->exists();
+                                    // ── 4. Guard: prevent duplicate institutional scholar records ──
+                                    $alreadyScholar = InstitutionalScholar::where(function ($q) use ($studentId, $record) {
+                                            if ($studentId) {
+                                                $q->where('student_id', $studentId);
+                                            } else {
+                                                $q->where('first_name', $record->first_name)
+                                                    ->where('last_name', $record->last_name)
+                                                    ->where('birthdate', $record->birthdate);
+                                            }
+                                        })
+                                        ->when($activeTerm, fn ($q) => $q->where('term_id', $activeTerm->id))
+                                        ->exists();
 
-                if ($alreadyScholar) {
-                    // Roll back the status update too by throwing inside the transaction
-                    throw new \RuntimeException(
-                        "{$record->first_name} {$record->last_name} is already an institutional scholar for this term."
-                    );
-                }
+                                    if ($alreadyScholar) {
+                                        // Roll back the status update too by throwing inside the transaction
+                                        throw new \RuntimeException(
+                                            "{$record->first_name} {$record->last_name} is already an institutional scholar for this term."
+                                        );
+                                    }
 
-                // ── 5. Derive batch number from active term ──────────────
-                $batchNo = $activeTerm
-                    ? ($activeTerm->batch_no ?? $activeTerm->id)
-                    : null;
+                                    // ── 5. Derive batch number from active term ──────────────
+                                    $batchNo = $activeTerm
+                                        ? ($activeTerm->batch_no ?? $activeTerm->id)
+                                        : null;
 
-                // ── 6. Create institutional scholar record ────────────────
-                // NOTE: user_id is carried over from the Applicant record so
-                // downstream features (Daily Time Record, mobile app lookups,
-                // etc.) that resolve a scholar by the logged-in user's id
-                // continue to work after approval.
-                InstitutionalScholar::create([
-                    'user_id'             => $record->user_id,
-                    'student_id'          => $studentId,
-                    'first_name'          => $record->first_name,
-                    'middle_name'         => $record->middle_name,
-                    'last_name'           => $record->last_name,
-                    'extension_name'      => $record->extension_name,
-                    'sex'                 => $sex,
-                    'birthdate'           => $record->birthdate,
-                    'program'             => $program,
-                    'year_level'          => $record->year_level,
-                    'type_of_scholarship' => $scholarshipType,
-                    'benefit'             => $record->benefit,
-                    'status'              => 'active',
-                    'term_id'             => $activeTerm?->id,
-                    'batch_no'            => $batchNo,
-                    // ip_group / pwd — populate from applicant if your form collects them,
-                    // otherwise leave null and fill later in the resource.
-                    'ip_group'            => $record->ip_group   ?? null,
-                    'pwd'                 => $record->pwd        ?? null,
-                ]);
+                                    // ── 6. Create institutional scholar record ────────────────
+                                    // NOTE: user_id is carried over from the Applicant record so
+                                    // downstream features (Daily Time Record, mobile app lookups,
+                                    // etc.) that resolve a scholar by the logged-in user's id
+                                    // continue to work after approval.
+                                    InstitutionalScholar::create([
+                                        'user_id'             => $record->user_id,
+                                        'student_id'          => $studentId,
+                                        'first_name'          => $record->first_name,
+                                        'middle_name'         => $record->middle_name,
+                                        'last_name'           => $record->last_name,
+                                        'extension_name'      => $record->extension_name,
+                                        'sex'                 => $sex,
+                                        'birthdate'           => $record->birthdate,
+                                        'program'             => $program,
+                                        'year_level'          => $record->year_level,
+                                        'type_of_scholarship' => $scholarshipType,
+                                        'benefit'             => $record->benefit,
+                                        'status'              => 'active',
+                                        'term_id'             => $activeTerm?->id,
+                                        'batch_no'            => $batchNo,
+                                        // ip_group / pwd — populate from applicant if your form collects them,
+                                        // otherwise leave null and fill later in the resource.
+                                        'ip_group'            => $record->ip_group ?? null,
+                                        'pwd'                 => $record->pwd ?? null,
+                                    ]);
 
-                // ── 7. Decrement the scholarship type's remaining slots ──
-                $scholarshipTypeModel?->decrement('slots');
+                                    // ── 7. Decrement the scholarship type's remaining slots ──
+                                    $scholarshipTypeModel?->decrement('slots');
 
-                // ── 8. Log the approval ───────────────────────────────────
-                self::logCustomActivity(
-                    $record,
-                    'applicants',
-                    'approved',
-                    "Approved application for {$record->first_name} {$record->last_name}",
-                    ['scholarship_type' => $scholarshipType, 'term' => $activeTerm?->name]
-                );
+                                    // ── 8. Log the approval ───────────────────────────────────
+                                    self::logCustomActivity(
+                                        $record,
+                                        'applicants',
+                                        'approved',
+                                        "Approved application for {$record->first_name} {$record->last_name}",
+                                        ['scholarship_type' => $scholarshipType, 'term' => $activeTerm?->name]
+                                    );
 
-                // ── 9. Success notification ──────────────────────────────
-                $studentLabel = $studentId ? " (Student ID: {$studentId})" : '';
-                $termLabel    = $activeTerm ? " for {$activeTerm->name}" : '';
+                                    // ── 9. Success notification ──────────────────────────────
+                                    $studentLabel = $studentId ? " (Student ID: {$studentId})" : '';
+                                    $termLabel    = $activeTerm ? " for {$activeTerm->name}" : '';
 
-                Notification::make()
-                    ->title('Application Approved')
-                    ->success()
-                    ->body("{$record->first_name} {$record->last_name} is now an institutional scholar{$studentLabel}{$termLabel}.")
-                    ->send();
-            });
+                                    Notification::make()
+                                        ->title('Application Approved')
+                                        ->success()
+                                        ->body("{$record->first_name} {$record->last_name} is now an institutional scholar{$studentLabel}{$termLabel}.")
+                                        ->send();
+                                });
+                            } catch (\RuntimeException $e) {
+                                // Known business-rule violations (duplicate, etc.)
+                                Notification::make()
+                                    ->title('Could Not Approve')
+                                    ->danger()
+                                    ->body($e->getMessage())
+                                    ->send();
+                            } catch (\Throwable $e) {
+                                // Unexpected DB/system errors
+                                \Illuminate\Support\Facades\Log::error('Institutional scholar approval failed', [
+                                    'applicant_id' => $record->id,
+                                    'error'        => $e->getMessage(),
+                                ]);
 
-        } catch (\RuntimeException $e) {
-            // Known business-rule violations (duplicate, etc.)
-            Notification::make()
-                ->title('Could Not Approve')
-                ->danger()
-                ->body($e->getMessage())
-                ->send();
+                                Notification::make()
+                                    ->title('Approval Failed')
+                                    ->danger()
+                                    ->body('An unexpected error occurred. Please try again or contact support.')
+                                    ->send();
+                            }
+                        })
+                        ->disabled(fn (Applicant $record) => ! self::hasCompleteRequirements($record) || ($record->typeOfScholarship?->slots ?? 1) <= 0)
+                        ->tooltip(function (Applicant $record) {
+                            if (($record->typeOfScholarship?->slots ?? 1) <= 0) {
+                                return "No remaining slots for {$record->typeOfScholarship?->name}";
+                            }
 
-        } catch (\Throwable $e) {
-            // Unexpected DB/system errors
-            \Illuminate\Support\Facades\Log::error('Institutional scholar approval failed', [
-                'applicant_id' => $record->id,
-                'error'        => $e->getMessage(),
-            ]);
+                            if (! self::hasCompleteRequirements($record)) {
+                                $p = self::requirementProgress($record);
 
-            Notification::make()
-                ->title('Approval Failed')
-                ->danger()
-                ->body('An unexpected error occurred. Please try again or contact support.')
-                ->send();
-        }
-    })
-    ->disabled(fn (Applicant $record) => ! self::hasCompleteRequirements($record) || ($record->typeOfScholarship?->slots ?? 1) <= 0)
-    ->tooltip(function (Applicant $record) {
-        if (($record->typeOfScholarship?->slots ?? 1) <= 0) {
-            return "No remaining slots for {$record->typeOfScholarship?->name}";
-        }
-        if (! self::hasCompleteRequirements($record)) {
-            $p = self::requirementProgress($record);
-            return "Requirements incomplete ({$p['submitted']}/{$p['total']} submitted)";
-        }
-        return null;
-    })
-    ->visible(fn (Applicant $record) => $record->status === 'pending'),
+                                if ($p['error'] ?? false) {
+                                    return 'Could not verify requirements (see laravel.log)';
+                                }
+
+                                return "Requirements incomplete ({$p['submitted']}/{$p['total']} submitted)";
+                            }
+
+                            return null;
+                        })
+                        ->visible(fn (Applicant $record) => $record->status === 'pending'),
 
                     Tables\Actions\Action::make('reject')
-    ->label('Reject')
-    ->icon('heroicon-o-x-circle')
-    ->color('danger')
-    ->requiresConfirmation()
-    ->modalHeading('Reject Application')
-    ->modalDescription('Please provide a reason for rejecting this application.')
-    ->modalSubmitActionLabel('Yes, Reject')
-    ->form([
-        Forms\Components\Textarea::make('rejection_reason')
-            ->label('Reason for Rejection')
-            ->required()
-            ->rows(3)
-            ->placeholder('e.g. Incomplete requirements, does not meet eligibility criteria...'),
-    ])
-    ->action(function (Applicant $record, array $data) {
-        $record->update([
-            'status'            => 'rejected',
-            'rejection_reason'  => $data['rejection_reason'],
-        ]);
+                        ->label('Reject')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Reject Application')
+                        ->modalDescription('Please provide a reason for rejecting this application.')
+                        ->modalSubmitActionLabel('Yes, Reject')
+                        ->form([
+                            Forms\Components\Textarea::make('rejection_reason')
+                                ->label('Reason for Rejection')
+                                ->required()
+                                ->rows(3)
+                                ->placeholder('e.g. Incomplete requirements, does not meet eligibility criteria...'),
+                        ])
+                        ->action(function (Applicant $record, array $data) {
+                            $record->update([
+                                'status'           => 'rejected',
+                                'rejection_reason' => $data['rejection_reason'],
+                            ]);
 
-        self::logCustomActivity(
-            $record,
-            'applicants',
-            'rejected',
-            "Rejected application for {$record->first_name} {$record->last_name}",
-            ['reason' => $data['rejection_reason']]
-        );
+                            self::logCustomActivity(
+                                $record,
+                                'applicants',
+                                'rejected',
+                                "Rejected application for {$record->first_name} {$record->last_name}",
+                                ['reason' => $data['rejection_reason']]
+                            );
 
-        Notification::make()
-            ->title('Application Rejected')
-            ->danger()
-            ->body("{$record->first_name} {$record->last_name}'s application has been rejected.")
-            ->send();
-    })
-    ->visible(fn (Applicant $record) => $record->status === 'pending'),
+                            Notification::make()
+                                ->title('Application Rejected')
+                                ->danger()
+                                ->body("{$record->first_name} {$record->last_name}'s application has been rejected.")
+                                ->send();
+                        })
+                        ->visible(fn (Applicant $record) => $record->status === 'pending'),
 
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
 
                     Tables\Actions\Action::make('archive')
-    ->label('Archive')
-    ->icon('heroicon-o-archive-box')
-    ->color('danger')
-    ->requiresConfirmation()
-    ->modalHeading('Archive Applicant')
-    ->modalDescription('This will hide the application from this list. You can restore it later from Settings → Archived Records.')
-    ->modalSubmitActionLabel('Yes, Archive')
-    ->form([
-        Forms\Components\TextInput::make('confirm_password')
-            ->label('Confirm your password to continue')
-            ->password()
-            ->revealable()
-            ->required()
-            ->rule(function () {
-                return function (string $attribute, $value, $fail) {
-                    if (! Hash::check($value, auth()->user()->password)) {
-                        $fail('The password is incorrect.');
-                    }
-                };
-            }),
-    ])
-    ->action(function (Applicant $record): void {
-        $record->update(['archived_at' => now()]);
+                        ->label('Archive')
+                        ->icon('heroicon-o-archive-box')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Archive Applicant')
+                        ->modalDescription('This will hide the application from this list. You can restore it later from Settings → Archived Records.')
+                        ->modalSubmitActionLabel('Yes, Archive')
+                        ->form([
+                            Forms\Components\TextInput::make('confirm_password')
+                                ->label('Confirm your password to continue')
+                                ->password()
+                                ->revealable()
+                                ->required()
+                                ->rule(function () {
+                                    return function (string $attribute, $value, $fail) {
+                                        if (! Hash::check($value, auth()->user()->password)) {
+                                            $fail('The password is incorrect.');
+                                        }
+                                    };
+                                }),
+                        ])
+                        ->action(function (Applicant $record): void {
+                            $record->update(['archived_at' => now()]);
 
-        self::logCustomActivity(
-            $record,
-            'applicants',
-            'archived',
-            "Archived application for {$record->first_name} {$record->last_name}"
-        );
+                            self::logCustomActivity(
+                                $record,
+                                'applicants',
+                                'archived',
+                                "Archived application for {$record->first_name} {$record->last_name}"
+                            );
 
-        Notification::make()
-            ->title('Applicant archived')
-            ->success()
-            ->send();
-    }),
-
-                    
+                            Notification::make()
+                                ->title('Applicant archived')
+                                ->success()
+                                ->send();
+                        }),
                 ])
-                ->label('Actions')
-                ->icon('heroicon-m-ellipsis-vertical')
-                ->size('sm')
-                ->color('gray')
-                ->button(),
+                    ->label('Actions')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('gray')
+                    ->button(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\BulkAction::make('approve')
-    ->label('Approve Selected')
-    ->icon('heroicon-o-check-circle')
-    ->color('success')
-    ->requiresConfirmation()
-    ->modalHeading('Approve Selected Applications')
-    ->modalDescription('This will approve selected applications and create institutional scholar records.')
-    ->action(function ($records) {
-        $approved = 0;
-        $skippedNoSlots = 0;
+                        ->label('Approve Selected')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Approve Selected Applications')
+                        ->modalDescription('This will approve selected applications and create institutional scholar records.')
+                        ->action(function ($records) {
+                            $approved       = 0;
+                            $skippedNoSlots = 0;
 
-        $records->each(function ($record) use (&$approved, &$skippedNoSlots) {
-            if ($record->status !== 'pending' || ! self::hasCompleteRequirements($record)) {
-                return;
-            }
+                            $records->each(function ($record) use (&$approved, &$skippedNoSlots) {
+                                if ($record->status !== 'pending' || ! self::hasCompleteRequirements($record)) {
+                                    return;
+                                }
 
-            $scholarshipTypeModel = $record->typeOfScholarship;
+                                $scholarshipTypeModel = $record->typeOfScholarship;
 
-            if ($scholarshipTypeModel && $scholarshipTypeModel->slots <= 0) {
-                $skippedNoSlots++;
-                return;
-            }
+                                if ($scholarshipTypeModel && $scholarshipTypeModel->slots <= 0) {
+                                    $skippedNoSlots++;
+                                    return;
+                                }
 
-            $record->update(['status' => 'approved']);
+                                $record->update(['status' => 'approved']);
 
-            // Fetch student_id from students table via user_id
-            $student         = $record->user_id
-                ? \App\Models\Students::where('user_id', $record->user_id)->first()
-                : null;
-            $studentId       = $student ? $student->student_id : null;
+                                // Fetch student_id from students table via user_id
+                                $student = $record->user_id
+                                    ? \App\Models\Students::where('user_id', $record->user_id)->first()
+                                    : null;
+                                $studentId = $student ? $student->student_id : null;
 
-            $program         = $record->program ? $record->program->name : '';
-            $sex             = $record->gender ? $record->gender->name : '';
-            $scholarshipType = $scholarshipTypeModel ? $scholarshipTypeModel->name : '';
+                                $program         = $record->program ? $record->program->name : '';
+                                $sex             = $record->gender ? $record->gender->name : '';
+                                $scholarshipType = $scholarshipTypeModel ? $scholarshipTypeModel->name : '';
 
-            // NOTE: user_id is carried over from the Applicant record so
-            // downstream features (Daily Time Record, mobile app lookups,
-            // etc.) that resolve a scholar by the logged-in user's id
-            // continue to work after approval.
-            InstitutionalScholar::create([
-                'user_id'            => $record->user_id,
-                'student_id'         => $studentId,
-                'first_name'         => $record->first_name,
-                'middle_name'        => $record->middle_name,
-                'last_name'          => $record->last_name,
-                'extension_name'     => $record->extension_name,
-                'sex'                => $sex,
-                'birthdate'          => $record->birthdate,
-                'program'            => $record->year_level,
-                'year_level'         => $record->year_level,
-                'type_of_scholarship'=> $scholarshipType,
-                'benefit'            => $record->benefit,
-                'status'             => 'active',
-            ]);
+                                // NOTE: user_id is carried over from the Applicant record so
+                                // downstream features (Daily Time Record, mobile app lookups,
+                                // etc.) that resolve a scholar by the logged-in user's id
+                                // continue to work after approval.
+                                InstitutionalScholar::create([
+                                    'user_id'             => $record->user_id,
+                                    'student_id'          => $studentId,
+                                    'first_name'          => $record->first_name,
+                                    'middle_name'         => $record->middle_name,
+                                    'last_name'           => $record->last_name,
+                                    'extension_name'      => $record->extension_name,
+                                    'sex'                 => $sex,
+                                    'birthdate'           => $record->birthdate,
+                                    'program'             => $program,
+                                    'year_level'          => $record->year_level,
+                                    'type_of_scholarship' => $scholarshipType,
+                                    'benefit'             => $record->benefit,
+                                    'status'              => 'active',
+                                ]);
 
-            $scholarshipTypeModel?->decrement('slots');
+                                $scholarshipTypeModel?->decrement('slots');
 
-            self::logCustomActivity(
-                $record,
-                'applicants',
-                'approved',
-                "Approved application for {$record->first_name} {$record->last_name}"
-            );
+                                self::logCustomActivity(
+                                    $record,
+                                    'applicants',
+                                    'approved',
+                                    "Approved application for {$record->first_name} {$record->last_name}"
+                                );
 
-            $approved++;
-        });
+                                $approved++;
+                            });
 
-        $body = "{$approved} applications approved and institutional scholar records created.";
+                            $body = "{$approved} applications approved and institutional scholar records created.";
 
-        if ($skippedNoSlots > 0) {
-            $body .= " {$skippedNoSlots} skipped due to no remaining slots.";
-        }
+                            if ($skippedNoSlots > 0) {
+                                $body .= " {$skippedNoSlots} skipped due to no remaining slots.";
+                            }
 
-        Notification::make()
-            ->title('Applications Approved')
-            ->success()
-            ->body($body)
-            ->send();
-    }),
+                            Notification::make()
+                                ->title('Applications Approved')
+                                ->success()
+                                ->body($body)
+                                ->send();
+                        }),
+
                     Tables\Actions\BulkAction::make('reject')
-    ->label('Reject Selected')
-    ->icon('heroicon-o-x-circle')
-    ->color('danger')
-    ->requiresConfirmation()
-    ->modalHeading('Reject Selected Applications')
-    ->modalDescription('Please provide a reason — it will be applied to all selected applications.')
-    ->form([
-        Forms\Components\Textarea::make('rejection_reason')
-            ->label('Reason for Rejection')
-            ->required()
-            ->rows(3)
-            ->placeholder('e.g. Incomplete requirements, does not meet eligibility criteria...'),
-    ])
-    ->action(function ($records, array $data) {
-        $records->each(function ($record) use ($data) {
-            if ($record->status === 'pending') {
-                $record->update([
-                    'status'           => 'rejected',
-                    'rejection_reason' => $data['rejection_reason'],
-                ]);
+                        ->label('Reject Selected')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->modalHeading('Reject Selected Applications')
+                        ->modalDescription('Please provide a reason — it will be applied to all selected applications.')
+                        ->form([
+                            Forms\Components\Textarea::make('rejection_reason')
+                                ->label('Reason for Rejection')
+                                ->required()
+                                ->rows(3)
+                                ->placeholder('e.g. Incomplete requirements, does not meet eligibility criteria...'),
+                        ])
+                        ->action(function ($records, array $data) {
+                            $records->each(function ($record) use ($data) {
+                                if ($record->status === 'pending') {
+                                    $record->update([
+                                        'status'           => 'rejected',
+                                        'rejection_reason' => $data['rejection_reason'],
+                                    ]);
 
-                self::logCustomActivity(
-                    $record,
-                    'applicants',
-                    'rejected',
-                    "Rejected application for {$record->first_name} {$record->last_name}",
-                    ['reason' => $data['rejection_reason']]
-                );
-            }
-        });
+                                    self::logCustomActivity(
+                                        $record,
+                                        'applicants',
+                                        'rejected',
+                                        "Rejected application for {$record->first_name} {$record->last_name}",
+                                        ['reason' => $data['rejection_reason']]
+                                    );
+                                }
+                            });
 
-        Notification::make()
-            ->title('Applications Rejected')
-            ->danger()
-            ->body('Selected applications have been rejected.')
-            ->send();
-    }),
+                            Notification::make()
+                                ->title('Applications Rejected')
+                                ->danger()
+                                ->body('Selected applications have been rejected.')
+                                ->send();
+                        }),
+
                     Tables\Actions\BulkAction::make('set_school_year_semester')
                         ->label('Set School Year & Semester')
                         ->icon('heroicon-o-calendar')
@@ -1056,7 +1092,7 @@ TextInput::make('age')
                 ]),
             ])
             ->defaultSort('created_at', 'desc')
-            ->poll('8s'); // ← auto-refresh every 8s so requirements column stays current
+            ->poll('8s'); // auto-refresh every 8s so requirements column stays current
     }
 
     public static function getSchoolYearOptions(): array

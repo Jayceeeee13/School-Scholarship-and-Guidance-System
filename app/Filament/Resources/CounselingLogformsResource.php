@@ -10,6 +10,7 @@ use App\Models\Term;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -26,6 +27,84 @@ class CounselingLogformsResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
+    /**
+     * Resolves the student details used to autofill the anecdotal fields,
+     * from either the walk-in student or the scheduled appointment.
+     */
+    protected static function resolveStudentDetails(?string $type, $walkinId, $appointmentId): array
+    {
+        if ($type === 'walk_in') {
+            $s = $walkinId ? Students::with('program')->find($walkinId) : null;
+
+            return [
+                'display_name'    => $s ? trim("{$s->first_name} {$s->middle_name} {$s->last_name}") : '',
+                'display_course'  => $s ? trim(($s->program?->name ?? '') . ' ' . ($s->year_level ?? '')) : '',
+                'display_contact' => $s?->contact_no ?? '',
+                'display_address' => $s?->address ?? '',
+            ];
+        }
+
+        $a = $appointmentId ? CounselingAppointments::find($appointmentId) : null;
+
+        return [
+            'display_name'    => $a ? trim("{$a->first_name} {$a->middle_name} {$a->last_name}") : '',
+            'display_course'  => $a?->course_and_year ?? '',
+            'display_contact' => $a?->contact_no ?? '',
+            'display_address' => $a?->present_address ?? '',
+        ];
+    }
+
+    /**
+     * Refills every anecdotal item already on the form. Called from the
+     * type / appointment / walk-in student fields when they change.
+     */
+    protected static function refillAnecdotals(Get $get, Set $set): void
+    {
+        $details = static::resolveStudentDetails(
+            $get('type'),
+            $get('walkin_student_id'),
+            $get('counseling_appointments_id'),
+        );
+
+        foreach (array_keys($get('anecdotals') ?? []) as $key) {
+            foreach ($details as $field => $value) {
+                $set("anecdotals.{$key}.{$field}", $value);
+            }
+        }
+    }
+
+    /**
+     * Default for a field inside a NEW anecdotal item (repeater item -> form root is ../../).
+     */
+    protected static function anecdotalDefault(string $field): \Closure
+    {
+        return fn (Get $get) => static::resolveStudentDetails(
+            $get('../../type'),
+            $get('../../walkin_student_id'),
+            $get('../../counseling_appointments_id'),
+        )[$field] ?? '';
+    }
+
+    /**
+     * Fills a field when editing an existing record whose anecdotal value is empty.
+     */
+    protected static function anecdotalHydrate(string $field): \Closure
+    {
+        return function ($component, $state, $record) use ($field) {
+            if (! empty($state) || ! $record || ! $record->logform) {
+                return;
+            }
+
+            $logform = $record->logform;
+
+            $details = $logform->isWalkIn()
+                ? static::resolveStudentDetails('walk_in', $logform->walkInStudent?->id, null)
+                : static::resolveStudentDetails('scheduled', null, $logform->appointment?->id);
+
+            $component->state($details[$field] ?? '');
+        };
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -41,10 +120,12 @@ class CounselingLogformsResource extends Resource
                             ->default('scheduled')
                             ->required()
                             ->live()
-                            ->afterStateUpdated(function (Forms\Set $set, ?string $state): void {
+                            ->afterStateUpdated(function (Set $set, Get $get, ?string $state): void {
                                 if ($state !== 'walk_in') {
                                     $set('follow_up_required', false);
                                 }
+
+                                static::refillAnecdotals($get, $set);
                             })
                             ->native(false)
                             ->columnSpanFull(),
@@ -69,6 +150,7 @@ class CounselingLogformsResource extends Resource
                             ->preload()
                             ->required(fn (Get $get) => $get('type') === 'scheduled')
                             ->live()
+                            ->afterStateUpdated(fn (Get $get, Set $set) => static::refillAnecdotals($get, $set))
                             ->columnSpanFull(),
 
                         Forms\Components\Placeholder::make('course_and_year')
@@ -102,6 +184,7 @@ class CounselingLogformsResource extends Resource
                             ->preload()
                             ->required(fn (Get $get) => $get('type') === 'walk_in')
                             ->live()
+                            ->afterStateUpdated(fn (Get $get, Set $set) => static::refillAnecdotals($get, $set))
                             ->columnSpanFull(),
 
                         Forms\Components\Placeholder::make('walkin_course_display')
@@ -179,186 +262,29 @@ class CounselingLogformsResource extends Resource
                                     ->schema([
                                         Forms\Components\TextInput::make('display_name')
                                             ->label('Name')
-                                            ->required()
                                             ->maxLength(500)
-                                            ->disabled()
+                                            ->readOnly()
                                             ->dehydrated()
-                                            ->default(function (Get $get) {
-                                                $type = $get('../../type');
-
-                                                if ($type === 'walk_in') {
-                                                    $student = Students::find(
-                                                        $get('../../walkin_student_id')
-                                                    );
-
-                                                    return $student
-                                                        ? trim(
-                                                            "{$student->first_name} " .
-                                                            "{$student->middle_name} " .
-                                                            "{$student->last_name}"
-                                                        )
-                                                        : '';
-                                                }
-
-                                                $appointment = CounselingAppointments::find(
-                                                    $get('../../counseling_appointments_id')
-                                                );
-
-                                                return $appointment
-                                                    ? trim(
-                                                        "{$appointment->first_name} " .
-                                                        "{$appointment->middle_name} " .
-                                                        "{$appointment->last_name}"
-                                                    )
-                                                    : '';
-                                            })
-                                            ->afterStateHydrated(function ($component, $state, $record) {
-                                                if (! empty($state)) {
-                                                    return;
-                                                }
-
-                                                if (! $record || ! $record->logform) {
-                                                    return;
-                                                }
-
-                                                $logform = $record->logform;
-
-                                                if ($logform->isWalkIn()) {
-                                                    $student = $logform->walkInStudent;
-
-                                                    if ($student) {
-                                                        $component->state(
-                                                            trim(
-                                                                "{$student->first_name} " .
-                                                                "{$student->middle_name} " .
-                                                                "{$student->last_name}"
-                                                            )
-                                                        );
-                                                    }
-
-                                                    return;
-                                                }
-
-                                                $appointment = $logform->appointment;
-
-                                                if ($appointment) {
-                                                    $component->state(
-                                                        trim(
-                                                            "{$appointment->first_name} " .
-                                                            "{$appointment->middle_name} " .
-                                                            "{$appointment->last_name}"
-                                                        )
-                                                    );
-                                                }
-                                            })
+                                            ->default(static::anecdotalDefault('display_name'))
+                                            ->afterStateHydrated(static::anecdotalHydrate('display_name'))
                                             ->columnSpan(2),
 
                                         Forms\Components\TextInput::make('display_course')
                                             ->label('Course')
                                             ->maxLength(500)
-                                            ->disabled()
+                                            ->readOnly()
                                             ->dehydrated()
-                                            ->default(function (Get $get) {
-                                                $type = $get('../../type');
-
-                                                if ($type === 'walk_in') {
-                                                    $student = Students::with('program')->find(
-                                                        $get('../../walkin_student_id')
-                                                    );
-
-                                                    if (! $student) {
-                                                        return '';
-                                                    }
-
-                                                    return trim(
-                                                        ($student->program?->name ?? '') .
-                                                        ' ' .
-                                                        ($student->year_level ?? '')
-                                                    );
-                                                }
-
-                                                $appointment = CounselingAppointments::find(
-                                                    $get('../../counseling_appointments_id')
-                                                );
-
-                                                return $appointment?->course_and_year ?? '';
-                                            })
-                                            ->afterStateHydrated(function ($component, $state, $record) {
-                                                if (! empty($state)) {
-                                                    return;
-                                                }
-
-                                                if (! $record || ! $record->logform) {
-                                                    return;
-                                                }
-
-                                                $logform = $record->logform;
-
-                                                if ($logform->isWalkIn()) {
-                                                    $student = $logform->walkInStudent;
-
-                                                    if ($student) {
-                                                        $component->state(
-                                                            trim(
-                                                                ($student->program?->name ?? '') .
-                                                                ' ' .
-                                                                ($student->year_level ?? '')
-                                                            )
-                                                        );
-                                                    }
-
-                                                    return;
-                                                }
-
-                                                if ($logform->appointment) {
-                                                    $component->state(
-                                                        $logform->appointment->course_and_year
-                                                    );
-                                                }
-                                            }),
+                                            ->default(static::anecdotalDefault('display_course'))
+                                            ->afterStateHydrated(static::anecdotalHydrate('display_course')),
 
                                         Forms\Components\TextInput::make('display_contact')
                                             ->label('Contact')
                                             ->tel()
                                             ->maxLength(20)
-                                            ->disabled()
+                                            ->readOnly()
                                             ->dehydrated()
-                                            ->default(function (Get $get) {
-                                                $type = $get('../../type');
-
-                                                if ($type === 'walk_in') {
-                                                    return Students::find(
-                                                        $get('../../walkin_student_id')
-                                                    )?->contact_no ?? '';
-                                                }
-
-                                                return CounselingAppointments::find(
-                                                    $get('../../counseling_appointments_id')
-                                                )?->contact_no ?? '';
-                                            })
-                                            ->afterStateHydrated(function ($component, $state, $record) {
-                                                if (! empty($state)) {
-                                                    return;
-                                                }
-
-                                                if (! $record || ! $record->logform) {
-                                                    return;
-                                                }
-
-                                                $logform = $record->logform;
-
-                                                if ($logform->isWalkIn()) {
-                                                    $component->state(
-                                                        $logform->walkInStudent?->contact_no ?? ''
-                                                    );
-
-                                                    return;
-                                                }
-
-                                                $component->state(
-                                                    $logform->appointment?->contact_no ?? ''
-                                                );
-                                            }),
+                                            ->default(static::anecdotalDefault('display_contact'))
+                                            ->afterStateHydrated(static::anecdotalHydrate('display_contact')),
                                     ]),
 
                                 Forms\Components\Grid::make(2)
@@ -367,44 +293,10 @@ class CounselingLogformsResource extends Resource
                                             ->label('Address')
                                             ->maxLength(500)
                                             ->rows(1)
-                                            ->disabled()
+                                            ->readOnly()
                                             ->dehydrated()
-                                            ->default(function (Get $get) {
-                                                $type = $get('../../type');
-
-                                                if ($type === 'walk_in') {
-                                                    return Students::find(
-                                                        $get('../../walkin_student_id')
-                                                    )?->address ?? '';
-                                                }
-
-                                                return CounselingAppointments::find(
-                                                    $get('../../counseling_appointments_id')
-                                                )?->present_address ?? '';
-                                            })
-                                            ->afterStateHydrated(function ($component, $state, $record) {
-                                                if (! empty($state)) {
-                                                    return;
-                                                }
-
-                                                if (! $record || ! $record->logform) {
-                                                    return;
-                                                }
-
-                                                $logform = $record->logform;
-
-                                                if ($logform->isWalkIn()) {
-                                                    $component->state(
-                                                        $logform->walkInStudent?->address ?? ''
-                                                    );
-
-                                                    return;
-                                                }
-
-                                                $component->state(
-                                                    $logform->appointment?->present_address ?? ''
-                                                );
-                                            }),
+                                            ->default(static::anecdotalDefault('display_address'))
+                                            ->afterStateHydrated(static::anecdotalHydrate('display_address')),
 
                                         Forms\Components\TextInput::make('area_concern')
                                             ->label('Area of Concern')

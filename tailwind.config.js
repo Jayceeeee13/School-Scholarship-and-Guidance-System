@@ -1,7 +1,7 @@
 export default {
   content: [
     "./resources/**/*.blade.php",
-    ".resources/**/*.js"
+    "./resources/**/*.js"
   ],
   theme: {
     extend: {},

@@ -125,4 +125,4 @@ class ActivityResource extends Resource
             'index' => Pages\ManageActivities::route('/'),
         ];
     }
-}
+}   

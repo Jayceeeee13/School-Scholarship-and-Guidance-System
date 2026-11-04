@@ -792,13 +792,22 @@ class ListUsers extends ListRecords
                     ->sortable()
                     ->toggleable(),
 
-                TextColumn::make('roles.name')
+                                TextColumn::make('roles.name')
                     ->label('Roles')
                     ->badge()
                     ->searchable()
                     ->toggleable()
                     ->placeholder('—'),
             ])
+            ->filters([
+                Tables\Filters\SelectFilter::make('roles')
+                    ->label('Role')
+                    ->relationship('roles', 'name')
+                    ->multiple()
+                    ->preload()
+                    ->placeholder('All Roles'),
+            ])
+            ->filtersLayout(\Filament\Tables\Enums\FiltersLayout::AboveContent)
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\Action::make('viewUser')

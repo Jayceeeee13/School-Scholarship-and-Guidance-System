@@ -299,7 +299,12 @@ class UserResource extends Resource
                     ->toggleable(),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('role_id')
+    ->label('Role')
+    ->relationship('role', 'name')
+    ->multiple()
+    ->preload()
+    ->placeholder('All Roles'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

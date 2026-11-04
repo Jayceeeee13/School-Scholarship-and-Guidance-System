@@ -6,7 +6,7 @@ use App\Models\Applicant;
 use App\Models\ExamAttempt;
 use App\Models\Gender;
 use App\Models\Program;
-use App\Models\Student;
+use App\Models\Students;          // FIX: the model class is "Students" (plural), not "Student"
 use App\Models\TypeOfApplication;
 use App\Models\TypeOfScholarship;
 use Carbon\Carbon;
@@ -30,9 +30,6 @@ class ApplicationController extends Controller
      * ID of the Academic scholarship type if the logged-in user has already
      * finished an exam (completed_at filled in); otherwise null.
      * When this returns an ID, the scholarship type is forced to Academic.
-     *
-     * FIX: wrapped in try/catch so a missing column or method can never
-     * turn the whole page into a 500 error. The problem is written to the log.
      */
     private function forcedAcademicId(): ?int
     {
@@ -43,7 +40,7 @@ class ApplicationController extends Controller
 
             return $hasTakenExam ? ExamAttempt::academicScholarshipId() : null;
         } catch (\Throwable $e) {
-            Log::warning('Application form: could not check exam attempts - ' . $e->getMessage());
+            Log::error('Application form: could not check exam attempts - ' . $e->getMessage());
 
             return null;
         }
@@ -51,25 +48,22 @@ class ApplicationController extends Controller
 
     /**
      * Find the logged-in user's student record.
-     * Adjust this if your students are linked differently.
-     *
-     * FIX: checks that the column exists before querying it. Before, a missing
-     * `user_id` column on the students table caused a 500 error.
+     * 1) students.user_id = logged-in user (set when the student registers / is imported)
+     * 2) fallback: students.student_id = users.student_id, if that column exists
      */
-    private function findStudent(): ?Student
+    private function findStudent(): ?Students
     {
-        $table   = (new Student)->getTable();
+        $table   = (new Students)->getTable();
         $student = null;
 
         if (Schema::hasColumn($table, 'user_id')) {
-            $student = Student::where('user_id', Auth::id())->first();
+            $student = Students::where('user_id', Auth::id())->first();
         }
 
-        // Fallback: match by student_id stored on the user, if that column exists.
         $studentId = Auth::user()->student_id ?? null;
 
         if (! $student && ! empty($studentId) && Schema::hasColumn($table, 'student_id')) {
-            $student = Student::where('student_id', $studentId)->first();
+            $student = Students::where('student_id', $studentId)->first();
         }
 
         return $student;
@@ -88,6 +82,27 @@ class ApplicationController extends Controller
         }
 
         return '';
+    }
+
+    /** "Juan" + "Santos" + "Dela Cruz" -> "Juan Santos Dela Cruz" (empty parts skipped). */
+    private function joinNames(array $attrs, array $keys): string
+    {
+        $parts = [];
+
+        foreach ($keys as $key) {
+            $value = trim((string) ($attrs[$key] ?? ''));
+            if ($value !== '') {
+                $parts[] = $value;
+            }
+        }
+
+        return implode(' ', $parts);
+    }
+
+    /** "JUAN DELA CRUZ" -> "Juan Dela Cruz" (same rule the form applies while typing). */
+    private function titleName(string $value): string
+    {
+        return $value === '' ? '' : mb_convert_case($value, MB_CASE_TITLE, 'UTF-8');
     }
 
     /** Collapse whitespace + lowercase, for comparing names. */
@@ -113,6 +128,14 @@ class ApplicationController extends Controller
     /**
      * Build the values the application form should start with, taken from
      * the student's record. Missing data is simply left blank.
+     *
+     * Students columns used:
+     *   first_name, middle_name, last_name, extension_name, birth_date,
+     *   gender_id, program_id, year_level, contact_no,
+     *   fathers_firstname/middlename/lastname, mothers_firstname/middlename/lastname
+     *
+     * Not on the students table (left blank for the student to fill in):
+     *   religion, facebook account, parents' contact numbers, guardian.
      */
     private function buildPrefill($programs, $genders): array
     {
@@ -124,25 +147,31 @@ class ApplicationController extends Controller
 
         $a = $student->getAttributes();
 
+        $fathersName = $this->joinNames($a, ['fathers_firstname', 'fathers_middlename', 'fathers_lastname'])
+            ?: $this->pick($a, ['fathers_name', 'father_name']);
+
+        $mothersName = $this->joinNames($a, ['mothers_firstname', 'mothers_middlename', 'mothers_lastname'])
+            ?: $this->pick($a, ['mothers_name', 'mother_name']);
+
         $prefill = [
-            'first_name'          => $this->pick($a, ['first_name', 'firstname', 'fname']),
-            'middle_name'         => $this->pick($a, ['middle_name', 'middlename', 'mname']),
-            'last_name'           => $this->pick($a, ['last_name', 'lastname', 'lname', 'surname']),
-            'extension_name'      => $this->pick($a, ['extension_name', 'suffix', 'ext_name']),
-            'contact_no'          => $this->normalizePhone($this->pick($a, ['contact_no', 'contact_number', 'mobile_no', 'phone'])),
-            'religion'            => $this->pick($a, ['religion']),
-            'facebook_account'    => $this->pick($a, ['facebook_account', 'facebook', 'fb_account']),
-            'fathers_name'        => $this->pick($a, ['fathers_name', 'father_name']),
-            'fathers_contact_no'  => $this->normalizePhone($this->pick($a, ['fathers_contact_no', 'father_contact_no'])),
-            'mothers_name'        => $this->pick($a, ['mothers_name', 'mother_name']),
-            'mothers_contact_no'  => $this->normalizePhone($this->pick($a, ['mothers_contact_no', 'mother_contact_no'])),
-            'guardian'            => $this->pick($a, ['guardian', 'guardian_name']),
-            'guardian_contact_no' => $this->normalizePhone($this->pick($a, ['guardian_contact_no', 'guardian_contact'])),
+            'first_name'          => $this->titleName($this->pick($a, ['first_name'])),
+            'middle_name'         => $this->titleName($this->pick($a, ['middle_name'])),
+            'last_name'           => $this->titleName($this->pick($a, ['last_name'])),
+            'extension_name'      => $this->pick($a, ['extension_name']),
+            'contact_no'          => $this->normalizePhone($this->pick($a, ['contact_no'])),
+            'religion'            => '',
+            'facebook_account'    => '',
+            'fathers_name'        => $this->titleName($fathersName),
+            'fathers_contact_no'  => '',
+            'mothers_name'        => $this->titleName($mothersName),
+            'mothers_contact_no'  => '',
+            'guardian'            => '',
+            'guardian_contact_no' => '',
         ];
 
         // ── Birth date (Y-m-d for the date input) ──────────────────────────
         $prefill['birthdate'] = '';
-        $rawBirth = $this->pick($a, ['birthdate', 'birth_date', 'date_of_birth', 'dob']);
+        $rawBirth = $this->pick($a, ['birth_date', 'birthdate']);
         if ($rawBirth !== '') {
             try {
                 $prefill['birthdate'] = Carbon::parse($rawBirth)->toDateString();
@@ -153,7 +182,7 @@ class ApplicationController extends Controller
 
         // ── Year level -> "1st Year" ... "5th Year" ────────────────────────
         $prefill['year_level'] = '';
-        $rawYear = $this->pick($a, ['year_level', 'year']);
+        $rawYear = $this->pick($a, ['year_level']);
         if ($rawYear !== '') {
             if (in_array($rawYear, self::YEAR_LEVELS, true)) {
                 $prefill['year_level'] = $rawYear;
@@ -162,30 +191,18 @@ class ApplicationController extends Controller
             }
         }
 
-        // ── Program -> program_id (by id, otherwise by name) ───────────────
+        // ── Program -> program_id ──────────────────────────────────────────
         $prefill['program_id'] = '';
         $rawProgramId = $this->pick($a, ['program_id']);
         if ($rawProgramId !== '' && $programs->contains('id', (int) $rawProgramId)) {
             $prefill['program_id'] = (int) $rawProgramId;
-        } else {
-            $rawProgram = $this->norm($this->pick($a, ['program', 'course']));
-            if ($rawProgram !== '') {
-                $match = $programs->first(fn ($p) => $this->norm($p->name) === $rawProgram);
-                $prefill['program_id'] = $match ? $match->id : '';
-            }
         }
 
-        // ── Gender -> gender_id (by id, otherwise by name) ─────────────────
+        // ── Gender -> gender_id ────────────────────────────────────────────
         $prefill['gender_id'] = '';
         $rawGenderId = $this->pick($a, ['gender_id']);
         if ($rawGenderId !== '' && $genders->contains('id', (int) $rawGenderId)) {
             $prefill['gender_id'] = (int) $rawGenderId;
-        } else {
-            $rawGender = $this->norm($this->pick($a, ['gender', 'sex']));
-            if ($rawGender !== '') {
-                $match = $genders->first(fn ($g) => $this->norm($g->name) === $rawGender);
-                $prefill['gender_id'] = $match ? $match->id : '';
-            }
         }
 
         return $prefill;
@@ -210,11 +227,12 @@ class ApplicationController extends Controller
         $academicId = $this->forcedAcademicId();
 
         // Pre-fill the form from the student's record (blank if none found).
-        // FIX: the pre-fill is optional, so if it fails the form still opens blank.
+        // The pre-fill is optional, so if it fails the form still opens and the
+        // reason is written to storage/logs/laravel.log.
         try {
             $prefill = $this->buildPrefill($programs, $genders);
         } catch (\Throwable $e) {
-            Log::warning('Application form: prefill failed - ' . $e->getMessage());
+            Log::error('Application form: prefill failed - ' . $e->getMessage());
             $prefill = [];
         }
 

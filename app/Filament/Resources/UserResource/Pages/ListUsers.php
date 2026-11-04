@@ -157,15 +157,18 @@ class ListUsers extends ListRecords
                 ]),
 
             Forms\Components\DatePicker::make('birthdate')
-                ->label('Date of Birth')
-                ->required()
-                ->native(false)
-                ->displayFormat('M d, Y')
-                ->maxDate(now())
-                ->reactive()
-                ->afterStateUpdated(function ($state, callable $set) {
-                    $set('age', $state ? \Carbon\Carbon::parse($state)->age : null);
-                }),
+    ->label('Date of Birth')
+    ->required()
+    ->native(false)
+    ->displayFormat('M d, Y')
+    ->maxDate(now()->subDay())
+    ->validationMessages([
+        'before_or_equal' => 'Date of birth cannot be today or a future date.',
+    ])
+    ->reactive()
+    ->afterStateUpdated(function ($state, callable $set) {
+        $set('age', $state ? \Carbon\Carbon::parse($state)->age : null);
+    }),
 
             Forms\Components\TextInput::make('age')
                 ->label('Age')

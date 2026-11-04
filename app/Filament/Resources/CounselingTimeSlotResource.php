@@ -27,7 +27,8 @@ class CounselingTimeSlotResource extends Resource
     {
         return $form
             ->schema([
-                TextInput::make('name')->required(),
+                TextInput::make('name')->required()
+                ->label('Time Slot'),
                 Forms\Components\Toggle::make('is_active')
                     ->label('Active')
                     ->default(true)
@@ -39,7 +40,7 @@ class CounselingTimeSlotResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('name')->sortable()->searchable(),
+                TextColumn::make('name')->sortable()->label('Time Slot')->searchable(),
                 Tables\Columns\ToggleColumn::make('is_active')
                     ->label('Active')
                     ->sortable()

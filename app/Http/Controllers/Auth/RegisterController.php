@@ -30,8 +30,11 @@ class RegisterController extends Controller
             'student_id'         => ['required', 'string'],
             'last_name_enrolled' => ['required', 'string'],
             'birthdate_enrolled' => ['required', 'date'],
-            'email'              => ['required', 'email'],
+            // The email must not already belong to any existing user account.
+            'email'              => ['required', 'email', 'unique:users,email'],
             'password'           => ['required', 'string', 'min:8', 'confirmed'],
+        ], [
+            'email.unique' => 'This email is already used by an existing account. Please use a different email or log in instead.',
         ]);
 
         // Verify against students table
@@ -46,20 +49,11 @@ class RegisterController extends Controller
             ])->withInput();
         }
 
-        // Check if user already exists with that email
-        $existingUser = User::where('email', $validated['email'])->first();
-
-        if ($existingUser) {
-            if ($student->user_id && $student->user_id !== $existingUser->id) {
-                return back()->withErrors([
-                    'student_id' => 'This student record is already linked to another account.',
-                ])->withInput();
-            }
-
-            $student->update(['user_id' => $existingUser->id]);
-
-            return redirect()->route('login')
-                ->with('success', 'Your account has been linked to your student record. You can now log in.');
+        // A student record can only be linked to one account.
+        if ($student->user_id) {
+            return back()->withErrors([
+                'student_id' => 'This student record is already linked to another account.',
+            ])->withInput();
         }
 
         // Create new account and link to student record
@@ -100,6 +94,8 @@ class RegisterController extends Controller
             'contact_no' => ['required', 'string', 'max:20'],
             'gender_id'  => ['nullable', 'integer'],
             'address'    => ['required', 'string', 'max:255'],
+        ], [
+            'email_unenrolled.unique' => 'This email is already used by an existing account. Please use a different email or log in instead.',
         ]);
 
         $user = User::create([

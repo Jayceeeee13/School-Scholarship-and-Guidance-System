@@ -151,28 +151,33 @@ class UserResource extends Resource
                     ->disabled(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles'))),
 
                 TextInput::make('email')
-                    ->email()
-                    ->required()
-                    ->maxLength(100)
-                    ->dehydrated()
-                    ->disabled(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles')))
-                    ->unique('users', 'email', ignoreRecord: true)
-                    // The email is synced to the personnel record, so it must
-                    // not collide with a DIFFERENT personnel's email.
-                    ->rule(function (?User $record) {
-                        return function (string $attribute, $value, $fail) use ($record) {
-                            $exists = Personnels::where('email', $value)
-                                ->when(
-                                    $record?->personnel_id,
-                                    fn ($q) => $q->where('id', '!=', $record->personnel_id)
-                                )
-                                ->exists();
+    ->email()
+    ->required()
+    ->maxLength(100)
+    ->dehydrated()
+    ->disabled(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles')))
+    // Unique among ALL users, including archived ones, so a new user can
+    // never take an email that already belongs to an existing account.
+    ->unique('users', 'email', ignoreRecord: true)
+    ->validationMessages([
+        'unique' => 'This email is already taken by another user account.',
+    ])
+    // The email is synced to the personnel record, so it must not belong to
+    // a DIFFERENT personnel. The personnel being linked is excluded.
+    ->rule(function (Get $get, ?User $record) {
+        return function (string $attribute, $value, $fail) use ($get, $record) {
+            $ownPersonnelId = $record?->personnel_id ?? $get('personnel_id');
 
-                            if ($exists) {
-                                $fail('This email is already used by another personnel record.');
-                            }
-                        };
-                    }),
+            $exists = Personnels::where('email', $value)
+                ->when($ownPersonnelId, fn ($q) => $q->where('id', '!=', $ownPersonnelId))
+                ->exists();
+
+            if ($exists) {
+                $fail('This email is already used by another personnel record.');
+            }
+        };
+    })
+    ->dehydrateStateUsing(fn ($state) => $state ? strtolower(trim($state)) : $state),
 
                 TextInput::make('contact_no')
                     ->label('Contact Number')

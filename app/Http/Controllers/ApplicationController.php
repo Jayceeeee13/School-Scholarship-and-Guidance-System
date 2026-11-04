@@ -6,6 +6,7 @@ use App\Models\Applicant;
 use App\Models\ExamAttempt;
 use App\Models\Gender;
 use App\Models\Program;
+use App\Models\Student;
 use App\Models\TypeOfApplication;
 use App\Models\TypeOfScholarship;
 use Carbon\Carbon;
@@ -37,6 +38,138 @@ class ApplicationController extends Controller
         return $hasTakenExam ? ExamAttempt::academicScholarshipId() : null;
     }
 
+    /**
+     * Find the logged-in user's student record.
+     * Adjust this if your students are linked differently.
+     */
+    private function findStudent(): ?Student
+    {
+        $student = Student::where('user_id', Auth::id())->first();
+
+        // Fallback: match by student_id stored on the user, if that column exists.
+        if (! $student && ! empty(Auth::user()->student_id ?? null)) {
+            $student = Student::where('student_id', Auth::user()->student_id)->first();
+        }
+
+        return $student;
+    }
+
+    /**
+     * First non-empty value among several possible column names.
+     * Uses raw attributes, so a missing column never throws.
+     */
+    private function pick(array $attrs, array $keys): string
+    {
+        foreach ($keys as $key) {
+            if (isset($attrs[$key]) && trim((string) $attrs[$key]) !== '') {
+                return trim((string) $attrs[$key]);
+            }
+        }
+
+        return '';
+    }
+
+    /** Collapse whitespace + lowercase, for comparing names. */
+    private function norm(?string $value): string
+    {
+        return strtolower(trim(preg_replace('/\s+/', ' ', (string) $value)));
+    }
+
+    /** "+63 917-123-4567" / "9171234567" -> "09171234567" */
+    private function normalizePhone(string $value): string
+    {
+        $digits = preg_replace('/\D/', '', $value);
+
+        if (str_starts_with($digits, '63') && strlen($digits) === 12) {
+            $digits = '0' . substr($digits, 2);
+        } elseif (strlen($digits) === 10 && str_starts_with($digits, '9')) {
+            $digits = '0' . $digits;
+        }
+
+        return substr($digits, 0, 11);
+    }
+
+    /**
+     * Build the values the application form should start with, taken from
+     * the student's record. Missing data is simply left blank.
+     */
+    private function buildPrefill($programs, $genders): array
+    {
+        $student = $this->findStudent();
+
+        if (! $student) {
+            return [];
+        }
+
+        $a = $student->getAttributes();
+
+        $prefill = [
+            'first_name'          => $this->pick($a, ['first_name', 'firstname', 'fname']),
+            'middle_name'         => $this->pick($a, ['middle_name', 'middlename', 'mname']),
+            'last_name'           => $this->pick($a, ['last_name', 'lastname', 'lname', 'surname']),
+            'extension_name'      => $this->pick($a, ['extension_name', 'suffix', 'ext_name']),
+            'contact_no'          => $this->normalizePhone($this->pick($a, ['contact_no', 'contact_number', 'mobile_no', 'phone'])),
+            'religion'            => $this->pick($a, ['religion']),
+            'facebook_account'    => $this->pick($a, ['facebook_account', 'facebook', 'fb_account']),
+            'fathers_name'        => $this->pick($a, ['fathers_name', 'father_name']),
+            'fathers_contact_no'  => $this->normalizePhone($this->pick($a, ['fathers_contact_no', 'father_contact_no'])),
+            'mothers_name'        => $this->pick($a, ['mothers_name', 'mother_name']),
+            'mothers_contact_no'  => $this->normalizePhone($this->pick($a, ['mothers_contact_no', 'mother_contact_no'])),
+            'guardian'            => $this->pick($a, ['guardian', 'guardian_name']),
+            'guardian_contact_no' => $this->normalizePhone($this->pick($a, ['guardian_contact_no', 'guardian_contact'])),
+        ];
+
+        // ── Birth date (Y-m-d for the date input) ──────────────────────────
+        $prefill['birthdate'] = '';
+        $rawBirth = $this->pick($a, ['birthdate', 'birth_date', 'date_of_birth', 'dob']);
+        if ($rawBirth !== '') {
+            try {
+                $prefill['birthdate'] = Carbon::parse($rawBirth)->toDateString();
+            } catch (\Throwable $e) {
+                // leave blank if the stored value isn't a valid date
+            }
+        }
+
+        // ── Year level -> "1st Year" ... "5th Year" ────────────────────────
+        $prefill['year_level'] = '';
+        $rawYear = $this->pick($a, ['year_level', 'year']);
+        if ($rawYear !== '') {
+            if (in_array($rawYear, self::YEAR_LEVELS, true)) {
+                $prefill['year_level'] = $rawYear;
+            } elseif (preg_match('/([1-5])/', $rawYear, $m)) {
+                $prefill['year_level'] = self::YEAR_LEVELS[(int) $m[1] - 1];
+            }
+        }
+
+        // ── Program -> program_id (by id, otherwise by name) ───────────────
+        $prefill['program_id'] = '';
+        $rawProgramId = $this->pick($a, ['program_id']);
+        if ($rawProgramId !== '' && $programs->contains('id', (int) $rawProgramId)) {
+            $prefill['program_id'] = (int) $rawProgramId;
+        } else {
+            $rawProgram = $this->norm($this->pick($a, ['program', 'course']));
+            if ($rawProgram !== '') {
+                $match = $programs->first(fn ($p) => $this->norm($p->name) === $rawProgram);
+                $prefill['program_id'] = $match ? $match->id : '';
+            }
+        }
+
+        // ── Gender -> gender_id (by id, otherwise by name) ─────────────────
+        $prefill['gender_id'] = '';
+        $rawGenderId = $this->pick($a, ['gender_id']);
+        if ($rawGenderId !== '' && $genders->contains('id', (int) $rawGenderId)) {
+            $prefill['gender_id'] = (int) $rawGenderId;
+        } else {
+            $rawGender = $this->norm($this->pick($a, ['gender', 'sex']));
+            if ($rawGender !== '') {
+                $match = $genders->first(fn ($g) => $this->norm($g->name) === $rawGender);
+                $prefill['gender_id'] = $match ? $match->id : '';
+            }
+        }
+
+        return $prefill;
+    }
+
     public function create()
     {
         // If user already has a submitted application, redirect away
@@ -55,12 +188,16 @@ class ApplicationController extends Controller
         // Exam takers are automatically set to the Academic scholarship type.
         $academicId = $this->forcedAcademicId();
 
+        // Pre-fill the form from the student's record (blank if none found).
+        $prefill = $this->buildPrefill($programs, $genders);
+
         return view('application_new', compact(
             'scholarshipTypes',
             'applicantTypes',
             'genders',
             'programs',
-            'academicId'
+            'academicId',
+            'prefill'
         ));
     }
 

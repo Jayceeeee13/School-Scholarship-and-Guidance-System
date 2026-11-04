@@ -224,6 +224,21 @@
         .error-summary ul { margin: 0; padding-left: 18px; }
         .error-summary li { margin-bottom: 2px; }
 
+        /* Prefill notice */
+        .prefill-note {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: var(--green-soft);
+            border: 1px solid var(--green-muted);
+            border-left: 4px solid var(--green-accent);
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 0.82rem;
+            line-height: 1.5;
+            color: var(--green-deep);
+        }
+
         .controls-box {
             background: var(--slate-light);
             border: 1.5px solid var(--slate-border);
@@ -350,6 +365,12 @@
 
 <body>
 
+@php
+    // Values taken from the student's record (empty array if none was found).
+    $prefill = $prefill ?? [];
+    $hasPrefill = count(array_filter($prefill, fn ($v) => $v !== '' && $v !== null)) > 0;
+@endphp
+
 {{-- ── NAVBAR ──────────────────────────────────────────────────────── --}}
 <header class="navbar shadow-sm">
     <div style="max-width:1100px;margin:0 auto;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;">
@@ -466,6 +487,20 @@
                     </div>
                 @endif
 
+                {{-- ── PREFILL NOTICE ────────────────────────────── --}}
+                @if ($hasPrefill && ! $errors->any())
+                    <div class="prefill-note" role="status">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1e8449" stroke-width="2" style="flex-shrink:0;margin-top:1px;">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/>
+                        </svg>
+                        <span>
+                            Some fields were filled in automatically from your student record.
+                            Please review them and correct anything that is outdated before submitting.
+                        </span>
+                    </div>
+                @endif
+
                 {{-- ── TOP CONTROLS ──────────────────────────────── --}}
                 <div class="controls-box">
                     <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -561,7 +596,7 @@
                             <label class="field-label">First Name <span class="req">*</span></label>
                             <input type="text" name="first_name" required maxlength="100"
                                    autocomplete="given-name"
-                                   value="{{ old('first_name') }}"
+                                   value="{{ old('first_name', $prefill['first_name'] ?? '') }}"
                                    placeholder="e.g. Juan"
                                    class="field-input {{ $errors->has('first_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="first_name">{{ $errors->first('first_name') }}</p>
@@ -571,7 +606,7 @@
                             <label class="field-label">Middle Name</label>
                             <input type="text" name="middle_name" maxlength="100"
                                    autocomplete="additional-name"
-                                   value="{{ old('middle_name') }}"
+                                   value="{{ old('middle_name', $prefill['middle_name'] ?? '') }}"
                                    placeholder="e.g. Santos"
                                    class="field-input {{ $errors->has('middle_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="middle_name">{{ $errors->first('middle_name') }}</p>
@@ -581,7 +616,7 @@
                             <label class="field-label">Last Name <span class="req">*</span></label>
                             <input type="text" name="last_name" required maxlength="100"
                                    autocomplete="family-name"
-                                   value="{{ old('last_name') }}"
+                                   value="{{ old('last_name', $prefill['last_name'] ?? '') }}"
                                    placeholder="e.g. Dela Cruz"
                                    class="field-input {{ $errors->has('last_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="last_name">{{ $errors->first('last_name') }}</p>
@@ -590,7 +625,7 @@
                         <div>
                             <label class="field-label">Extension Name</label>
                             <input type="text" name="extension_name" maxlength="20"
-                                   value="{{ old('extension_name') }}"
+                                   value="{{ old('extension_name', $prefill['extension_name'] ?? '') }}"
                                    placeholder="e.g. Jr, Sr, III"
                                    class="field-input {{ $errors->has('extension_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="extension_name">{{ $errors->first('extension_name') }}</p>
@@ -603,7 +638,7 @@
                                     required>
                                 <option value="">Select Program</option>
                                 @foreach($programs as $program)
-                                    <option value="{{ $program->id }}" {{ old('program_id') == $program->id ? 'selected' : '' }}>
+                                    <option value="{{ $program->id }}" {{ (string) old('program_id', $prefill['program_id'] ?? '') === (string) $program->id ? 'selected' : '' }}>
                                         {{ $program->name }}
                                     </option>
                                 @endforeach
@@ -618,7 +653,7 @@
                                     required>
                                 <option value="">Select Year Level</option>
                                 @foreach(['1st Year','2nd Year','3rd Year','4th Year','5th Year'] as $level)
-                                    <option value="{{ $level }}" {{ old('year_level') === $level ? 'selected' : '' }}>
+                                    <option value="{{ $level }}" {{ old('year_level', $prefill['year_level'] ?? '') === $level ? 'selected' : '' }}>
                                         {{ $level }}
                                     </option>
                                 @endforeach
@@ -633,7 +668,7 @@
                                     required>
                                 <option value="">Select Gender</option>
                                 @foreach($genders as $gender)
-                                    <option value="{{ $gender->id }}" {{ old('gender_id') == $gender->id ? 'selected' : '' }}>
+                                    <option value="{{ $gender->id }}" {{ (string) old('gender_id', $prefill['gender_id'] ?? '') === (string) $gender->id ? 'selected' : '' }}>
                                         {{ $gender->name }}
                                     </option>
                                 @endforeach
@@ -643,9 +678,9 @@
 
                         <div>
                             <label class="field-label">Contact Number</label>
-                            <input type="tel" name="contact_no" maxlength="11" inputmode="numeric" autocomplete="off"
+                            <input type="tel" name="contact_no" maxlength="11" inputmode="numeric"
                                    autocomplete="tel"
-                                   value="{{ old('contact_no') }}"
+                                   value="{{ old('contact_no', $prefill['contact_no'] ?? '') }}"
                                    placeholder="09XXXXXXXXX"
                                    class="field-input {{ $errors->has('contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="contact_no">{{ $errors->first('contact_no') }}</p>
@@ -658,7 +693,7 @@
                                    id="birthdate"
                                    min="1930-01-02"
                                    max="{{ now()->subDay()->toDateString() }}"
-                                   value="{{ old('birthdate') }}"
+                                   value="{{ old('birthdate', $prefill['birthdate'] ?? '') }}"
                                    class="field-input {{ $errors->has('birthdate') ? 'has-error' : '' }}"
                                    style="color:#4a5568;">
                             <p class="field-error" data-error-for="birthdate">{{ $errors->first('birthdate') }}</p>
@@ -683,7 +718,7 @@
                         <div>
                             <label class="field-label">Religion</label>
                             <input type="text" name="religion" maxlength="100"
-                                   value="{{ old('religion') }}"
+                                   value="{{ old('religion', $prefill['religion'] ?? '') }}"
                                    placeholder="e.g. Roman Catholic"
                                    class="field-input {{ $errors->has('religion') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="religion">{{ $errors->first('religion') }}</p>
@@ -692,7 +727,7 @@
                         <div>
                             <label class="field-label">Facebook Account</label>
                             <input type="text" name="facebook_account" maxlength="100"
-                                   value="{{ old('facebook_account') }}"
+                                   value="{{ old('facebook_account', $prefill['facebook_account'] ?? '') }}"
                                    placeholder="facebook.com/yourprofile"
                                    class="field-input {{ $errors->has('facebook_account') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="facebook_account">{{ $errors->first('facebook_account') }}</p>
@@ -715,7 +750,7 @@
                         <div>
                             <label class="field-label">Father's Name <span class="req">*</span></label>
                             <input type="text" name="fathers_name" required maxlength="100"
-                                   value="{{ old('fathers_name') }}"
+                                   value="{{ old('fathers_name', $prefill['fathers_name'] ?? '') }}"
                                    placeholder="Full name"
                                    class="field-input {{ $errors->has('fathers_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="fathers_name">{{ $errors->first('fathers_name') }}</p>
@@ -724,7 +759,7 @@
                         <div>
                             <label class="field-label">Father's Contact No.</label>
                             <input type="tel" name="fathers_contact_no" maxlength="11" inputmode="numeric" autocomplete="off"
-                                   value="{{ old('fathers_contact_no') }}"
+                                   value="{{ old('fathers_contact_no', $prefill['fathers_contact_no'] ?? '') }}"
                                    placeholder="09XXXXXXXXX"
                                    class="field-input {{ $errors->has('fathers_contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="fathers_contact_no">{{ $errors->first('fathers_contact_no') }}</p>
@@ -733,7 +768,7 @@
                         <div>
                             <label class="field-label">Mother's Name <span class="req">*</span></label>
                             <input type="text" name="mothers_name" required maxlength="100"
-                                   value="{{ old('mothers_name') }}"
+                                   value="{{ old('mothers_name', $prefill['mothers_name'] ?? '') }}"
                                    placeholder="Full name"
                                    class="field-input {{ $errors->has('mothers_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="mothers_name">{{ $errors->first('mothers_name') }}</p>
@@ -742,7 +777,7 @@
                         <div>
                             <label class="field-label">Mother's Contact No.</label>
                             <input type="tel" name="mothers_contact_no" maxlength="11" inputmode="numeric" autocomplete="off"
-                                   value="{{ old('mothers_contact_no') }}"
+                                   value="{{ old('mothers_contact_no', $prefill['mothers_contact_no'] ?? '') }}"
                                    placeholder="09XXXXXXXXX"
                                    class="field-input {{ $errors->has('mothers_contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="mothers_contact_no">{{ $errors->first('mothers_contact_no') }}</p>
@@ -751,7 +786,7 @@
                         <div>
                             <label class="field-label">Guardian</label>
                             <input type="text" name="guardian" maxlength="100"
-                                   value="{{ old('guardian') }}"
+                                   value="{{ old('guardian', $prefill['guardian'] ?? '') }}"
                                    placeholder="Full name (if applicable)"
                                    class="field-input {{ $errors->has('guardian') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="guardian">{{ $errors->first('guardian') }}</p>
@@ -760,7 +795,7 @@
                         <div>
                             <label class="field-label">Guardian Contact No.</label>
                             <input type="tel" name="guardian_contact_no" maxlength="11" inputmode="numeric" autocomplete="off"
-                                   value="{{ old('guardian_contact_no') }}"
+                                   value="{{ old('guardian_contact_no', $prefill['guardian_contact_no'] ?? '') }}"
                                    placeholder="09XXXXXXXXX"
                                    class="field-input {{ $errors->has('guardian_contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="guardian_contact_no">{{ $errors->first('guardian_contact_no') }}</p>
@@ -831,17 +866,19 @@
        Client-side validation — mirrors ApplicationController rules.
        (The server still re-validates everything on submit.)
     ═══════════════════════════════════════════════════════════════ */
-    const NAME_RE  = /^[\p{L}\s]+$/u;   // letters and spaces only
-    const EXT_RE   = /^[A-Za-z\s]+$/;   // letters and spaces only
+    // Letters, spaces, hyphens, periods, apostrophes — same as the server's NAME_REGEX,
+    // so pre-filled names like "Ma. Cristina" or "O'Brien" are accepted.
+    const NAME_RE  = /^[\p{L}\s\-.']+$/u;
+    const EXT_RE   = /^[A-Za-z.\s]+$/;  // letters, periods and spaces (e.g. "Jr.", "III")
     const PHONE_RE = /^09\d{9}$/;       // exactly 11 digits, starting with 09
 
-    const NAME_MSG  = 'may only contain letters and spaces.';
+    const NAME_MSG  = 'may only contain letters, spaces, hyphens, periods, and apostrophes.';
     const PHONE_MSG = 'must be exactly 11 digits and start with 09 (e.g. 09171234567).';
 
-    // Remove anything that is not a letter/space, trim leading space, collapse double spaces.
+    // Remove disallowed characters, trim leading space, collapse double spaces.
     function cleanName(value) {
         return value
-            .replace(/[^\p{L}\s]/gu, '')
+            .replace(/[^\p{L}\s\-.']/gu, '')
             .replace(/^\s+/, '')
             .replace(/\s{2,}/g, ' ');
     }
@@ -888,7 +925,7 @@
             const t = v.trim();
             if (!t) return '';
             if (t.length > 20) return 'Extension name must not exceed 20 characters.';
-            return EXT_RE.test(t) ? '' : 'Extension name may only contain letters (e.g. Jr, Sr, III).';
+            return EXT_RE.test(t) ? '' : 'Extension name may only contain letters and periods (e.g. Jr., III).';
         },
 
         program_id: (v) => v ? '' : 'Please select a program.',
@@ -962,10 +999,11 @@
         const form = document.getElementById('applicationForm');
         if (!form) return;
 
+        // Age is computed from the birth date — also covers a pre-filled birth date.
         const birth = document.getElementById('birthdate');
         if (birth) {
             birth.addEventListener('change', computeAge);
-            if (birth.value) computeAge(); // after a failed server validation
+            if (birth.value) computeAge();
         }
 
         // ── Block invalid characters while typing ──────────────────
@@ -973,7 +1011,7 @@
             const el = e.target;
 
             if (NAME_FIELDS.includes(el.name)) {
-                // Letters + spaces only, first letter of every word capitalised.
+                // Allowed characters only, first letter of every word capitalised.
                 const before = el.value;
                 const pos    = el.selectionStart;
                 const after  = toTitleCase(cleanName(before));
@@ -984,9 +1022,9 @@
                     try { el.setSelectionRange(newPos, newPos); } catch (err) {}
                 }
             } else if (el.name === 'extension_name') {
-                // Letters + spaces only (kept exactly as typed, e.g. "III").
+                // Letters, periods and spaces only (kept exactly as typed, e.g. "III").
                 const cleaned = el.value
-                    .replace(/[^A-Za-z\s]/g, '')
+                    .replace(/[^A-Za-z.\s]/g, '')
                     .replace(/^\s+/, '')
                     .replace(/\s{2,}/g, ' ');
                 if (cleaned !== el.value) el.value = cleaned;

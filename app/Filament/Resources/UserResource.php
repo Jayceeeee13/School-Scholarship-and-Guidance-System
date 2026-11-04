@@ -192,10 +192,13 @@ class UserResource extends Resource
                     ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
 
                 DatePicker::make('birthdate')
-                    ->label('Date of Birth')
-                    ->native(false)
-                    ->displayFormat('M d, Y')
-                    ->maxDate(now()),
+    ->label('Date of Birth')
+    ->native(false)
+    ->displayFormat('M d, Y')
+    ->maxDate(now()->subYears(18))
+    ->validationMessages([
+        'before_or_equal' => 'Must be at least 18 years old.',
+    ]),
 
                 TextInput::make('address')
                     ->maxLength(100),

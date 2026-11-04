@@ -179,19 +179,18 @@ class ApplicantResource extends Resource
                                     ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
 
                                 Forms\Components\DatePicker::make('birthdate')
-                                    ->label('Date of Birth')
-                                    ->required()
-                                    ->native(false)
-                                    ->displayFormat('M d, Y')
-                                    ->maxDate(now())
-                                    ->reactive()
-                                    ->afterStateUpdated(function ($state, callable $set) {
-                                        if ($state) {
-                                            $set('age', \Carbon\Carbon::parse($state)->age);
-                                        } else {
-                                            $set('age', null);
-                                        }
-                                    }),
+    ->label('Date of Birth')
+    ->required()
+    ->native(false)
+    ->displayFormat('M d, Y')
+    ->maxDate(now()->subYears(18))
+    ->validationMessages([
+        'before_or_equal' => 'Must be at least 18 years old.',
+    ])
+    ->reactive()
+    ->afterStateUpdated(function ($state, callable $set) {
+        $set('age', $state ? \Carbon\Carbon::parse($state)->age : null);
+    }),
 
                                 TextInput::make('age')
                                     ->label('Age')

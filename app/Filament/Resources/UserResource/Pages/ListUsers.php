@@ -161,9 +161,9 @@ class ListUsers extends ListRecords
     ->required()
     ->native(false)
     ->displayFormat('M d, Y')
-    ->maxDate(now()->subDay())
+    ->maxDate(now()->subYears(18))
     ->validationMessages([
-        'before_or_equal' => 'Date of birth cannot be today or a future date.',
+        'before_or_equal' => 'Must be at least 18 years old.',
     ])
     ->reactive()
     ->afterStateUpdated(function ($state, callable $set) {

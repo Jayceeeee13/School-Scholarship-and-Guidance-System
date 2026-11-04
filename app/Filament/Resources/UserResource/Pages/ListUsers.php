@@ -594,7 +594,8 @@ class ListUsers extends ListRecords
                     ->size('sm')
                     ->color('gray')
                     ->button(),
-                ]);
+                ])
+                ->defaultSort('created_at', 'desc');
         }
 
         // ═════════════════════════════════════════════════════════════

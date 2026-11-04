@@ -12,6 +12,8 @@ use App\Models\TypeOfScholarship;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 class ApplicationController extends Controller
@@ -28,27 +30,46 @@ class ApplicationController extends Controller
      * ID of the Academic scholarship type if the logged-in user has already
      * finished an exam (completed_at filled in); otherwise null.
      * When this returns an ID, the scholarship type is forced to Academic.
+     *
+     * FIX: wrapped in try/catch so a missing column or method can never
+     * turn the whole page into a 500 error. The problem is written to the log.
      */
     private function forcedAcademicId(): ?int
     {
-        $hasTakenExam = ExamAttempt::where('user_id', Auth::id())
-            ->whereNotNull('completed_at')
-            ->exists();
+        try {
+            $hasTakenExam = ExamAttempt::where('user_id', Auth::id())
+                ->whereNotNull('completed_at')
+                ->exists();
 
-        return $hasTakenExam ? ExamAttempt::academicScholarshipId() : null;
+            return $hasTakenExam ? ExamAttempt::academicScholarshipId() : null;
+        } catch (\Throwable $e) {
+            Log::warning('Application form: could not check exam attempts - ' . $e->getMessage());
+
+            return null;
+        }
     }
 
     /**
      * Find the logged-in user's student record.
      * Adjust this if your students are linked differently.
+     *
+     * FIX: checks that the column exists before querying it. Before, a missing
+     * `user_id` column on the students table caused a 500 error.
      */
     private function findStudent(): ?Student
     {
-        $student = Student::where('user_id', Auth::id())->first();
+        $table   = (new Student)->getTable();
+        $student = null;
+
+        if (Schema::hasColumn($table, 'user_id')) {
+            $student = Student::where('user_id', Auth::id())->first();
+        }
 
         // Fallback: match by student_id stored on the user, if that column exists.
-        if (! $student && ! empty(Auth::user()->student_id ?? null)) {
-            $student = Student::where('student_id', Auth::user()->student_id)->first();
+        $studentId = Auth::user()->student_id ?? null;
+
+        if (! $student && ! empty($studentId) && Schema::hasColumn($table, 'student_id')) {
+            $student = Student::where('student_id', $studentId)->first();
         }
 
         return $student;
@@ -189,7 +210,13 @@ class ApplicationController extends Controller
         $academicId = $this->forcedAcademicId();
 
         // Pre-fill the form from the student's record (blank if none found).
-        $prefill = $this->buildPrefill($programs, $genders);
+        // FIX: the pre-fill is optional, so if it fails the form still opens blank.
+        try {
+            $prefill = $this->buildPrefill($programs, $genders);
+        } catch (\Throwable $e) {
+            Log::warning('Application form: prefill failed - ' . $e->getMessage());
+            $prefill = [];
+        }
 
         return view('application_new', compact(
             'scholarshipTypes',

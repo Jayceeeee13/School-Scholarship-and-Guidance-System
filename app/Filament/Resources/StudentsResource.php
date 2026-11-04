@@ -41,10 +41,22 @@ class StudentsResource extends Resource
                     ->columns(3)
                     ->schema([
                         Forms\Components\TextInput::make('student_id')
-                            ->label('Student ID')
-                            ->required()
-                            ->maxLength(100)
-                            ->columnSpan(1),
+    ->label('Student ID')
+    ->required()
+    ->numeric()
+    ->length(6)
+    ->rule('regex:/^[0-9]{6}$/')
+    ->validationMessages([
+        'regex'  => 'Student ID must be exactly 6 digits.',
+        'digits' => 'Student ID must be exactly 6 digits.',
+    ])
+    ->extraInputAttributes([
+        'maxlength'  => '6',
+        'inputmode'  => 'numeric',
+        'onkeypress' => "return /^[0-9]$/.test(event.key)",
+    ])
+    ->unique(ignoreRecord: true)
+    ->columnSpan(1),
                         TextInput::make('first_name')
     ->label('First Name')
     ->required()

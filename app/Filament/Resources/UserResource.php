@@ -49,6 +49,11 @@ class UserResource extends Resource
             ->exists();
     }
 
+    protected static function departmentHeadRoleId(): ?int
+{
+    return Role::where('name', 'Department Head')->value('id');
+}
+
     /**
      * Gender options, shared by the user and personnel forms.
      * ASSUMPTION: a `genders` table with `id` and `name` columns.
@@ -88,6 +93,45 @@ class UserResource extends Resource
     ->columns(2)
     ->required()
     ->live()
+    // Grey out conflicting options while creating a user.
+    ->disableOptionWhen(function (string $value, Get $get, string $operation): bool {
+        if ($operation !== 'create') {
+            return false;
+        }
+
+        $selected = array_map('strval', $get('roles') ?? []);
+
+        // Never disable something that is already ticked, so it can be unticked.
+        if (in_array((string) $value, $selected, true)) {
+            return false;
+        }
+
+        $dhId = (string) self::departmentHeadRoleId();
+
+        if (in_array($dhId, $selected, true)) {
+            return true;                    // Dept Head chosen: lock all others
+        }
+
+        if ((string) $value === $dhId) {
+            return ! empty($selected);      // Other roles chosen: lock Dept Head
+        }
+
+        return false;
+    })
+    ->rule(function (string $operation) {
+        return function (string $attribute, $value, $fail) use ($operation) {
+            if ($operation !== 'create') {
+                return;
+            }
+
+            $ids  = array_map('strval', (array) $value);
+            $dhId = (string) self::departmentHeadRoleId();
+
+            if (in_array($dhId, $ids, true) && count($ids) > 1) {
+                $fail('Department Head cannot be combined with other roles.');
+            }
+        };
+    })
     ->afterStateUpdated(function (Set $set, $state) {
         if (self::hasDepartmentHeadRole($state)) {
             $set('password', 'GVCFI@2026');

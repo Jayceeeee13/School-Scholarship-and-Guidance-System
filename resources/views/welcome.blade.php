@@ -299,7 +299,7 @@
             {{-- App screenshots in phone frames --}}
             <div class="relative mx-auto h-[25rem] w-full max-w-[18rem]" aria-hidden="false">
                 <div class="absolute left-0 top-10 w-36 -rotate-6 rounded-[1.75rem] bg-slate-900 p-1.5 shadow-2xl shadow-green-950/40 ring-1 ring-white/20">
-                    <img src="{{ asset('images/app-login.jpg') }}" alt="GVCFI mobile app login screen" loading="lazy" class="w-full rounded-[1.4rem]">
+                    <img src="{{ asset('images/login-app.jpg') }}" alt="GVCFI mobile app login screen" loading="lazy" class="w-full rounded-[1.4rem]">
                 </div>
                 <div class="absolute right-0 top-0 z-10 w-40 rotate-6 rounded-[1.75rem] bg-slate-900 p-1.5 shadow-2xl shadow-green-950/40 ring-1 ring-white/20">
                     <img src="{{ asset('images/app-dashboard.jpg') }}" alt="GVCFI mobile app dashboard" loading="lazy" class="w-full rounded-[1.4rem]">

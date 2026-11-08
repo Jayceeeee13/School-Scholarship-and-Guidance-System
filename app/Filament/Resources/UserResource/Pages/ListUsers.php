@@ -31,6 +31,8 @@ class ListUsers extends ListRecords
 {
     use LogsCustomActivity;
 
+    protected const DEFAULT_PASSWORD = 'GVCFI@2026';
+
     protected static string $resource = UserResource::class;
 
     /**
@@ -157,18 +159,18 @@ class ListUsers extends ListRecords
                 ]),
 
             Forms\Components\DatePicker::make('birthdate')
-    ->label('Date of Birth')
-    ->required()
-    ->native(false)
-    ->displayFormat('M d, Y')
-    ->maxDate(now()->subYears(18))
-    ->validationMessages([
-        'before_or_equal' => 'Must be at least 18 years old.',
-    ])
-    ->reactive()
-    ->afterStateUpdated(function ($state, callable $set) {
-        $set('age', $state ? \Carbon\Carbon::parse($state)->age : null);
-    }),
+                ->label('Date of Birth')
+                ->required()
+                ->native(false)
+                ->displayFormat('M d, Y')
+                ->maxDate(now()->subYears(18))
+                ->validationMessages([
+                    'before_or_equal' => 'Must be at least 18 years old.',
+                ])
+                ->reactive()
+                ->afterStateUpdated(function ($state, callable $set) {
+                    $set('age', $state ? \Carbon\Carbon::parse($state)->age : null);
+                }),
 
             Forms\Components\TextInput::make('age')
                 ->label('Age')
@@ -796,7 +798,7 @@ class ListUsers extends ListRecords
                     ->sortable()
                     ->toggleable(),
 
-                                TextColumn::make('roles.name')
+                TextColumn::make('roles.name')
                     ->label('Roles')
                     ->badge()
                     ->searchable()
@@ -826,6 +828,51 @@ class ListUsers extends ListRecords
                         ->color('warning')
                         ->url(fn (User $record): string => UserResource::getUrl('edit', ['record' => $record]))
                         ->visible(fn (User $record): bool => UserResource::canEdit($record)),
+
+                    // Reset the user's password to the default password
+                    Tables\Actions\Action::make('resetPassword')
+                        ->label('Reset Password')
+                        ->icon('heroicon-o-key')
+                        ->color('info')
+                        ->requiresConfirmation()
+                        ->modalHeading('Reset Password')
+                        ->modalDescription(fn (User $record): string =>
+                            "This will reset {$record->name}'s password to the default password (" . self::DEFAULT_PASSWORD . ")."
+                        )
+                        ->modalSubmitActionLabel('Yes, Reset')
+                        ->visible(fn (User $record): bool => $record->id !== auth()->id())
+                        ->form([
+                            Forms\Components\TextInput::make('confirm_password')
+                                ->label('Confirm your password to continue')
+                                ->password()
+                                ->revealable()
+                                ->required()
+                                ->rule(function () {
+                                    return function (string $attribute, $value, $fail) {
+                                        if (! Hash::check($value, auth()->user()->password)) {
+                                            $fail('The password is incorrect.');
+                                        }
+                                    };
+                                }),
+                        ])
+                        ->action(function (User $record): void {
+                            // The User model casts 'password' as 'hashed', so pass the
+                            // plain text here. Using bcrypt() would hash it twice.
+                            $record->update(['password' => self::DEFAULT_PASSWORD]);
+
+                            $this->logCustomActivity(
+                                $record,
+                                'user',
+                                'updated',
+                                "Reset password of user {$record->name} to the default password"
+                            );
+
+                            Notification::make()
+                                ->title('Password reset')
+                                ->body("{$record->name}'s password is now the default password.")
+                                ->success()
+                                ->send();
+                        }),
 
                     // Archive with an optional cascade (checkbox)
                     Tables\Actions\Action::make('archiveUser')

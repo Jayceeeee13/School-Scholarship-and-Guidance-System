@@ -27,6 +27,45 @@ class ListReferrals extends ListRecords
 
     protected static string $resource = ReferralsResource::class;
 
+    /*
+    |--------------------------------------------------------------------------
+    | Slot helpers (cancelled / rejected appointments free up their slot)
+    |--------------------------------------------------------------------------
+    */
+
+    protected function reservedSlotIds($date): array
+    {
+        return CounselingAppointments::query()
+            ->whereDate('counseling_date', $date)
+            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->pluck('time_slot_id')
+            ->toArray();
+    }
+
+    protected function followUpSlotOptions($date): array
+    {
+        $timeSlots = CounselingTimeSlot::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        if (! $date) {
+            return $timeSlots->pluck('name', 'id')->toArray();
+        }
+
+        $reserved = $this->reservedSlotIds($date);
+
+        return $timeSlots->mapWithKeys(
+            fn ($s) => [
+                $s->id => $s->name . (
+                    in_array($s->id, $reserved)
+                        ? ' 🔴 Reserved'
+                        : ' ✅ Available'
+                ),
+            ]
+        )->toArray();
+    }
+
     protected function getTableQuery(): Builder
     {
         $query = parent::getTableQuery()
@@ -294,31 +333,31 @@ class ListReferrals extends ListRecords
                             ->toArray()
                     ),
 
-                    Tables\Filters\SelectFilter::make('term')
-    ->label('School Year & Semester')
-    ->options(fn () => \App\Models\Term::query()
-        ->whereNotNull('starts_on')
-        ->whereNotNull('ends_on')
-        ->orderByDesc('starts_on')
-        ->get()
-        ->mapWithKeys(fn ($term) => [$term->id => $term->label])
-        ->all())
-    ->placeholder('All terms')
-    ->query(function (Builder $query, array $data): Builder {
-        if (blank($data['value'] ?? null)) {
-            return $query;
-        }
+                Tables\Filters\SelectFilter::make('term')
+                    ->label('School Year & Semester')
+                    ->options(fn () => \App\Models\Term::query()
+                        ->whereNotNull('starts_on')
+                        ->whereNotNull('ends_on')
+                        ->orderByDesc('starts_on')
+                        ->get()
+                        ->mapWithKeys(fn ($term) => [$term->id => $term->label])
+                        ->all())
+                    ->placeholder('All terms')
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (blank($data['value'] ?? null)) {
+                            return $query;
+                        }
 
-        $term = \App\Models\Term::find($data['value']);
+                        $term = \App\Models\Term::find($data['value']);
 
-        if (! $term?->starts_on || ! $term?->ends_on) {
-            return $query;
-        }
+                        if (! $term?->starts_on || ! $term?->ends_on) {
+                            return $query;
+                        }
 
-        return $query
-            ->whereDate('date', '>=', $term->starts_on->toDateString())
-            ->whereDate('date', '<=', $term->ends_on->toDateString());
-    }),
+                        return $query
+                            ->whereDate('date', '>=', $term->starts_on->toDateString())
+                            ->whereDate('date', '<=', $term->ends_on->toDateString());
+                    }),
             ])
 
             ->actions([
@@ -397,21 +436,37 @@ class ListReferrals extends ListRecords
                                 ->label('Follow-up Date')
                                 ->required()
                                 ->native(false)
-                                ->minDate(today()),
+                                ->displayFormat('F d, Y')
+                                ->minDate(today())
+                                ->disabledDates(fn () => \App\Models\InactiveDate::getInactiveDates())
+                                ->live()
+                                ->afterStateUpdated(fn (callable $set) => $set('time_slot_id', null)),
 
                             Forms\Components\Select::make('time_slot_id')
                                 ->label('Time Slot')
                                 ->options(
-                                    fn () =>
-                                        CounselingTimeSlot::query()
-                                            ->where('is_active', true)
-                                            ->pluck('name', 'id')
-                                            ->toArray()
+                                    fn (callable $get) => $this->followUpSlotOptions($get('counseling_date'))
+                                )
+                                // Reserved slots are disabled; cancelled / rejected ones are free.
+                                ->disableOptionWhen(
+                                    function ($value, callable $get) {
+                                        $selectedDate = $get('counseling_date');
+
+                                        if (! $selectedDate) {
+                                            return false;
+                                        }
+
+                                        return in_array(
+                                            (int) $value,
+                                            array_map('intval', $this->reservedSlotIds($selectedDate)),
+                                            true
+                                        );
+                                    }
                                 )
                                 ->searchable()
-                                ->preload()
                                 ->required()
-                                ->native(false),
+                                ->native(false)
+                                ->disabled(fn (callable $get) => ! $get('counseling_date')),
 
                             Forms\Components\Select::make('mode_of_counseling_id')
                                 ->label('Mode of Counseling')
@@ -446,7 +501,7 @@ class ListReferrals extends ListRecords
                         ])
                         ->modalHeading('Schedule Follow-up Counseling')
                         ->modalDescription(
-                            'Create the next counseling appointment for this referral.'
+                            'Create the next counseling appointment for this referral. It will be approved automatically.'
                         )
                         ->modalSubmitActionLabel('Schedule Follow-up')
                         ->action(
@@ -458,6 +513,21 @@ class ListReferrals extends ListRecords
                                             'A follow-up appointment already exists for this referral.'
                                         )
                                         ->warning()
+                                        ->send();
+
+                                    return;
+                                }
+
+                                // Server-side guard: the slot may have been taken while the form was open.
+                                if (in_array(
+                                    (int) $data['time_slot_id'],
+                                    array_map('intval', $this->reservedSlotIds($data['counseling_date'])),
+                                    true
+                                )) {
+                                    Notification::make()
+                                        ->title('Time Slot Unavailable')
+                                        ->body('That time slot was just reserved. Please choose another one.')
+                                        ->danger()
                                         ->send();
 
                                     return;
@@ -483,6 +553,7 @@ class ListReferrals extends ListRecords
                                     $middleName = implode(' ', $nameParts);
                                 }
 
+                                // Follow-ups are approved automatically.
                                 $followUp = CounselingAppointments::create([
                                     'parent_appointment_id' => null,
                                     'source_logform_id' => null,
@@ -499,7 +570,8 @@ class ListReferrals extends ListRecords
                                     'mode_of_counseling_id' => $data['mode_of_counseling_id'],
                                     'support_needed_id' => $data['support_needed_id'] ?? null,
                                     'concern' => $data['concern'],
-                                    'status' => 'pending',
+                                    'status' => 'approved',
+                                    'approved_at' => now(),
                                 ]);
 
                                 $record->update([

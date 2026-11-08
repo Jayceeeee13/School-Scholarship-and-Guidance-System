@@ -423,16 +423,13 @@ class ListCounselingAppointments extends ListRecords
                                 ->send();
                         }),
 
-                    /* Reschedule */
+                    /* Reschedule (only when the appointment is approved) */
 
                     Tables\Actions\Action::make('reschedule')
                         ->label('Reschedule')
                         ->icon('heroicon-o-arrow-path')
                         ->color('warning')
-                        ->visible(
-                            fn ($record): bool =>
-                                ! in_array($record->status, ['cancelled', 'completed'])
-                        )
+                        ->visible(fn ($record): bool => $record->status === 'approved')
                         ->form([
 
                             \Filament\Forms\Components\DatePicker::make('counseling_date')
@@ -451,7 +448,7 @@ class ListCounselingAppointments extends ListRecords
                                     fn (callable $get, $record) =>
                                         $this->slotOptions($get('counseling_date'), $record->id)
                                 )
-                                // FIX: ignore the appointment being rescheduled itself,
+                                // Ignore the appointment being rescheduled itself,
                                 // and ignore cancelled / rejected appointments.
                                 ->disableOptionWhen(
                                     function ($value, callable $get, $record) {
@@ -486,11 +483,9 @@ class ListCounselingAppointments extends ListRecords
                                 $oldSlot = $record->timeSlot?->name;
 
                                 $record->update([
-                                    'counseling_date' => $data['counseling_date'],
-                                    'time_slot_id' => $data['time_slot_id'],
-                                    'status' => 'pending',
-                                    'approved_at' => null,
-                                ]);
+    'counseling_date' => $data['counseling_date'],
+    'time_slot_id' => $data['time_slot_id'],
+]);
 
                                 $record->notifyStudent('rescheduled');
 
@@ -542,7 +537,7 @@ class ListCounselingAppointments extends ListRecords
                                 ->options(
                                     fn (callable $get) => $this->slotOptions($get('counseling_date'))
                                 )
-                                // FIX: cancelled / rejected appointments no longer block the slot.
+                                // Cancelled / rejected appointments no longer block the slot.
                                 ->disableOptionWhen(
                                     function ($value, callable $get) {
 
@@ -583,6 +578,7 @@ class ListCounselingAppointments extends ListRecords
                         ->action(
                             function ($record, array $data) {
 
+                                // Follow-ups are approved automatically.
                                 $followUp = CounselingAppointments::create([
                                     'parent_appointment_id' => $record->id,
                                     'student_id' => $record->student_id,
@@ -597,10 +593,12 @@ class ListCounselingAppointments extends ListRecords
                                     'mode_of_counseling_id' => $data['mode_of_counseling_id'],
                                     'support_needed_id' => $data['support_needed_id'],
                                     'concern' => $data['concern'] ?? null,
-                                    'status' => 'pending',
+                                    'status' => 'approved',
+                                    'approved_at' => now(),
                                 ]);
 
                                 $followUp->notifyAdmin('follow_up_scheduled');
+                                $followUp->notifyStudent('approved');
 
                                 $this->logCustomActivity(
                                     $followUp,

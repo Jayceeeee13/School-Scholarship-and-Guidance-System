@@ -33,6 +33,45 @@ class ListCounselingLogforms extends ListRecords
         $this->resetTable();
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | Slot helpers (cancelled / rejected appointments free up their slot)
+    |--------------------------------------------------------------------------
+    */
+
+    protected function reservedSlotIds($date): array
+    {
+        return CounselingAppointments::query()
+            ->whereDate('counseling_date', $date)
+            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->pluck('time_slot_id')
+            ->toArray();
+    }
+
+    protected function followUpSlotOptions($date): array
+    {
+        $timeSlots = CounselingTimeSlot::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        if (! $date) {
+            return $timeSlots->pluck('name', 'id')->toArray();
+        }
+
+        $reserved = $this->reservedSlotIds($date);
+
+        return $timeSlots->mapWithKeys(
+            fn ($s) => [
+                $s->id => $s->name . (
+                    in_array($s->id, $reserved)
+                        ? ' 🔴 Reserved'
+                        : ' ✅ Available'
+                ),
+            ]
+        )->toArray();
+    }
+
     protected function getTableQuery(): Builder
     {
         if ($this->activeTab === 'anecdotals') {
@@ -62,21 +101,21 @@ class ListCounselingLogforms extends ListRecords
                 ->visible(fn (): bool => $this->activeTab === 'logforms'),
 
             Actions\Action::make('print')
-    ->label('Print')
-    ->icon('heroicon-o-printer')
-    ->color('gray')
-    ->url(function () {
-        $filters = $this->tableFilters ?? [];
+                ->label('Print')
+                ->icon('heroicon-o-printer')
+                ->color('gray')
+                ->url(function () {
+                    $filters = $this->tableFilters ?? [];
 
-        return route('counseling-logforms.print', array_filter([
-            'from'    => $filters['date_range']['from'] ?? null,
-            'until'   => $filters['date_range']['until'] ?? null,
-            'type'    => $filters['type']['value'] ?? null,
-            'term_id' => $filters['term_id']['value'] ?? null,
-        ]));
-    })
-    ->openUrlInNewTab()
-    ->visible(fn (): bool => $this->activeTab === 'logforms'),
+                    return route('counseling-logforms.print', array_filter([
+                        'from'    => $filters['date_range']['from'] ?? null,
+                        'until'   => $filters['date_range']['until'] ?? null,
+                        'type'    => $filters['type']['value'] ?? null,
+                        'term_id' => $filters['term_id']['value'] ?? null,
+                    ]));
+                })
+                ->openUrlInNewTab()
+                ->visible(fn (): bool => $this->activeTab === 'logforms'),
         ];
     }
 
@@ -258,7 +297,7 @@ class ListCounselingLogforms extends ListRecords
                         Tables\Actions\DeleteBulkAction::make(),
                     ]),
                 ])
-                            ->defaultSort('created_at', 'desc');
+                ->defaultSort('created_at', 'desc');
         }
 
         return $table
@@ -330,69 +369,70 @@ class ListCounselingLogforms extends ListRecords
                     ->toggleable(),
             ])
             ->filters([
-    Tables\Filters\SelectFilter::make('type')
-        ->label('Type')
-        ->options([
-            'scheduled' => 'Scheduled',
-            'walk_in'   => 'Walk-in',
-        ]),
+                Tables\Filters\SelectFilter::make('type')
+                    ->label('Type')
+                    ->options([
+                        'scheduled' => 'Scheduled',
+                        'walk_in'   => 'Walk-in',
+                    ]),
 
-    Tables\Filters\SelectFilter::make('term_id')
-        ->label('School Year & Semester')
-        ->options(function () {
-            return \App\Models\Term::orderByDesc('is_active')
-                ->orderByDesc('id')
-                ->get()
-                ->mapWithKeys(fn ($term) => [
-                    $term->id => $term->label . ($term->is_active ? ' (Active)' : ''),
-                ]);
-        })
-        ->searchable()
-        ->placeholder('All Terms'),
-        Tables\Filters\Filter::make('date_range')
-        ->form([
-            Forms\Components\DatePicker::make('from')
-                ->label('From')
-                ->native(false)
-                ->displayFormat('M d, Y')
-                ->maxDate(fn (Forms\Get $get) => $get('until') ?: now()),
+                Tables\Filters\SelectFilter::make('term_id')
+                    ->label('School Year & Semester')
+                    ->options(function () {
+                        return \App\Models\Term::orderByDesc('is_active')
+                            ->orderByDesc('id')
+                            ->get()
+                            ->mapWithKeys(fn ($term) => [
+                                $term->id => $term->label . ($term->is_active ? ' (Active)' : ''),
+                            ]);
+                    })
+                    ->searchable()
+                    ->placeholder('All Terms'),
 
-            Forms\Components\DatePicker::make('until')
-                ->label('Until')
-                ->native(false)
-                ->displayFormat('M d, Y')
-                ->minDate(fn (Forms\Get $get) => $get('from')),
-        ])
-        ->columns(2)
-        ->query(function (Builder $query, array $data): Builder {
-            return $query
-                ->when(
-                    $data['from'] ?? null,
-                    fn (Builder $q, $date) => $q->whereDate('created_at', '>=', $date)
-                )
-                ->when(
-                    $data['until'] ?? null,
-                    fn (Builder $q, $date) => $q->whereDate('created_at', '<=', $date)
-                );
-        })
-        ->indicateUsing(function (array $data): array {
-            $indicators = [];
+                Tables\Filters\Filter::make('date_range')
+                    ->form([
+                        Forms\Components\DatePicker::make('from')
+                            ->label('From')
+                            ->native(false)
+                            ->displayFormat('M d, Y')
+                            ->maxDate(fn (Forms\Get $get) => $get('until') ?: now()),
 
-            if ($data['from'] ?? null) {
-                $indicators[] = Tables\Filters\Indicator::make(
-                    'From ' . \Carbon\Carbon::parse($data['from'])->format('M d, Y')
-                )->removeField('from');
-            }
+                        Forms\Components\DatePicker::make('until')
+                            ->label('Until')
+                            ->native(false)
+                            ->displayFormat('M d, Y')
+                            ->minDate(fn (Forms\Get $get) => $get('from')),
+                    ])
+                    ->columns(2)
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['from'] ?? null,
+                                fn (Builder $q, $date) => $q->whereDate('created_at', '>=', $date)
+                            )
+                            ->when(
+                                $data['until'] ?? null,
+                                fn (Builder $q, $date) => $q->whereDate('created_at', '<=', $date)
+                            );
+                    })
+                    ->indicateUsing(function (array $data): array {
+                        $indicators = [];
 
-            if ($data['until'] ?? null) {
-                $indicators[] = Tables\Filters\Indicator::make(
-                    'Until ' . \Carbon\Carbon::parse($data['until'])->format('M d, Y')
-                )->removeField('until');
-            }
+                        if ($data['from'] ?? null) {
+                            $indicators[] = Tables\Filters\Indicator::make(
+                                'From ' . \Carbon\Carbon::parse($data['from'])->format('M d, Y')
+                            )->removeField('from');
+                        }
 
-            return $indicators;
-        }),
-])
+                        if ($data['until'] ?? null) {
+                            $indicators[] = Tables\Filters\Indicator::make(
+                                'Until ' . \Carbon\Carbon::parse($data['until'])->format('M d, Y')
+                            )->removeField('until');
+                        }
+
+                        return $indicators;
+                    }),
+            ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
                     Tables\Actions\ViewAction::make(),
@@ -414,21 +454,37 @@ class ListCounselingLogforms extends ListRecords
                                 ->label('Follow-up Date')
                                 ->required()
                                 ->native(false)
-                                ->minDate(today()),
+                                ->displayFormat('F d, Y')
+                                ->minDate(today())
+                                ->disabledDates(fn () => \App\Models\InactiveDate::getInactiveDates())
+                                ->live()
+                                ->afterStateUpdated(fn (callable $set) => $set('time_slot_id', null)),
 
                             Forms\Components\Select::make('time_slot_id')
                                 ->label('Time Slot')
                                 ->options(
-                                    fn () =>
-                                        CounselingTimeSlot::query()
-                                            ->where('is_active', true)
-                                            ->pluck('name', 'id')
-                                            ->toArray()
+                                    fn (callable $get) => $this->followUpSlotOptions($get('counseling_date'))
+                                )
+                                // Reserved slots are disabled; cancelled / rejected ones are free.
+                                ->disableOptionWhen(
+                                    function ($value, callable $get) {
+                                        $selectedDate = $get('counseling_date');
+
+                                        if (! $selectedDate) {
+                                            return false;
+                                        }
+
+                                        return in_array(
+                                            (int) $value,
+                                            array_map('intval', $this->reservedSlotIds($selectedDate)),
+                                            true
+                                        );
+                                    }
                                 )
                                 ->searchable()
-                                ->preload()
                                 ->required()
-                                ->native(false),
+                                ->native(false)
+                                ->disabled(fn (callable $get) => ! $get('counseling_date')),
 
                             Forms\Components\Select::make('mode_of_counseling_id')
                                 ->label('Mode of Counseling')
@@ -463,7 +519,7 @@ class ListCounselingLogforms extends ListRecords
                         ])
                         ->modalHeading('Schedule Follow-up Counseling')
                         ->modalDescription(
-                            'Create the next counseling appointment for this student.'
+                            'Create the next counseling appointment for this student. It will be approved automatically.'
                         )
                         ->modalSubmitActionLabel('Schedule Follow-up')
                         ->action(
@@ -490,6 +546,21 @@ class ListCounselingLogforms extends ListRecords
                                             'A follow-up appointment already exists for this counseling record.'
                                         )
                                         ->warning()
+                                        ->send();
+
+                                    return;
+                                }
+
+                                // Server-side guard: the slot may have been taken while the form was open.
+                                if (in_array(
+                                    (int) $data['time_slot_id'],
+                                    array_map('intval', $this->reservedSlotIds($data['counseling_date'])),
+                                    true
+                                )) {
+                                    Notification::make()
+                                        ->title('Time Slot Unavailable')
+                                        ->body('That time slot was just reserved. Please choose another one.')
+                                        ->danger()
                                         ->send();
 
                                     return;
@@ -581,6 +652,7 @@ class ListCounselingLogforms extends ListRecords
                                     return;
                                 }
 
+                                // Follow-ups are approved automatically.
                                 $followUp = CounselingAppointments::create([
                                     'parent_appointment_id' => $parentAppointmentId,
                                     'source_logform_id' => $record->id,
@@ -596,7 +668,8 @@ class ListCounselingLogforms extends ListRecords
                                     'mode_of_counseling_id' => $data['mode_of_counseling_id'],
                                     'support_needed_id' => $data['support_needed_id'] ?? null,
                                     'concern' => $data['concern'],
-                                    'status' => 'pending',
+                                    'status' => 'approved',
+                                    'approved_at' => now(),
                                 ]);
 
                                 $record->update([
@@ -606,6 +679,14 @@ class ListCounselingLogforms extends ListRecords
                                 try {
                                     $followUp->notifyAdmin('follow_up_scheduled');
                                 } catch (\Throwable $e) {
+                                }
+
+                                // The walk-in student has a student_id, so let them know it's confirmed.
+                                if ($studentId) {
+                                    try {
+                                        $followUp->notifyStudent('approved');
+                                    } catch (\Throwable $e) {
+                                    }
                                 }
 
                                 $studentName = $record->display_name
@@ -743,6 +824,6 @@ class ListCounselingLogforms extends ListRecords
                         ->deselectRecordsAfterCompletion(),
                 ]),
             ])
-                        ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc');
     }
 }

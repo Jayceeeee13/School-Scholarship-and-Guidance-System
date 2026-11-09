@@ -29,9 +29,10 @@ class ApplicationController extends Controller
     /**
      * ID of the Academic scholarship type if the logged-in user has already
      * finished an exam (completed_at filled in); otherwise null.
-     * When this returns an ID, the scholarship type is forced to Academic.
+     * When this returns an ID, Academic is PRESELECTED in the form, but the
+     * student is free to choose another scholarship type.
      */
-    private function forcedAcademicId(): ?int
+    private function defaultAcademicId(): ?int
     {
         try {
             $hasTakenExam = ExamAttempt::where('user_id', Auth::id())
@@ -223,8 +224,8 @@ class ApplicationController extends Controller
         $genders          = Gender::where('is_active', 1)->get();
         $programs         = Program::where('is_active', 1)->get();
 
-        // Exam takers are automatically set to the Academic scholarship type.
-        $academicId = $this->forcedAcademicId();
+        // Exam takers start with Academic preselected (they may still change it).
+        $academicId = $this->defaultAcademicId();
 
         // Pre-fill the form from the student's record (blank if none found).
         // The pre-fill is optional, so if it fails the form still opens and the
@@ -252,11 +253,6 @@ class ApplicationController extends Controller
         if (Applicant::where('user_id', Auth::id())->exists()) {
             return redirect()->route('gvc')
                 ->with('already_applied', true);
-        }
-
-        // ── Exam takers are always Academic (ignore whatever was posted) ───
-        if ($academicId = $this->forcedAcademicId()) {
-            $request->merge(['type_of_scholarship_id' => $academicId]);
         }
 
         // ── Normalize input before validating ──────────────────────────────

@@ -93,30 +93,50 @@ class UserResource extends Resource
     ->columns(2)
     ->required()
     ->live()
-    // While creating a user, once one role is ticked the others are greyed out.
-    // A ticked role stays clickable so it can be unticked.
     ->disableOptionWhen(function (string $value, Get $get, string $operation): bool {
         if ($operation !== 'create') {
             return false;
         }
 
-        $selected = array_map('strval', $get('roles') ?? []);
+        $selectedIds = collect($get('roles') ?? [])->map(fn ($id) => (int) $id)->all();
+        $valueId     = (int) $value;
 
-        if (empty($selected) || in_array((string) $value, $selected, true)) {
+        // A ticked role stays clickable so it can be unticked.
+        if (empty($selectedIds) || in_array($valueId, $selectedIds, true)) {
             return false;
         }
 
-        return true;
+        $exclusive = ['admin', 'department head'];
+
+        $nameOf = fn (int $id): string => strtolower((string) Role::whereKey($id)->value('name'));
+
+        // An exclusive role is already ticked: lock everything else.
+        foreach ($selectedIds as $id) {
+            if (in_array($nameOf($id), $exclusive, true)) {
+                return true;
+            }
+        }
+
+        // Only combinable roles are ticked: lock the exclusive ones.
+        return in_array($nameOf($valueId), $exclusive, true);
     })
-    // Server-side check, so it can't be bypassed.
     ->rule(function (string $operation) {
         return function (string $attribute, $value, $fail) use ($operation) {
             if ($operation !== 'create') {
                 return;
             }
 
-            if (count((array) $value) > 1) {
-                $fail('Only one role can be selected for a new account.');
+            $ids = array_map('intval', (array) $value);
+
+            if (count($ids) <= 1) {
+                return;
+            }
+
+            $names = Role::whereIn('id', $ids)->pluck('name')
+                ->map(fn ($n) => strtolower($n));
+
+            if (! $names->every(fn ($n) => in_array($n, ['guidance', 'scholarship'], true))) {
+                $fail('Admin and Department Head cannot be combined with other roles. Only Guidance and Scholarship can be combined.');
             }
         };
     })

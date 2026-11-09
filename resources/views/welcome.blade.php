@@ -112,8 +112,8 @@
     $h2 = 'font-display text-3xl font-extrabold tracking-tight text-slate-900 md:text-5xl';
 
     // Mobile app installer (Expo / EAS internal distribution)
-    $appQr   = 'images/guidance-qr.png';        // QR image: public/images/guidance-qr.png
-    $appUrl  = 'https://expo.dev/accounts/abidmangelen/projects/scholarr/builds/27717ab4-41d7-402f-8292-b7e97ff584cf';  // Expo install page (same link as the QR)
+    $appQr   = 'images/gvc-qr.png';        // QR image: public/images/gvc-qr.png
+    $appUrl  = 'https://expo.dev/accounts/abidmangelen/projects/scholarr/builds/f4aaf47f-14a7-4f66-bd70-637bd6717324';  // Expo install page (same link as the QR)
     $apkPath = 'downloads/gvcfi-app.apk';  // fallback: upload your APK to public/downloads/gvcfi-app.apk and leave $appUrl empty
 
     $downloadUrl = $appUrl ?: (file_exists(public_path($apkPath)) ? asset($apkPath) : null);

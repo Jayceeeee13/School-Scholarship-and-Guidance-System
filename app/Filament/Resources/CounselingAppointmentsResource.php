@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CounselingAppointmentsResource\Pages;
 use App\Models\CounselingAppointments;
 use App\Models\Endorsement;
+use App\Support\SlotAvailability;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Infolists\Infolist;
@@ -136,30 +137,27 @@ class CounselingAppointmentsResource extends Resource
 
                                                 Forms\Components\Select::make('time_slot_id')
                                                     ->label('Time Slot')
-                                                    ->options(function (callable $get) {
-                                                        $selectedDate    = $get('counseling_date');
-                                                        $currentRecordId = $get('id');
-                                                        $timeSlots       = \App\Models\CounselingTimeSlot::where('is_active', true)
+                                                    ->options(function (callable $get, $record) {
+                                                        $selectedDate = $get('counseling_date');
+                                                        $timeSlots    = \App\Models\CounselingTimeSlot::where('is_active', true)
                                                             ->get()
                                                             ->sortBy(fn ($s) => self::getSlotStartMinutes($s->name))
                                                             ->values();
 
-                                                        if (!$selectedDate) {
+                                                        if (! $selectedDate) {
                                                             return $timeSlots->mapWithKeys(fn ($s) => [$s->id => $s->name . ' ✅ Available'])->toArray();
                                                         }
 
-                                                        $reserved = \App\Models\CounselingAppointments::query()
-                                                        ->whereDate('counseling_date', $selectedDate)
-                                                        ->whereNotIn('status', ['cancelled', 'rejected'])
-                                                        ->when($currentRecordId, fn ($q) => $q->where('id', '!=', $currentRecordId))
-                                                        ->pluck('time_slot_id')->toArray();
+                                                        // Appointments (incl. follow-ups) and invitations hold a slot;
+                                                        // the appointment being edited is ignored.
+                                                        $reserved = SlotAvailability::reservedSlotIds($selectedDate, $record?->id);
 
                                                         $isToday = \Carbon\Carbon::parse($selectedDate)->isToday();
 
                                                         return $timeSlots->mapWithKeys(function ($s) use ($reserved, $isToday) {
                                                             $label = $s->name;
 
-                                                            if (in_array($s->id, $reserved)) {
+                                                            if (in_array((int) $s->id, $reserved, true)) {
                                                                 $label .= ' 🔴 Reserved';
                                                             } elseif ($isToday && self::isTimeSlotPast($s->name)) {
                                                                 $label .= ' ⏰ Past';
@@ -170,19 +168,13 @@ class CounselingAppointmentsResource extends Resource
                                                             return [$s->id => $label];
                                                         })->toArray();
                                                     })
-                                                    ->disableOptionWhen(function ($value, callable $get) {
-                                                    $selectedDate = $get('counseling_date');
-                                                    if (!$selectedDate) return false;
+                                                    ->disableOptionWhen(function ($value, callable $get, $record) {
+                                                        $selectedDate = $get('counseling_date');
+                                                        if (! $selectedDate) return false;
 
-                                                    // Disable if reserved by another appointment (ignore cancelled/rejected — those free up the slot)
-                                                    $isReserved = \App\Models\CounselingAppointments::query()
-                                                        ->whereDate('counseling_date', $selectedDate)
-                                                        ->where('time_slot_id', $value)
-                                                        ->whereNotIn('status', ['cancelled', 'rejected'])
-                                                        ->when($get('id'), fn ($q) => $q->where('id', '!=', $get('id')))
-                                                        ->exists();
-
-                                                        if ($isReserved) return true;
+                                                        if (SlotAvailability::isReserved($selectedDate, $value, $record?->id)) {
+                                                            return true;
+                                                        }
 
                                                         // Disable if the slot's start time has already passed today
                                                         if (\Carbon\Carbon::parse($selectedDate)->isToday()) {
@@ -196,21 +188,19 @@ class CounselingAppointmentsResource extends Resource
                                                     })
                                                     ->required()->searchable()->preload()->live()
                                                     ->placeholder(fn (callable $get) => $get('counseling_date') ? 'Choose an available time slot' : 'Select a date first')
-                                                    ->helperText(function (callable $get) {
+                                                    ->helperText(function (callable $get, $record) {
                                                         $selectedDate = $get('counseling_date');
-                                                        if (!$selectedDate) return 'Please select a date first to see time slot availability';
+                                                        if (! $selectedDate) return 'Please select a date first to see time slot availability';
+
                                                         $total     = \App\Models\CounselingTimeSlot::where('is_active', true)->count();
-                                                        $reserved  = \App\Models\CounselingAppointments::query()
-                                                        ->whereDate('counseling_date', $selectedDate)
-                                                        ->whereNotIn('status', ['cancelled', 'rejected'])
-                                                        ->when($get('id'), fn ($q) => $q->where('id', '!=', $get('id')))
-                                                        ->distinct('time_slot_id')->count('time_slot_id');
-                                                        $available = $total - $reserved;
+                                                        $reserved  = count(SlotAvailability::reservedSlotIds($selectedDate, $record?->id));
+                                                        $available = max($total - $reserved, 0);
+
                                                         return $available === 0
                                                             ? '🔴 All time slots are reserved for this date. Please choose another date.'
                                                             : "✅ {$available} of {$total} slots available | 🔴 Reserved slots are disabled";
                                                     })
-                                                    ->disabled(fn (callable $get) => !$get('counseling_date'))
+                                                    ->disabled(fn (callable $get) => ! $get('counseling_date'))
                                                     ->dehydrated()
                                                     ->native(false),
                                             ]),
@@ -492,44 +482,45 @@ class CounselingAppointmentsResource extends Resource
      * so the two stay in sync instead of drifting apart.
      */
     public static function infolist(Infolist $infolist): Infolist
-{
-    return $infolist
-        ->schema([
-            \Filament\Infolists\Components\Section::make('Student Information')
-                ->icon('heroicon-o-user-circle')
-                ->iconColor('primary')
-                ->columns(2)
-                ->schema([
-                    \Filament\Infolists\Components\TextEntry::make('full_name')
-                        ->label('Student Name')
-                        ->getStateUsing(fn ($record) => $record->full_name)
-                        ->size('lg')
-                        ->weight('bold'),
+    {
+        return $infolist
+            ->schema([
+                \Filament\Infolists\Components\Section::make('Student Information')
+                    ->icon('heroicon-o-user-circle')
+                    ->iconColor('primary')
+                    ->columns(2)
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('full_name')
+                            ->label('Student Name')
+                            ->getStateUsing(fn ($record) => $record->full_name)
+                            ->size('lg')
+                            ->weight('bold'),
 
-                    \Filament\Infolists\Components\TextEntry::make('course_and_year')
-                        ->label('Program')
-                        ->badge()
-                        ->color('primary'),
-                ]),
+                        \Filament\Infolists\Components\TextEntry::make('course_and_year')
+                            ->label('Program')
+                            ->badge()
+                            ->color('primary'),
+                    ]),
 
-            \Filament\Infolists\Components\Section::make('Cancellation Details')
-                ->icon('heroicon-o-x-circle')
-                ->iconColor('danger')
-                ->visible(fn ($record) => $record->status === 'cancelled')
-                ->schema([
-                    \Filament\Infolists\Components\TextEntry::make('cancellation_reason')
-                        ->label('Reason for Cancellation')
-                        ->placeholder('No reason provided')
-                        ->columnSpanFull(),
-                ]),
+                \Filament\Infolists\Components\Section::make('Cancellation Details')
+                    ->icon('heroicon-o-x-circle')
+                    ->iconColor('danger')
+                    ->visible(fn ($record) => $record->status === 'cancelled')
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('cancellation_reason')
+                            ->label('Reason for Cancellation')
+                            ->placeholder('No reason provided')
+                            ->columnSpanFull(),
+                    ]),
 
-            \Filament\Infolists\Components\ViewEntry::make('guidance_history')
-                ->label('')
-                ->view('filament.infolists.guidance-history')
-                ->getStateUsing(fn ($record) => self::resolveGuidanceHistory($record))
-                ->columnSpanFull(),
-        ]);
-}
+                \Filament\Infolists\Components\ViewEntry::make('guidance_history')
+                    ->label('')
+                    ->view('filament.infolists.guidance-history')
+                    ->getStateUsing(fn ($record) => self::resolveGuidanceHistory($record))
+                    ->columnSpanFull(),
+            ]);
+    }
+
     /**
      * Resolves the full guidance history (including follow-ups reached via
      * parent_appointment_id chains) for the student tied to $record. Shared

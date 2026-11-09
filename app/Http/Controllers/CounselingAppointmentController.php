@@ -7,6 +7,7 @@ use App\Models\CounselingAppointments;
 use App\Models\CounselingTimeSlot;
 use App\Models\SupportNeeded;
 use App\Models\ModeOfCounseling;
+use App\Support\SlotAvailability;
 use Illuminate\Http\Request;
 
 class CounselingAppointmentController extends Controller
@@ -30,7 +31,7 @@ class CounselingAppointmentController extends Controller
             'course_and_year'       => 'nullable|string|max:500',
             'contact_no'            => 'nullable|string|max:20',
             'present_address'       => 'nullable|string|max:200',
-            'counseling_date'       => 'nullable|date',
+            'counseling_date'       => 'required|date|after_or_equal:today',
             'time_slot_id'          => 'required|exists:counseling_time_slots,id',
             'support_needed_id'     => 'nullable|exists:support_neededs,id',
             'mode_of_counseling_id' => 'nullable|exists:mode_of_counselings,id',
@@ -38,20 +39,14 @@ class CounselingAppointmentController extends Controller
         ]);
 
         // ── Server-side double-booking check ─────────────────────────────────
-        // Cancelled / rejected appointments free up their slot.
-        if (! empty($validated['counseling_date'])) {
-            $taken = CounselingAppointments::whereDate('counseling_date', $validated['counseling_date'])
-                ->where('time_slot_id', $validated['time_slot_id'])
-                ->whereNotIn('status', ['cancelled', 'rejected'])
-                ->exists();
-
-            if ($taken) {
-                return back()
-                    ->withInput()
-                    ->withErrors([
-                        'time_slot_id' => 'That time slot was just taken. Please choose another.',
-                    ]);
-            }
+        // Appointments (incl. follow-ups) and referral invitations hold a slot.
+        // Cancelled / rejected / archived appointments and declined invitations free it.
+        if (SlotAvailability::isReserved($validated['counseling_date'], $validated['time_slot_id'])) {
+            return back()
+                ->withInput()
+                ->withErrors([
+                    'time_slot_id' => 'That time slot was just taken. Please choose another.',
+                ]);
         }
         // ─────────────────────────────────────────────────────────────────────
 
@@ -72,13 +67,13 @@ class CounselingAppointmentController extends Controller
 
     public function slots(Request $request): \Illuminate\Http\JsonResponse
     {
+        $request->validate([
+            'date' => 'required|date',
+        ]);
+
         $date = $request->query('date');
 
-        $reserved = CounselingAppointments::query()
-            ->whereDate('counseling_date', $date)
-            ->whereNotIn('status', ['cancelled', 'rejected'])
-            ->pluck('time_slot_id')
-            ->toArray();
+        $reserved = SlotAvailability::reservedSlotIds($date);
 
         // Sort chronologically (9am → 11am → 1pm → 2pm), not alphabetically.
         $slots = CounselingTimeSlot::where('is_active', true)
@@ -90,7 +85,7 @@ class CounselingAppointmentController extends Controller
             $slots->map(fn ($s) => [
                 'id'       => $s->id,
                 'name'     => $s->name,
-                'reserved' => in_array($s->id, $reserved),
+                'reserved' => in_array((int) $s->id, $reserved, true),
             ])
         );
     }

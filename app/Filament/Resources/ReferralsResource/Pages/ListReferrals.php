@@ -9,6 +9,7 @@ use App\Models\CounselingAppointments;
 use App\Models\CounselingTimeSlot;
 use App\Models\ModeOfCounseling;
 use App\Models\SupportNeeded;
+use App\Support\SlotAvailability;
 use App\Traits\LogsCustomActivity;
 use Illuminate\Support\Facades\Hash;
 use Filament\Actions;
@@ -29,17 +30,14 @@ class ListReferrals extends ListRecords
 
     /*
     |--------------------------------------------------------------------------
-    | Slot helpers (cancelled / rejected appointments free up their slot)
+    | Slot helpers (appointments + referral invitations hold a slot;
+    | cancelled / rejected / archived / declined ones free it)
     |--------------------------------------------------------------------------
     */
 
     protected function reservedSlotIds($date): array
     {
-        return CounselingAppointments::query()
-            ->whereDate('counseling_date', $date)
-            ->whereNotIn('status', ['cancelled', 'rejected'])
-            ->pluck('time_slot_id')
-            ->toArray();
+        return SlotAvailability::reservedSlotIds($date);
     }
 
     protected function followUpSlotOptions($date): array
@@ -58,7 +56,7 @@ class ListReferrals extends ListRecords
         return $timeSlots->mapWithKeys(
             fn ($s) => [
                 $s->id => $s->name . (
-                    in_array($s->id, $reserved)
+                    in_array((int) $s->id, $reserved, true)
                         ? ' 🔴 Reserved'
                         : ' ✅ Available'
                 ),
@@ -456,11 +454,7 @@ class ListReferrals extends ListRecords
                                             return false;
                                         }
 
-                                        return in_array(
-                                            (int) $value,
-                                            array_map('intval', $this->reservedSlotIds($selectedDate)),
-                                            true
-                                        );
+                                        return SlotAvailability::isReserved($selectedDate, $value);
                                     }
                                 )
                                 ->searchable()
@@ -519,11 +513,7 @@ class ListReferrals extends ListRecords
                                 }
 
                                 // Server-side guard: the slot may have been taken while the form was open.
-                                if (in_array(
-                                    (int) $data['time_slot_id'],
-                                    array_map('intval', $this->reservedSlotIds($data['counseling_date'])),
-                                    true
-                                )) {
+                                if (SlotAvailability::isReserved($data['counseling_date'], $data['time_slot_id'])) {
                                     Notification::make()
                                         ->title('Time Slot Unavailable')
                                         ->body('That time slot was just reserved. Please choose another one.')
@@ -964,7 +954,7 @@ class ListReferrals extends ListRecords
                             'Mark Invitation as Declined'
                         )
                         ->modalDescription(
-                            'Are you sure you want to mark this invitation as declined?'
+                            'Are you sure you want to mark this invitation as declined? Its time slot will be freed.'
                         )
                         ->modalSubmitActionLabel('Yes, Decline')
                         ->visible(

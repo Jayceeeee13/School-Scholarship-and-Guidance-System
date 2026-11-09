@@ -12,6 +12,7 @@ use App\Models\Students;
 use App\Models\CounselingTimeSlot;
 use App\Models\ModeOfCounseling;
 use App\Models\SupportNeeded;
+use App\Support\SlotAvailability;
 use App\Traits\LogsCustomActivity;
 use Filament\Actions;
 use Filament\Forms;
@@ -35,17 +36,14 @@ class ListCounselingLogforms extends ListRecords
 
     /*
     |--------------------------------------------------------------------------
-    | Slot helpers (cancelled / rejected appointments free up their slot)
+    | Slot helpers (appointments + referral invitations hold a slot;
+    | cancelled / rejected / archived / declined ones free it)
     |--------------------------------------------------------------------------
     */
 
     protected function reservedSlotIds($date): array
     {
-        return CounselingAppointments::query()
-            ->whereDate('counseling_date', $date)
-            ->whereNotIn('status', ['cancelled', 'rejected'])
-            ->pluck('time_slot_id')
-            ->toArray();
+        return SlotAvailability::reservedSlotIds($date);
     }
 
     protected function followUpSlotOptions($date): array
@@ -64,7 +62,7 @@ class ListCounselingLogforms extends ListRecords
         return $timeSlots->mapWithKeys(
             fn ($s) => [
                 $s->id => $s->name . (
-                    in_array($s->id, $reserved)
+                    in_array((int) $s->id, $reserved, true)
                         ? ' 🔴 Reserved'
                         : ' ✅ Available'
                 ),
@@ -474,11 +472,7 @@ class ListCounselingLogforms extends ListRecords
                                             return false;
                                         }
 
-                                        return in_array(
-                                            (int) $value,
-                                            array_map('intval', $this->reservedSlotIds($selectedDate)),
-                                            true
-                                        );
+                                        return SlotAvailability::isReserved($selectedDate, $value);
                                     }
                                 )
                                 ->searchable()
@@ -552,11 +546,7 @@ class ListCounselingLogforms extends ListRecords
                                 }
 
                                 // Server-side guard: the slot may have been taken while the form was open.
-                                if (in_array(
-                                    (int) $data['time_slot_id'],
-                                    array_map('intval', $this->reservedSlotIds($data['counseling_date'])),
-                                    true
-                                )) {
+                                if (SlotAvailability::isReserved($data['counseling_date'], $data['time_slot_id'])) {
                                     Notification::make()
                                         ->title('Time Slot Unavailable')
                                         ->body('That time slot was just reserved. Please choose another one.')
@@ -681,12 +671,28 @@ class ListCounselingLogforms extends ListRecords
                                 } catch (\Throwable $e) {
                                 }
 
-                                // The walk-in student has a student_id, so let them know it's confirmed.
-                                if ($studentId) {
-                                    try {
-                                        $followUp->notifyStudent('approved');
-                                    } catch (\Throwable $e) {
+                                // Notify the student in the mobile app (only if they have a login account)
+                                try {
+                                    $loginUserId = $record->walkInStudent?->user_id;
+
+                                    if ($loginUserId) {
+                                        $slotName = CounselingTimeSlot::find($data['time_slot_id'])?->name;
+                                        $modeName = ModeOfCounseling::find($data['mode_of_counseling_id'])?->name;
+
+                                        \Illuminate\Support\Facades\DB::table('appointment_notifications')->insert([
+                                            'user_id'                   => $loginUserId,
+                                            'counseling_appointment_id' => $followUp->id,
+                                            'type'                      => 'follow_up_scheduled',
+                                            'message'                   => 'Your counseling log follow-up is scheduled on '
+                                                . \Carbon\Carbon::parse($data['counseling_date'])->format('M d, Y')
+                                                . ($slotName ? ", {$slotName}" : '')
+                                                . ($modeName ? " ({$modeName})" : '')
+                                                . '.',
+                                            'created_at'                => now(),
+                                            'updated_at'                => now(),
+                                        ]);
                                     }
+                                } catch (\Throwable $e) {
                                 }
 
                                 $studentName = $record->display_name

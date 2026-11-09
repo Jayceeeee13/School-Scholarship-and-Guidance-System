@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ReferralsResource\Pages;
 use App\Models\Referrals;
 use App\Models\RelationshipType;
+use App\Support\SlotAvailability;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -26,6 +27,14 @@ class ReferralsResource extends Resource
     protected static ?string $navigationGroup = 'Guidance Management';
 
     protected static ?int $navigationSort = 2;
+
+    /** ID of the invitation being edited (null when creating). */
+    protected static function currentInvitationId($livewire): ?int
+    {
+        $referral = $livewire->record ?? null;
+
+        return $referral instanceof Referrals ? $referral->invitation?->id : null;
+    }
 
     public static function form(Form $form): Form
     {
@@ -543,7 +552,7 @@ class ReferralsResource extends Resource
 
                                                         Forms\Components\Select::make('time_slot_id')
                                                             ->label('Time Slot')
-                                                            ->options(function (Get $get) {
+                                                            ->options(function (Get $get, $livewire) {
                                                                 $date  = $get('session_date');
                                                                 $slots = \App\Models\CounselingTimeSlot::where('is_active', true)
                                                                     ->get()
@@ -554,18 +563,13 @@ class ReferralsResource extends Resource
                                                                     return $slots->mapWithKeys(fn ($s) => [$s->id => $s->name . ' ✅ Available'])->toArray();
                                                                 }
 
-                                                                $reserved = \App\Models\CounselingAppointments::query()
-                                                                    ->whereDate('counseling_date', $date)
-                                                                    ->whereNotIn('status', ['cancelled', 'rejected'])
-                                                                    ->pluck('time_slot_id')
-                                                                    ->toArray();
-
-                                                                $isToday = \Carbon\Carbon::parse($date)->isToday();
+                                                                $reserved = SlotAvailability::reservedSlotIds($date, null, self::currentInvitationId($livewire));
+                                                                $isToday  = \Carbon\Carbon::parse($date)->isToday();
 
                                                                 return $slots->mapWithKeys(function ($s) use ($reserved, $isToday) {
                                                                     $label = $s->name;
 
-                                                                    if (in_array($s->id, $reserved)) {
+                                                                    if (in_array((int) $s->id, $reserved, true)) {
                                                                         $label .= ' 🔴 Reserved';
                                                                     } elseif ($isToday && CounselingAppointmentsResource::isTimeSlotPast($s->name)) {
                                                                         $label .= ' ⏰ Past';
@@ -576,17 +580,13 @@ class ReferralsResource extends Resource
                                                                     return [$s->id => $label];
                                                                 })->toArray();
                                                             })
-                                                            ->disableOptionWhen(function ($value, Get $get) {
+                                                            ->disableOptionWhen(function ($value, Get $get, $livewire) {
                                                                 $date = $get('session_date');
                                                                 if (! $date) return false;
 
-                                                                $isReserved = \App\Models\CounselingAppointments::query()
-                                                                    ->whereDate('counseling_date', $date)
-                                                                    ->where('time_slot_id', $value)
-                                                                    ->whereNotIn('status', ['cancelled', 'rejected'])
-                                                                    ->exists();
-
-                                                                if ($isReserved) return true;
+                                                                if (SlotAvailability::isReserved($date, $value, null, self::currentInvitationId($livewire))) {
+                                                                    return true;
+                                                                }
 
                                                                 if (\Carbon\Carbon::parse($date)->isToday()) {
                                                                     $slot = \App\Models\CounselingTimeSlot::find($value);
@@ -595,6 +595,20 @@ class ReferralsResource extends Resource
 
                                                                 return false;
                                                             })
+                                                            ->rules([
+                                                                fn (Get $get, $livewire) => function (string $attribute, $value, $fail) use ($get, $livewire) {
+                                                                    $date = $get('session_date');
+
+                                                                    // A declined invitation doesn't hold a slot, so don't block it.
+                                                                    if (! $date || ! $value || $get('status') === 'declined') {
+                                                                        return;
+                                                                    }
+
+                                                                    if (SlotAvailability::isReserved($date, $value, null, self::currentInvitationId($livewire))) {
+                                                                        $fail('That time slot is already reserved. Please choose another one.');
+                                                                    }
+                                                                },
+                                                            ])
                                                             ->required()
                                                             ->searchable()
                                                             ->live()

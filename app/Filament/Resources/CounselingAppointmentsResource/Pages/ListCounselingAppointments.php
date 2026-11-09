@@ -4,6 +4,7 @@ namespace App\Filament\Resources\CounselingAppointmentsResource\Pages;
 
 use App\Filament\Resources\CounselingAppointmentsResource;
 use App\Models\CounselingAppointments;
+use App\Support\SlotAvailability;
 use App\Traits\LogsCustomActivity;
 use Filament\Actions;
 use Filament\Forms;
@@ -24,22 +25,14 @@ class ListCounselingAppointments extends ListRecords
 
     /*
     |--------------------------------------------------------------------------
-    | Slot helpers (cancelled / rejected appointments free up their slot)
+    | Slot helpers (appointments + referral invitations hold a slot;
+    | cancelled / rejected / archived / declined ones free it)
     |--------------------------------------------------------------------------
     */
 
-    /**
-     * IDs of time slots already taken on a given date.
-     * Cancelled and rejected appointments do NOT count as taken.
-     */
     protected function reservedSlotIds($date, ?int $exceptId = null): array
     {
-        return CounselingAppointments::query()
-            ->whereDate('counseling_date', $date)
-            ->whereNotIn('status', ['cancelled', 'rejected'])
-            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
-            ->pluck('time_slot_id')
-            ->toArray();
+        return SlotAvailability::reservedSlotIds($date, $exceptId);
     }
 
     /**
@@ -60,7 +53,7 @@ class ListCounselingAppointments extends ListRecords
         return $timeSlots->mapWithKeys(
             fn ($s) => [
                 $s->id => $s->name . (
-                    in_array($s->id, $reserved)
+                    in_array((int) $s->id, $reserved, true)
                         ? ' 🔴 Reserved'
                         : ' ✅ Available'
                 ),
@@ -448,8 +441,7 @@ class ListCounselingAppointments extends ListRecords
                                     fn (callable $get, $record) =>
                                         $this->slotOptions($get('counseling_date'), $record->id)
                                 )
-                                // Ignore the appointment being rescheduled itself,
-                                // and ignore cancelled / rejected appointments.
+                                // Ignore the appointment being rescheduled itself.
                                 ->disableOptionWhen(
                                     function ($value, callable $get, $record) {
 
@@ -459,11 +451,7 @@ class ListCounselingAppointments extends ListRecords
                                             return false;
                                         }
 
-                                        return CounselingAppointments::whereDate('counseling_date', $selectedDate)
-                                            ->whereNotIn('status', ['cancelled', 'rejected'])
-                                            ->where('id', '!=', $record->id)
-                                            ->where('time_slot_id', $value)
-                                            ->exists();
+                                        return SlotAvailability::isReserved($selectedDate, $value, $record->id);
                                     }
                                 )
                                 ->required()
@@ -482,10 +470,24 @@ class ListCounselingAppointments extends ListRecords
                                 $oldDate = \Carbon\Carbon::parse($record->counseling_date)->format('M d, Y');
                                 $oldSlot = $record->timeSlot?->name;
 
+                                // Server-side guard: the slot may have been taken while the form was open.
+                                if (SlotAvailability::isReserved($data['counseling_date'], $data['time_slot_id'], $record->id)) {
+                                    Notification::make()
+                                        ->title('Time Slot Unavailable')
+                                        ->body('That time slot was just reserved. Please choose another one.')
+                                        ->danger()
+                                        ->send();
+
+                                    return;
+                                }
+
+                                // Status stays "approved" after rescheduling.
                                 $record->update([
-    'counseling_date' => $data['counseling_date'],
-    'time_slot_id' => $data['time_slot_id'],
-]);
+                                    'counseling_date' => $data['counseling_date'],
+                                    'time_slot_id' => $data['time_slot_id'],
+                                ]);
+
+                                $record->refresh();
 
                                 $record->notifyStudent('rescheduled');
 
@@ -537,7 +539,6 @@ class ListCounselingAppointments extends ListRecords
                                 ->options(
                                     fn (callable $get) => $this->slotOptions($get('counseling_date'))
                                 )
-                                // Cancelled / rejected appointments no longer block the slot.
                                 ->disableOptionWhen(
                                     function ($value, callable $get) {
 
@@ -547,10 +548,7 @@ class ListCounselingAppointments extends ListRecords
                                             return false;
                                         }
 
-                                        return CounselingAppointments::whereDate('counseling_date', $selectedDate)
-                                            ->whereNotIn('status', ['cancelled', 'rejected'])
-                                            ->where('time_slot_id', $value)
-                                            ->exists();
+                                        return SlotAvailability::isReserved($selectedDate, $value);
                                     }
                                 )
                                 ->required()
@@ -577,6 +575,17 @@ class ListCounselingAppointments extends ListRecords
                         ])
                         ->action(
                             function ($record, array $data) {
+
+                                // Server-side guard: the slot may have been taken while the form was open.
+                                if (SlotAvailability::isReserved($data['counseling_date'], $data['time_slot_id'])) {
+                                    Notification::make()
+                                        ->title('Time Slot Unavailable')
+                                        ->body('That time slot was just reserved. Please choose another one.')
+                                        ->danger()
+                                        ->send();
+
+                                    return;
+                                }
 
                                 // Follow-ups are approved automatically.
                                 $followUp = CounselingAppointments::create([

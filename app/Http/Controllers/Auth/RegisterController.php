@@ -24,17 +24,40 @@ class RegisterController extends Controller
             : $this->registerUnenrolled($request);
     }
 
+    /**
+     * Latest allowed birthdate: Dec 31 of last year (nothing from the current year onward).
+     */
+    private function maxBirthdate(): string
+    {
+        return now()->subYear()->endOfYear()->toDateString();
+    }
+
+    /**
+     * Oldest allowed birthdate: 100 years back.
+     */
+    private function minBirthdate(): string
+    {
+        return now()->subYears(100)->toDateString();
+    }
+
     private function registerEnrolled(Request $request)
     {
         $validated = $request->validate([
             'student_id'         => ['required', 'string'],
             'last_name_enrolled' => ['required', 'string'],
-            'birthdate_enrolled' => ['required', 'date'],
+            'birthdate_enrolled' => [
+                'required',
+                'date',
+                'before_or_equal:' . $this->maxBirthdate(),
+                'after_or_equal:' . $this->minBirthdate(),
+            ],
             // The email must not already belong to any existing user account.
             'email'              => ['required', 'email', 'unique:users,email'],
             'password'           => ['required', 'string', 'min:8', 'confirmed'],
         ], [
-            'email.unique' => 'This email is already used by an existing account. Please use a different email or log in instead.',
+            'email.unique'                       => 'This email is already used by an existing account. Please use a different email or log in instead.',
+            'birthdate_enrolled.before_or_equal' => 'Please enter a realistic birthdate. It cannot be in the current year or later.',
+            'birthdate_enrolled.after_or_equal'  => 'Please enter a realistic birthdate.',
         ]);
 
         // Verify against students table
@@ -85,17 +108,26 @@ class RegisterController extends Controller
         $validated = $request->validate([
             'first_name'                       => ['required', 'string', 'max:255'],
             'last_name'                        => ['required', 'string', 'max:255'],
-            'birthdate'                        => ['required', 'date'],
+            'birthdate'                        => [
+                'required',
+                'date',
+                'before_or_equal:' . $this->maxBirthdate(),
+                'after_or_equal:' . $this->minBirthdate(),
+            ],
             'email_unenrolled'                 => ['required', 'email', 'unique:users,email'],
             'password_unenrolled'              => ['required', 'string', 'min:8'],
             'password_confirmation_unenrolled' => ['required', 'same:password_unenrolled'],
 
             // ── NOW REQUIRED so admission form can always auto-fill ──
-            'contact_no' => ['required', 'string', 'max:20'],
+            // Digits only, up to 11 digits.
+            'contact_no' => ['required', 'regex:/^[0-9]{1,11}$/'],
             'gender_id'  => ['nullable', 'integer'],
             'address'    => ['required', 'string', 'max:255'],
         ], [
-            'email_unenrolled.unique' => 'This email is already used by an existing account. Please use a different email or log in instead.',
+            'email_unenrolled.unique'   => 'This email is already used by an existing account. Please use a different email or log in instead.',
+            'contact_no.regex'          => 'Contact number must contain digits only (up to 11 digits).',
+            'birthdate.before_or_equal' => 'Please enter a realistic birthdate. It cannot be in the current year or later.',
+            'birthdate.after_or_equal'  => 'Please enter a realistic birthdate.',
         ]);
 
         $user = User::create([

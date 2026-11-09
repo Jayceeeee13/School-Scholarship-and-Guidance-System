@@ -154,6 +154,10 @@
     */
     $active = old('enrollment_type', 'enrolled');
 
+    // Birthdate limits: nothing from the current year onward, and at most 100 years back.
+    $maxBirthdate = now()->subYear()->endOfYear()->format('Y-m-d');
+    $minBirthdate = now()->subYears(100)->format('Y-m-d');
+
     // Heroicons (outline) path data
     $icons = [
         'student' => 'M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 3.741-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5',
@@ -185,6 +189,7 @@
     // Form fields per registration type.
     // half => true places the field in a half-width column.
     // required => false removes the red asterisk.
+    // digits => true limits the input to numbers only (max 11).
     $sections = [
         'enrolled' => [
             ['name' => 'student_id',          'label' => 'Student ID', 'type' => 'text', 'placeholder' => 'e.g. 2024-00001'],
@@ -201,7 +206,7 @@
             ['name' => 'birthdate',  'label' => 'Birthdate',  'type' => 'date'],
             ['name' => 'gender_id',  'label' => 'Gender',     'type' => 'select', 'required' => false,
                 'placeholder' => 'Select gender (optional)', 'options' => [1 => 'Male', 2 => 'Female']],
-            ['name' => 'contact_no', 'label' => 'Contact Number', 'type' => 'text', 'placeholder' => 'e.g. 09XX XXX XXXX'],
+            ['name' => 'contact_no', 'label' => 'Contact Number', 'type' => 'text', 'digits' => true, 'placeholder' => 'e.g. 09123456789'],
             ['name' => 'address',    'label' => 'Address',        'type' => 'text', 'placeholder' => 'House no., street, barangay, city'],
             ['type' => 'divider', 'label' => 'Account credentials'],
             ['name' => 'email_unenrolled',                 'label' => 'Email',            'type' => 'email'],
@@ -381,6 +386,8 @@
                                     <input type="{{ $f['type'] }}" name="{{ $f['name'] }}" id="{{ $id }}"
                                            value="{{ old($f['name']) }}"
                                            @if (!empty($f['placeholder'])) placeholder="{{ $f['placeholder'] }}" @endif
+                                           @if (!empty($f['digits'])) inputmode="numeric" maxlength="11" pattern="[0-9]{1,11}" data-digits @endif
+                                           @if ($f['type'] === 'date') min="{{ $minBirthdate }}" max="{{ $maxBirthdate }}" @endif
                                            class="{{ $inputClass($f['name']) }}">
                                 @endif
                             </div>
@@ -444,6 +451,13 @@
         btn.querySelector('.eye-icon').classList.toggle('hidden', show);
         btn.querySelector('.eye-slash-icon').classList.toggle('hidden', !show);
     }
+
+    // Contact number: digits only, max 11 (also covers pasted text)
+    document.querySelectorAll('[data-digits]').forEach(el => {
+        el.addEventListener('input', () => {
+            el.value = el.value.replace(/\D/g, '').slice(0, 11);
+        });
+    });
 
     // Restore the selected tab after a validation error redirect
     switchType(@json($active), false);

@@ -93,7 +93,8 @@ class UserResource extends Resource
     ->columns(2)
     ->required()
     ->live()
-    // Grey out conflicting options while creating a user.
+    // While creating a user, once one role is ticked the others are greyed out.
+    // A ticked role stays clickable so it can be unticked.
     ->disableOptionWhen(function (string $value, Get $get, string $operation): bool {
         if ($operation !== 'create') {
             return false;
@@ -101,34 +102,21 @@ class UserResource extends Resource
 
         $selected = array_map('strval', $get('roles') ?? []);
 
-        // Never disable something that is already ticked, so it can be unticked.
-        if (in_array((string) $value, $selected, true)) {
+        if (empty($selected) || in_array((string) $value, $selected, true)) {
             return false;
         }
 
-        $dhId = (string) self::departmentHeadRoleId();
-
-        if (in_array($dhId, $selected, true)) {
-            return true;                    // Dept Head chosen: lock all others
-        }
-
-        if ((string) $value === $dhId) {
-            return ! empty($selected);      // Other roles chosen: lock Dept Head
-        }
-
-        return false;
+        return true;
     })
+    // Server-side check, so it can't be bypassed.
     ->rule(function (string $operation) {
         return function (string $attribute, $value, $fail) use ($operation) {
             if ($operation !== 'create') {
                 return;
             }
 
-            $ids  = array_map('strval', (array) $value);
-            $dhId = (string) self::departmentHeadRoleId();
-
-            if (in_array($dhId, $ids, true) && count($ids) > 1) {
-                $fail('Department Head cannot be combined with other roles.');
+            if (count((array) $value) > 1) {
+                $fail('Only one role can be selected for a new account.');
             }
         };
     })

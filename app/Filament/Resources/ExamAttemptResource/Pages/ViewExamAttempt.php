@@ -46,9 +46,23 @@ class ViewExamAttempt extends ViewRecord
                                 default      => 'danger',
                             }),
 
+                        TextEntry::make('started_at')
+                            ->label('Started At')
+                            ->dateTime('M d, Y h:i A')
+                            ->placeholder('—'),
+
                         TextEntry::make('completed_at')
                             ->label('Completed At')
                             ->dateTime('M d, Y h:i A'),
+
+                        TextEntry::make('duration_label')
+                            ->label('Duration'),
+
+                        TextEntry::make('violation_log')
+                            ->label('Violations')
+                            ->listWithLineBreaks()
+                            ->bulleted()
+                            ->placeholder('✓ No violations'),
                     ]),
 
                 Section::make('Scholarship Grant')

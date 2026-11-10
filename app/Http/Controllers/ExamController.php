@@ -114,6 +114,10 @@ class ExamController extends Controller
 
         session()->forget('exam_violations_' . $exam->id . '_' . Auth::id());
 
+        // Real start time of this sitting (the timer restarts on every page load,
+        // so the start time is refreshed on every load too).
+        session(['exam_started_' . $exam->id . '_' . Auth::id() => now()->toDateTimeString()]);
+
         $categories = ExamCategory::active()
             ->whereHas('questions', fn($q) => $q->where('exam_id', $exam->id))
             ->with(['questions' => function ($q) use ($exam) {
@@ -154,6 +158,9 @@ class ExamController extends Controller
     {
         $submittedAnswers = $request->input('answers', []);
 
+        // Order the questions were displayed in: [question_id => position]
+        $questionOrder = array_flip(array_map('intval', $request->input('question_order', [])));
+
         $exam->load('questions.choices');
 
         $score         = 0;
@@ -180,6 +187,7 @@ class ExamController extends Controller
                 'exam_question_id'   => $question->id,
                 'question_choice_id' => $selectedChoiceId,
                 'is_correct'         => $isCorrect,
+                'position'           => $questionOrder[$question->id] ?? null,
             ];
         }
 
@@ -188,7 +196,6 @@ class ExamController extends Controller
             : 0;
 
         // ── Calculate discount based on exam percentage ────────────────────
-        // Thresholds match the Score Guidelines printed on the result slip:
         //   95–100 → 100% Tuition Fee & Misc. Discount  (stored as 100)
         //   85–94  → 100% Tuition Fee Discount           (stored as 85)
         //   75–84  → 75% Tuition Fee Discount            (stored as 75)
@@ -196,11 +203,6 @@ class ExamController extends Controller
         //   60–64  → 25% Tuition Fee Discount            (stored as 25)
         //   50–59  → 10% Tuition Fee Discount            (stored as 10)
         //   <50    → No Discount                         (stored as 0)
-        //
-        // We store a plain integer "discount code" and use
-        // ExamAttempt::resolveDiscount() everywhere to get the label,
-        // so the label is always consistent across the result slip,
-        // the admin panel, and the applicant benefit field.
         $discount = ExamAttempt::calculateDiscount($percentage);
 
         $userId         = Auth::id();
@@ -208,9 +210,13 @@ class ExamController extends Controller
         $violations     = session($sessionKey, []);
         $violationCount = count($violations);
 
+        // Real start time captured when the exam page was opened
+        $startedKey = 'exam_started_' . $exam->id . '_' . $userId;
+        $startedAt  = session($startedKey) ? Carbon::parse(session($startedKey)) : now();
+
         $attempt = DB::transaction(function () use (
             $exam, $score, $totalPoints, $percentage, $discount,
-            $answerRecords, $userId, $violations, $violationCount
+            $answerRecords, $userId, $violations, $violationCount, $startedAt
         ) {
             $attempt = ExamAttempt::create([
                 'exam_id'         => $exam->id,
@@ -220,7 +226,7 @@ class ExamController extends Controller
                 'percentage'      => $percentage,
                 'discount'        => $discount,
                 'status'          => 'completed',
-                'started_at'      => now(),
+                'started_at'      => $startedAt,
                 'completed_at'    => now(),
                 'violations'      => $violations,
                 'violation_count' => $violationCount,
@@ -232,13 +238,14 @@ class ExamController extends Controller
                     'exam_question_id'   => $record['exam_question_id'],
                     'question_choice_id' => $record['question_choice_id'],
                     'is_correct'         => $record['is_correct'],
+                    'position'           => $record['position'],
                 ]);
             }
 
             return $attempt;
         });
 
-        session()->forget($sessionKey);
+        session()->forget([$sessionKey, $startedKey]);
 
         return redirect()->route('exam.result', $attempt->id)
             ->with('success', 'Exam submitted successfully!');

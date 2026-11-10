@@ -30,6 +30,17 @@ class ExamAttempt extends Model
         'archived_at'     => 'datetime',
     ];
 
+    /**
+     * Human-readable names for each violation type recorded by exam/show.blade.php.
+     */
+    public const VIOLATION_LABELS = [
+        'tab_switch'    => 'Switched to another browser tab',
+        'window_blur'   => 'Left the exam window (switched app or clicked outside)',
+        'copy_attempt'  => 'Tried to copy text',
+        'paste_attempt' => 'Tried to paste text',
+        'cut_attempt'   => 'Tried to cut text',
+    ];
+
     // ── Auto-set scholarship type to Academic once an exam is finished ────
 
     protected static function booted(): void
@@ -83,9 +94,61 @@ class ExamAttempt extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Answers in the same order the questions were shown to the examinee.
+     * Older records have no position, so they fall back to id order.
+     */
     public function answers()
     {
-        return $this->hasMany(ExamAnswer::class);
+        return $this->hasMany(ExamAnswer::class)
+            ->orderBy('position')
+            ->orderBy('id');
+    }
+
+    // ── Violations & duration helpers ──────────────────────────────────────
+
+    public static function violationLabel(?string $type): string
+    {
+        return self::VIOLATION_LABELS[$type] ?? ucfirst(str_replace('_', ' ', (string) $type));
+    }
+
+    /** e.g. "1h 12m 05s" / "45m 10s", or "—" when no real duration was recorded. */
+    public function getDurationLabelAttribute(): string
+    {
+        if (! $this->started_at || ! $this->completed_at) {
+            return '—';
+        }
+
+        $seconds = (int) abs($this->completed_at->diffInSeconds($this->started_at));
+
+        // Old attempts had started_at == completed_at, so no duration exists
+        if ($seconds === 0) {
+            return '—';
+        }
+
+        $h = intdiv($seconds, 3600);
+        $m = intdiv($seconds % 3600, 60);
+        $s = $seconds % 60;
+
+        return $h > 0 ? "{$h}h {$m}m {$s}s" : "{$m}m {$s}s";
+    }
+
+    /** One readable line per recorded violation, with time and time left. */
+    public function getViolationLogAttribute(): array
+    {
+        return collect($this->violations ?? [])->map(function ($v) {
+            $label = self::violationLabel($v['type'] ?? null);
+
+            $at = isset($v['time'])
+                ? \Carbon\Carbon::parse($v['time'])->timezone(config('app.timezone'))->format('h:i:s A')
+                : null;
+
+            $left = isset($v['timeLeft'])
+                ? sprintf('%02d:%02d left', intdiv((int) $v['timeLeft'], 60), (int) $v['timeLeft'] % 60)
+                : null;
+
+            return trim($label . ($at ? " — {$at}" : '') . ($left ? " ({$left})" : ''));
+        })->all();
     }
 
     // ── One-attempt guard ──────────────────────────────────────────────────
@@ -109,13 +172,6 @@ class ExamAttempt extends Model
 
     // ── Discount logic — SINGLE SOURCE OF TRUTH ───────────────────────────
     //
-    // All discount-related display in the app reads from resolveDiscount().
-    // Used by:
-    //   • ExamController::submit()           — to calculate & store the value
-    //   • ExamResultSlipController::print()  — to get the label for the slip
-    //   • ViewApplicant infolist             — to display benefit badge
-    //   • ExamAttemptResource                — admin panel badge
-    //
     // Score Guidelines (as printed on the result slip FM-AAD-064):
     //   95 – 100  →  100% Tuition Fee & Misc. Discount
     //   85 –  94  →  100% Tuition Fee Discount
@@ -127,17 +183,7 @@ class ExamAttempt extends Model
     // ──────────────────────────────────────────────────────────────────────
 
     /**
-     * Given a raw percentage score, returns the integer discount code
-     * that is stored in the `discount` column.
-     *
-     * Discount codes:
-     *   100  → "100% Tuition Fee & Misc. Discount"
-     *    85  → "100% Tuition Fee Discount"
-     *    75  → "75% Tuition Fee Discount"
-     *    50  → "50% Tuition Fee Discount"
-     *    25  → "25% Tuition Fee Discount"
-     *    10  → "10% Tuition Fee Discount"
-     *     0  → "No Discount"
+     * Raw percentage -> integer discount code stored in `discount`.
      */
     public static function calculateDiscount(float $percentage): int
     {
@@ -153,12 +199,7 @@ class ExamAttempt extends Model
     }
 
     /**
-     * Given the stored discount code, returns a human-readable label
-     * and a Filament badge colour.
-     *
-     * This is the ONLY place where discount codes are mapped to labels.
-     * Every part of the UI calls this method — never hard-code labels elsewhere.
-     *
+     * Stored discount code -> label + Filament badge colour.
      * Returns: ['label' => string, 'color' => string]
      */
     public static function resolveDiscount(int $discountCode): array

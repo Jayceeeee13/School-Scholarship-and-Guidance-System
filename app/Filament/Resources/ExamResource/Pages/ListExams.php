@@ -29,11 +29,7 @@ class ListExams extends ListRecords
 
     /**
      * Prevents stale table state (sort column, filters, toggled columns,
-     * cached query/columns) from one tab bleeding into the other. Without
-     * this, switching tabs can apply columns built for one model against
-     * a query built for the other (e.g. Exam's `questions_count` column
-     * running against the ExamAttempt query), causing errors like
-     * "Call to undefined method ExamAttempt::questions()".
+     * cached query/columns) from one tab bleeding into the other.
      */
     public function updatedActiveTab(): void
     {
@@ -56,45 +52,45 @@ class ListExams extends ListRecords
     }
 
     protected function getHeaderActions(): array
-{
-    return [
-        Actions\CreateAction::make()
-            ->label('New Exam')
-            ->visible(fn (): bool => $this->activeTab === 'exams'),
+    {
+        return [
+            Actions\CreateAction::make()
+                ->label('New Exam')
+                ->visible(fn (): bool => $this->activeTab === 'exams'),
 
-        // Prints everything currently shown on the Examinees tab,
-        // respecting the active search, filters and sort order.
-        Actions\Action::make('print_list')
-            ->label('Print List')
-            ->icon('heroicon-o-printer')
-            ->color('gray')
-            ->visible(fn (): bool => $this->activeTab === 'examinees')
-            ->action(function (): void {
-                $query = $this->getFilteredSortedTableQuery();
+            // Prints everything currently shown on the Examinees tab,
+            // respecting the active search, filters and sort order.
+            Actions\Action::make('print_list')
+                ->label('Print List')
+                ->icon('heroicon-o-printer')
+                ->color('gray')
+                ->visible(fn (): bool => $this->activeTab === 'examinees')
+                ->action(function (): void {
+                    $query = $this->getFilteredSortedTableQuery();
 
-                $ids = $query
-                    ->pluck($query->getModel()->getQualifiedKeyName())
-                    ->all();
+                    $ids = $query
+                        ->pluck($query->getModel()->getQualifiedKeyName())
+                        ->all();
 
-                // Only the columns currently shown in the table
-                $columns = collect($this->getTable()->getColumns())
-                    ->reject(fn ($column) => $column->isHidden() || $column->isToggledHidden())
-                    ->map(fn ($column) => $column->getName())
-                    ->values()
-                    ->all();
+                    // Only the columns currently shown in the table
+                    $columns = collect($this->getTable()->getColumns())
+                        ->reject(fn ($column) => $column->isHidden() || $column->isToggledHidden())
+                        ->map(fn ($column) => $column->getName())
+                        ->values()
+                        ->all();
 
-                cache()->put(
-                    'exam-attempts-print:' . auth()->id(),
-                    ['ids' => $ids, 'columns' => $columns],
-                    now()->addMinutes(10)
-                );
+                    cache()->put(
+                        'exam-attempts-print:' . auth()->id(),
+                        ['ids' => $ids, 'columns' => $columns],
+                        now()->addMinutes(10)
+                    );
 
-                $url = route('exam-attempts.print-list');
+                    $url = route('exam-attempts.print-list');
 
-                $this->js('window.open(' . \Illuminate\Support\Js::from($url) . ', "_blank")');
-            }),
-    ];
-}
+                    $this->js('window.open(' . \Illuminate\Support\Js::from($url) . ', "_blank")');
+                }),
+        ];
+    }
 
     public function getTabs(): array
     {
@@ -174,7 +170,20 @@ class ListExams extends ListRecords
                             $state <= 3  => 'warning',
                             default      => 'danger',
                         })
-                        ->formatStateUsing(fn ($state) => $state === 0 ? '✓ Clean' : "⚠ {$state} violation(s)"),
+                        ->formatStateUsing(fn ($state) => $state === 0 ? '✓ Clean' : "⚠ {$state} violation(s)")
+                        // Hover to see exactly which violations happened
+                        ->tooltip(fn ($record) => implode("\n", $record->violation_log) ?: null),
+
+                    TextColumn::make('started_at')
+                        ->label('Started')
+                        ->dateTime('M d, Y h:i A')
+                        ->placeholder('—')
+                        ->toggleable()
+                        ->sortable(),
+
+                    TextColumn::make('duration_label')
+                        ->label('Duration')
+                        ->toggleable(),
 
                     TextColumn::make('completed_at')
                         ->label('Completed')
@@ -204,8 +213,6 @@ class ListExams extends ListRecords
 
                             // school_year format: "YYYY-YYYY+1" — treated as an
                             // academic year running Aug 1 (start year) – Jul 31 (end year).
-                            // ExamAttempt has no term_id/school_year column, so this is
-                            // derived purely from completed_at.
                             [$startYear, $endYear] = explode('-', $data['value']);
 
                             $query->whereBetween('completed_at', [

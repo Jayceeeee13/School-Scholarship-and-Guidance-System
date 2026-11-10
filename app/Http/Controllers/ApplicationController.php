@@ -4,13 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Applicant;
 use App\Models\ExamAttempt;
-use App\Models\InstitutionalScholar;
-use App\Models\Term;
 use App\Models\Gender;
 use App\Models\Program;
 use App\Models\Students;          // the model class is "Students" (plural), not "Student"
 use App\Models\TypeOfApplication;
 use App\Models\TypeOfScholarship;
+use App\Traits\ResolvesApplicationContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +19,8 @@ use Illuminate\Validation\Rule;
 
 class ApplicationController extends Controller
 {
+    use ResolvesApplicationContext;
+
     private const YEAR_LEVELS = ['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year'];
 
     // Letters (incl. ñ, accents), spaces, hyphens, periods, apostrophes
@@ -27,44 +28,6 @@ class ApplicationController extends Controller
 
     // 09XXXXXXXXX or +639XXXXXXXXX (spaces/dashes are stripped before validating)
     private const PHONE_REGEX = '/^(09\d{9}|\+639\d{9})$/';
-
-    /**
-     * Renewal context for the logged-in user.
-     *  - scholarThisTerm : standing scholarship already granted for the active term
-     *  - returning       : scholar from an earlier term (so they renew)
-     *  - applicant       : the application that counts for "already applied"
-     *  - renewalTypeId   : set only when the Applicant Type must be locked to Renewal
-     */
-    private function applicationContext(): array
-    {
-        $user      = Auth::user();
-        $term      = Term::active()->first();
-        $studentId = Students::where('user_id', $user->id)->value('student_id');
-
-        $scholars = InstitutionalScholar::where('status', 'active')
-            ->whereNull('revoked_at')
-            ->where(function ($q) use ($user, $studentId) {
-                $q->where('user_id', $user->id);
-                if ($studentId) {
-                    $q->orWhere('student_id', $studentId);
-                }
-            })
-            ->get();
-
-        $scholarThisTerm = $term ? $scholars->firstWhere('term_id', $term->id) : $scholars->first();
-        $returning       = $term && $scholars->isNotEmpty() && ! $scholarThisTerm;
-
-        $renewalTypeId = $returning
-            ? TypeOfApplication::where('is_active', 1)->where('name', 'like', '%renewal%')->value('id')
-            : null;
-
-        $applications = Applicant::where('user_id', $user->id);
-        $applicant = $returning
-            ? $applications->where('term_id', $term->id)->latest('id')->first()
-            : $applications->latest('id')->first();
-
-        return compact('term', 'scholarThisTerm', 'returning', 'renewalTypeId', 'applicant');
-    }
 
     /**
      * ID of the Academic scholarship type if the logged-in user has already
@@ -262,6 +225,7 @@ class ApplicationController extends Controller
 
         // Set only when a returning scholar must be locked to "Renewal".
         $renewalTypeId = $ctx['renewalTypeId'];
+        $isRenewal     = $ctx['isRenewal'];
 
         $scholarshipTypes = TypeOfScholarship::where('is_active', 1)->get();
         $applicantTypes   = TypeOfApplication::where('is_active', 1)->get();
@@ -288,7 +252,8 @@ class ApplicationController extends Controller
             'programs',
             'academicId',
             'prefill',
-            'renewalTypeId'
+            'renewalTypeId',
+            'isRenewal'
         ));
     }
 
@@ -456,7 +421,7 @@ class ApplicationController extends Controller
         // Optional text columns are NOT NULL in the live DB, so blank → ''.
         Applicant::create([
             'user_id'                => Auth::id(),
-            'term_id'                => $ctx['term']?->id, 
+            'term_id'                => $ctx['term']?->id,
             'picture'                => $picturePath,
             'type_of_application_id' => $validated['type_of_application_id'],
             'type_of_scholarship_id' => $validated['type_of_scholarship_id'],
@@ -483,7 +448,9 @@ class ApplicationController extends Controller
         ]);
 
         return redirect()->route('scholarship')
-            ->with('success', 'Application submitted successfully.');
+            ->with('success', $ctx['isRenewal']
+                ? 'Renewal application submitted successfully.'
+                : 'Application submitted successfully.');
     }
 
     public function index()
@@ -494,7 +461,14 @@ class ApplicationController extends Controller
         $alreadyApplied   = (bool) $applicant;
         $isAlreadyScholar = (bool) $ctx['scholarThisTerm'];
         $scholarRecord    = $ctx['scholarThisTerm'];
+        $isRenewal        = $ctx['isRenewal'];
 
-        return view('scholarship', compact('alreadyApplied', 'applicant', 'isAlreadyScholar', 'scholarRecord'));
+        return view('scholarship', compact(
+            'alreadyApplied',
+            'applicant',
+            'isAlreadyScholar',
+            'scholarRecord',
+            'isRenewal'
+        ));
     }
 }

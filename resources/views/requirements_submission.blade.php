@@ -144,6 +144,9 @@
 </head>
 <body>
 
+{{-- $isRenewal is passed by RequirementSubmissionController::index() --}}
+@php $isRenewal = $isRenewal ?? false; @endphp
+
 {{-- Icon sprite: reference with <svg class="icon"><use href="#i-name"/></svg> --}}
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></symbol>
@@ -171,7 +174,7 @@
     <div class="hero-inner">
         <span class="hero-badge">
             <svg class="icon" width="10" height="10" style="fill:#4ade80;stroke:none"><use href="#i-check-circle"/></svg>
-            Scholarship Requirements
+            {{ $isRenewal ? 'Renewal Requirements' : 'Scholarship Requirements' }}
         </span>
         <h1>Submit Requirements</h1>
         <p>Upload your documents at your own pace. You can submit partially and come back to complete the rest.</p>
@@ -199,13 +202,19 @@
     @endif
 
     @if(!$applicant)
-        {{-- No application yet --}}
+        {{-- No application yet (for this term, when renewing) --}}
         <div class="card card-empty">
             <div class="icon-circle"><svg class="icon icon-lg"><use href="#i-file"/></svg></div>
             <h2>No Application Found</h2>
-            <p>You need to submit a scholarship application first before uploading requirements.</p>
+            <p>
+                @if($isRenewal)
+                    You need to submit your renewal application for this term before uploading requirements.
+                @else
+                    You need to submit a scholarship application first before uploading requirements.
+                @endif
+            </p>
             <a href="{{ route('application_new.get') }}" class="btn btn-primary">
-                Apply now
+                {{ $isRenewal ? 'Renew now' : 'Apply now' }}
                 <svg class="icon icon-sm"><use href="#i-arrow-right"/></svg>
             </a>
         </div>

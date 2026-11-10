@@ -4,13 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\Applicant;
 use App\Models\Requirement;
+use App\Traits\ResolvesApplicationContext;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class RequirementSubmissionController extends Controller
 {
+    use ResolvesApplicationContext;
+
     /**
      * Requirements that apply to this applicant:
      *   - same type of application (New Applicant / Renewal), AND
@@ -37,14 +39,13 @@ class RequirementSubmissionController extends Controller
     // ─────────────────────────────────────────────────────────────
     public function index()
     {
-        $applicant = Applicant::with([
-                'typeOfApplication',
-                'typeOfScholarship',
-                'program',
-                'gender',
-            ])
-            ->where('user_id', Auth::id())
-            ->first(); // returns null if they haven't applied yet
+        // For returning scholars this is the application for the ACTIVE term
+        // (null until they have applied), otherwise their latest application.
+        $ctx       = $this->applicationContext();
+        $applicant = $ctx['applicant'];
+        $isRenewal = $ctx['isRenewal'];
+
+        $applicant?->load(['typeOfApplication', 'typeOfScholarship', 'program', 'gender']);
 
         $requirements = collect();
         $submitted    = [];
@@ -63,7 +64,7 @@ class RequirementSubmissionController extends Controller
                 ->toArray();
         }
 
-        return view('requirements_submission', compact('applicant', 'requirements', 'submitted'));
+        return view('requirements_submission', compact('applicant', 'requirements', 'submitted', 'isRenewal'));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -71,8 +72,9 @@ class RequirementSubmissionController extends Controller
     // ─────────────────────────────────────────────────────────────
     public function store(Request $request)
     {
-        // Guard: applicant must exist
-        $applicant = Applicant::where('user_id', Auth::id())->firstOrFail();
+        // Guard: an application must exist (for this term, when renewing)
+        $applicant = $this->applicationContext()['applicant'];
+        abort_unless($applicant, 404);
 
         // Same filtering as index(): "All" requirements + the ones for this
         // applicant's scholarship type.
@@ -106,8 +108,10 @@ class RequirementSubmissionController extends Controller
                 $slug = Str::slug($req->name);
                 $ext  = $file->getClientOriginalExtension();
 
+                // One folder per application, so a renewal's files never
+                // overwrite the files submitted for a previous term.
                 $path = $file->storeAs(
-                    'scholarship',
+                    "scholarship/{$applicant->id}",
                     "{$prefix}_{$slug}.{$ext}",
                     'public'
                 );

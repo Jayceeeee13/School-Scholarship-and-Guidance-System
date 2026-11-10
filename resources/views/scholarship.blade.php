@@ -42,16 +42,20 @@
 @php
     /*
     |--------------------------------------------------------------------------
-    | Data (unchanged logic)
+    | Data
     |--------------------------------------------------------------------------
+    | $alreadyApplied, $applicant, $isAlreadyScholar, $scholarRecord and
+    | $isRenewal all come from ApplicationController::index().
+    |   - $isAlreadyScholar : holds a scholarship for the ACTIVE term
+    |   - $isRenewal        : scholar from an earlier term, so they renew
     */
     $appPeriod = \App\Models\Period::scholarshipApplication();
     $reqPeriod = \App\Models\Period::scholarshipRequirement();
     $isStudent = auth()->user()->role && strtolower(auth()->user()->role->name) === 'student';
 
-    // A student may already hold a Scholars record without ever going through
-    // the Applicant flow (e.g. imported by the scholarship office), so
-    
+    $isRenewal        = $isRenewal ?? false;
+    $isAlreadyScholar = $isAlreadyScholar ?? false;
+    $scholarRecord    = $scholarRecord ?? null;
 
     // Heroicons (outline, v1) path data
     $icons = [
@@ -78,7 +82,9 @@
         $statusConfig = [
             'pending' => [
                 'label' => 'Under Review', 'icon' => 'clock', 'pulse' => true,
-                'desc'  => 'Your application has been received and is currently being reviewed by the scholarship office.',
+                'desc'  => $isRenewal
+                    ? 'Your renewal application has been received and is currently being reviewed by the scholarship office.'
+                    : 'Your application has been received and is currently being reviewed by the scholarship office.',
                 'head'  => 'bg-amber-50 border-amber-200',
                 'iconbox' => 'bg-amber-100 text-amber-600',
                 'pill'  => 'bg-amber-100 text-amber-800 border-amber-300',
@@ -86,7 +92,9 @@
             ],
             'approved' => [
                 'label' => 'Approved', 'icon' => 'check-circle', 'pulse' => false,
-                'desc'  => 'Congratulations! Your scholarship application has been approved.',
+                'desc'  => $isRenewal
+                    ? 'Congratulations! Your scholarship renewal has been approved.'
+                    : 'Congratulations! Your scholarship application has been approved.',
                 'head'  => 'bg-emerald-50 border-emerald-200',
                 'iconbox' => 'bg-emerald-100 text-emerald-600',
                 'pill'  => 'bg-emerald-100 text-emerald-800 border-emerald-300',
@@ -130,24 +138,33 @@
     */
     $actions = [];
 
-    // Apply
+    // Apply / Renew
+    $applyTitle = $isRenewal ? 'Renew Scholarship' : 'Apply Scholarship';
+
     if ($alreadyApplied || $isAlreadyScholar) {
         $actions[] = [
-            'state' => 'done', 'icon' => 'check-circle', 'title' => 'Apply Scholarship',
+            'state' => 'done', 'icon' => 'check-circle', 'title' => $applyTitle,
             'desc'  => $alreadyApplied
-                ? 'Your application has been submitted. Contact the scholarship office for any changes.'
-                : "You're already an active scholar. Contact the scholarship office if you need to make changes.",
-            'cta'   => $alreadyApplied ? 'Already Submitted' : 'Already a Scholar',
+                ? ($isRenewal
+                    ? 'Your renewal for this term has been submitted. Contact the scholarship office for any changes.'
+                    : 'Your application has been submitted. Contact the scholarship office for any changes.')
+                : "You're already an active scholar this term. Contact the scholarship office if you need to make changes.",
+            'cta'   => $alreadyApplied
+                ? ($isRenewal ? 'Renewal Submitted' : 'Already Submitted')
+                : 'Already a Scholar',
         ];
     } elseif ($appPeriod->is_open) {
         $actions[] = [
-            'state' => 'link', 'icon' => 'clipboard', 'title' => 'Apply Scholarship',
-            'desc'  => 'Fill out and submit your scholarship application form to get started.',
-            'cta'   => 'Apply Now', 'href' => route('application_new.get'),
+            'state' => 'link', 'icon' => 'clipboard', 'title' => $applyTitle,
+            'desc'  => $isRenewal
+                ? "You're a scholar from a previous term. Submit your renewal application to continue your scholarship."
+                : 'Fill out and submit your scholarship application form to get started.',
+            'cta'   => $isRenewal ? 'Renew Now' : 'Apply Now',
+            'href'  => route('application_new.get'),
         ];
     } else {
         $actions[] = [
-            'state' => 'locked', 'icon' => 'lock', 'title' => 'Apply Scholarship',
+            'state' => 'locked', 'icon' => 'lock', 'title' => $applyTitle,
             'desc'  => 'The application period is currently closed.'
                 . ($appPeriod->open_date ? ' Opens on ' . $appPeriod->opensOnLabel() . '.' : ''),
             'cta'   => 'Period Closed',
@@ -198,17 +215,25 @@
         </div>
 
         @if ($alreadyApplied)
-            <h2 id="modal-title" class="mb-2 font-display text-xl font-bold text-slate-900">Application Already Submitted</h2>
+            <h2 id="modal-title" class="mb-2 font-display text-xl font-bold text-slate-900">
+                {{ $isRenewal ? 'Renewal Already Submitted' : 'Application Already Submitted' }}
+            </h2>
             <p class="mb-6 text-sm leading-relaxed text-slate-500">
-                Our records show that you have already submitted a scholarship application.
-                Each account is allowed only <strong>one application</strong>. Please contact
-                the scholarship office if you need to make changes.
+                @if ($isRenewal)
+                    Our records show that you have already submitted your renewal application for this term.
+                    Only <strong>one renewal per term</strong> is allowed. Please contact the scholarship
+                    office if you need to make changes.
+                @else
+                    Our records show that you have already submitted a scholarship application.
+                    Each account is allowed only <strong>one application</strong>. Please contact
+                    the scholarship office if you need to make changes.
+                @endif
             </p>
         @else
             <h2 id="modal-title" class="mb-2 font-display text-xl font-bold text-slate-900">You're Already a Scholar</h2>
             <p class="mb-6 text-sm leading-relaxed text-slate-500">
                 Our records show you already hold an active scholarship
-                ({{ $scholarRecord->type_of_scholarship ?? 'Institutional' }}). There's no need to
+                ({{ $scholarRecord->type_of_scholarship ?? 'Institutional' }}) for this term. There's no need to
                 submit a new application. Please contact the scholarship office if you believe this is a mistake.
             </p>
         @endif
@@ -282,7 +307,9 @@
                             </svg>
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Application Status</p>
+                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                {{ $isRenewal ? 'Renewal Application Status' : 'Application Status' }}
+                            </p>
                             <p class="font-display text-base font-bold text-slate-900">{{ $applicant->first_name }} {{ $applicant->last_name }}</p>
                         </div>
                     </div>

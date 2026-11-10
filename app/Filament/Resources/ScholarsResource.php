@@ -732,22 +732,48 @@ class ScholarsResource extends Resource
             ->columnSpanFull(),
     ])
     ->action(function (Scholars $record, array $data) {
-        $record->update([
-            'status'               => 'revoked',
-            'revocation_reason'    => $data['revocation_reason'],
-            'revoked_at'           => now(),
-            'discontinuance_effective_at' => $data['effectivity_date'],
+    $record->update([
+        'status'                      => 'revoked',
+        'revocation_reason'           => $data['revocation_reason'],
+        'revoked_at'                  => now(),
+        'discontinuance_effective_at' => $data['effectivity_date'],
+    ]);
+
+    $scholarshipType = TypeOfScholarship::where('name', $record->type_of_scholarship)->first();
+    $scholarshipType?->increment('slots');
+
+    // ── Notify the student (only if the scholar has a user account) ──
+    $notified = false;
+
+    try {
+        $student = $record->user_id ? \App\Models\User::find($record->user_id) : null;
+
+        if ($student) {
+            $effective = \Carbon\Carbon::parse($data['effectivity_date'])->format('F d, Y');
+
+            Notification::make()
+                ->title('Scholarship Discontinued')
+                ->icon('heroicon-o-no-symbol')
+                ->danger()
+                ->body("Your {$record->type_of_scholarship} scholarship has been discontinued effective {$effective}. Reason: {$data['revocation_reason']}")
+                ->sendToDatabase($student);
+
+            $notified = true;
+        }
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::error('Revoke notification failed', [
+            'scholar_id' => $record->id,
+            'error'      => $e->getMessage(),
         ]);
+    }
 
-        $scholarshipType = TypeOfScholarship::where('name', $record->type_of_scholarship)->first();
-        $scholarshipType?->increment('slots');
-
-        Notification::make()
-            ->title('Scholarship Revoked')
-            ->danger()
-            ->body("{$record->first_name} {$record->last_name}'s scholarship has been revoked and the slot has been restored.")
-            ->send();
-    })
+    Notification::make()
+        ->title('Scholarship Revoked')
+        ->danger()
+        ->body("{$record->first_name} {$record->last_name}'s scholarship has been revoked and the slot has been restored."
+            . ($notified ? ' The student was notified.' : ' No linked user account to notify.'))
+        ->send();
+})
     ->visible(fn (Scholars $record): bool => $record->status !== 'revoked' && ! static::isRestrictedToOwnScholars()),
     //                                     Tables\Actions\Action::make('assign_department_head')
     // ->label(fn (Scholars $record): string => $record->department_head_id

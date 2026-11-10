@@ -514,6 +514,9 @@ function examApp() {
 
         // Silent violation tracking — nothing shown to examinee
         lastViolationTime: {},
+        pendingFocusViolation: null,   // focus-loss event waiting to be sent
+        lastFocusIncident: 0,          // when the last focus-loss violation was sent
+        snipArmedUntil: 0,             // set when Win/Cmd + Shift or PrintScreen is pressed
 
         init() {
             // Begin tracking only after the Start button is clicked
@@ -542,16 +545,14 @@ function examApp() {
             });
 
             // ── Window blur (clicked outside / switched app) ──────────────
-            // Skipped when a more specific violation just fired, since the
-            // browser fires blur together with those events.
+            // If Win/Cmd+Shift or PrintScreen was just pressed, this blur is
+            // the snipping overlay, so it is recorded as a screenshot.
             window.addEventListener('blur', () => {
-                const specific = ['tab_switch', 'screenshot_attempt', 'fullscreen_exit'];
-                if (specific.some(t => this.recentViolation(t))) return;
-                // Give visibilitychange a moment to fire first, then re-check
-                setTimeout(() => {
-                    if (specific.some(t => this.recentViolation(t))) return;
+                if (Date.now() < this.snipArmedUntil) {
+                    this.trackViolation('screenshot_attempt');
+                } else {
                     this.trackViolation('window_blur');
-                }, 150);
+                }
             });
 
             // ── Fullscreen exit ───────────────────────────────────────────
@@ -571,23 +572,28 @@ function examApp() {
             // ── Right click ───────────────────────────────────────────────
             document.addEventListener('contextmenu', () => this.trackViolation('right_click'));
 
-            // ── Screenshot: PrintScreen only fires on keyup on Windows ────
-            window.addEventListener('keyup', (e) => {
-                if (e.key === 'PrintScreen') {
+            // ── PrintScreen: some systems only deliver keyup, others only
+            // keydown. Both are handled; trackViolation() merges duplicates.
+            const onPrintScreen = (e) => {
+                if (e.key === 'PrintScreen' || e.code === 'PrintScreen') {
+                    this.snipArmedUntil = Date.now() + 2000;
                     this.trackViolation('screenshot_attempt');
                     // Wipe whatever image PrintScreen put on the clipboard
                     if (navigator.clipboard && navigator.clipboard.writeText) {
                         navigator.clipboard.writeText('').catch(() => {});
                     }
                 }
-            });
+            };
+            window.addEventListener('keyup', onPrintScreen);
+            window.addEventListener('keydown', onPrintScreen);
 
             // ── Keyboard shortcuts ────────────────────────────────────────
             document.addEventListener('keydown', (e) => {
-                // Win+Shift+S (Windows Snipping) / Cmd+Shift+3,4,5 (macOS)
-                const winSnip = e.metaKey && e.shiftKey && e.code === 'KeyS';
-                const macSnip = e.metaKey && e.shiftKey && ['Digit3', 'Digit4', 'Digit5'].includes(e.code);
-                if (winSnip || macSnip) {
+                // Win+Shift+S (Windows Snipping) / Cmd+Shift+3,4,5 (macOS).
+                // The OS swallows the last key, so we trigger as soon as
+                // Win/Cmd and Shift are held together.
+                if (e.metaKey && e.shiftKey) {
+                    this.snipArmedUntil = Date.now() + 2000;
                     this.trackViolation('screenshot_attempt');
                     return;
                 }
@@ -636,17 +642,53 @@ function examApp() {
             // Ignore anything before the exam started or while submitting
             if (!this.started || this.submitting) return;
 
-            // Deduplicate: ignore if same type fired within last 1500ms
-            if (this.recentViolation(type)) return;
-            this.lastViolationTime[type] = Date.now();
+            const FOCUS_GROUP = ['screenshot_attempt', 'fullscreen_exit', 'tab_switch', 'window_blur'];
+            const PRIORITY = { screenshot_attempt: 4, fullscreen_exit: 3, tab_switch: 2, window_blur: 1 };
 
+            // Independent violations (copy, paste, devtools, print...): simple per-type dedupe
+            if (!FOCUS_GROUP.includes(type)) {
+                if (this.recentViolation(type)) return;
+                this.lastViolationTime[type] = Date.now();
+                this.sendViolation(type);
+                return;
+            }
+
+            // Focus-loss events: one physical action = one violation.
+            // Events arriving together are merged and the most specific type wins.
+            if (this.pendingFocusViolation) {
+                if (PRIORITY[type] > PRIORITY[this.pendingFocusViolation]) {
+                    this.pendingFocusViolation = type;
+                }
+                return;
+            }
+
+            if (this.recentViolation(type)) return;
+
+            // Cooldown after the last incident (a screenshot can still go through)
+            if (type !== 'screenshot_attempt' && Date.now() - this.lastFocusIncident < 2000) return;
+
+            this.lastViolationTime[type] = Date.now();
+            this.pendingFocusViolation = type;
+
+            // Wait briefly so related events (blur + visibilitychange + fullscreenchange)
+            // can merge into a single violation.
+            setTimeout(() => {
+                const finalType = this.pendingFocusViolation;
+                this.pendingFocusViolation = null;
+                this.lastFocusIncident = Date.now();
+                this.lastViolationTime[finalType] = Date.now();
+                this.sendViolation(finalType);
+            }, 600);
+        },
+
+        // Send silently to server — no UI feedback shown to examinee
+        sendViolation(type) {
             const entry = {
                 type:     type,
                 time:     new Date().toISOString(),
                 timeLeft: this.timeLeft,
             };
 
-            // Send silently to server — no UI feedback shown to examinee
             fetch('{{ route("exam.violation", $exam->id) }}', {
                 method: 'POST',
                 headers: {

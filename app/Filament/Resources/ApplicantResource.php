@@ -639,22 +639,32 @@ class ApplicantResource extends Resource
                         ->all())
                     ->placeholder('All terms')
                     ->query(function (Builder $query, array $data): Builder {
-                        if (blank($data['value'] ?? null)) {
-                            return $query;
-                        }
+    if (blank($data['value'] ?? null)) {
+        return $query;
+    }
 
-                        $term = \App\Models\Term::find($data['value']);
+    $term = \App\Models\Term::find($data['value']);
 
-                        if (! $term?->starts_on || ! $term?->ends_on) {
-                            return $query;
-                        }
+    if (! $term) {
+        return $query;
+    }
 
-                        // created_at is a datetime, so cover the whole last day of the term
-                        return $query->whereBetween('created_at', [
-                            $term->starts_on->copy()->startOfDay(),
-                            $term->ends_on->copy()->endOfDay(),
-                        ]);
-                    }),
+    return $query->where(function (Builder $q) use ($term) {
+        // Applications stamped with this term
+        $q->where('term_id', $term->id);
+
+        // Old applications with no term_id: fall back to the date range
+        if ($term->starts_on && $term->ends_on) {
+            $q->orWhere(function (Builder $legacy) use ($term) {
+                $legacy->whereNull('term_id')
+                    ->whereBetween('created_at', [
+                        $term->starts_on->copy()->startOfDay(),
+                        $term->ends_on->copy()->endOfDay(),
+                    ]);
+            });
+        }
+    });
+}),
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([

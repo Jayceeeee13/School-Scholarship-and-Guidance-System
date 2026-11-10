@@ -456,6 +456,7 @@ class ApplicationController extends Controller
         // Optional text columns are NOT NULL in the live DB, so blank → ''.
         Applicant::create([
             'user_id'                => Auth::id(),
+            'term_id'                => $ctx['term']?->id, 
             'picture'                => $picturePath,
             'type_of_application_id' => $validated['type_of_application_id'],
             'type_of_scholarship_id' => $validated['type_of_scholarship_id'],

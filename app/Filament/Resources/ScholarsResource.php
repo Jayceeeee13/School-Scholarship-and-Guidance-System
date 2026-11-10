@@ -742,21 +742,21 @@ class ScholarsResource extends Resource
     $scholarshipType = TypeOfScholarship::where('name', $record->type_of_scholarship)->first();
     $scholarshipType?->increment('slots');
 
-    // ── Notify the student (only if the scholar has a user account) ──
+    // ── Notify the student in the website bell / mobile app ──
     $notified = false;
 
     try {
-        $student = $record->user_id ? \App\Models\User::find($record->user_id) : null;
-
-        if ($student) {
+        if ($record->user_id) {
             $effective = \Carbon\Carbon::parse($data['effectivity_date'])->format('F d, Y');
 
-            Notification::make()
-                ->title('Scholarship Discontinued')
-                ->icon('heroicon-o-no-symbol')
-                ->danger()
-                ->body("Your {$record->type_of_scholarship} scholarship has been discontinued effective {$effective}. Reason: {$data['revocation_reason']}")
-                ->sendToDatabase($student);
+            \Illuminate\Support\Facades\DB::table('appointment_notifications')->insert([
+                'user_id'                   => $record->user_id,
+                'counseling_appointment_id' => null,
+                'type'                      => 'scholarship_revoked',
+                'message'                   => "Your {$record->type_of_scholarship} scholarship has been discontinued effective {$effective}. Reason: {$data['revocation_reason']}",
+                'created_at'                => now(),
+                'updated_at'                => now(),
+            ]);
 
             $notified = true;
         }

@@ -28,12 +28,18 @@ class ReferralsResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
-    /** ID of the invitation being edited (null when creating). */
-    protected static function currentInvitationId($livewire): ?int
+    /**
+     * ID of the referral being edited (null when creating).
+     *
+     * Slot checks exclude every invitation that belongs to this referral, so an
+     * invitation can never conflict with itself (even if the loaded relation is
+     * stale or a duplicate row exists).
+     */
+    protected static function currentReferralId($livewire): ?int
     {
         $referral = $livewire->record ?? null;
 
-        return $referral instanceof Referrals ? $referral->invitation?->id : null;
+        return $referral instanceof Referrals ? (int) $referral->id : null;
     }
 
     public static function form(Form $form): Form
@@ -563,7 +569,8 @@ class ReferralsResource extends Resource
                                                                     return $slots->mapWithKeys(fn ($s) => [$s->id => $s->name . ' ✅ Available'])->toArray();
                                                                 }
 
-                                                                $reserved = SlotAvailability::reservedSlotIds($date, null, self::currentInvitationId($livewire));
+                                                                // Ignore every invitation of THIS referral so it never blocks itself.
+                                                                $reserved = SlotAvailability::reservedSlotIds($date, null, null, self::currentReferralId($livewire));
                                                                 $isToday  = \Carbon\Carbon::parse($date)->isToday();
 
                                                                 return $slots->mapWithKeys(function ($s) use ($reserved, $isToday) {
@@ -584,7 +591,7 @@ class ReferralsResource extends Resource
                                                                 $date = $get('session_date');
                                                                 if (! $date) return false;
 
-                                                                if (SlotAvailability::isReserved($date, $value, null, self::currentInvitationId($livewire))) {
+                                                                if (SlotAvailability::isReserved($date, $value, null, null, self::currentReferralId($livewire))) {
                                                                     return true;
                                                                 }
 
@@ -604,7 +611,7 @@ class ReferralsResource extends Resource
                                                                         return;
                                                                     }
 
-                                                                    if (SlotAvailability::isReserved($date, $value, null, self::currentInvitationId($livewire))) {
+                                                                    if (SlotAvailability::isReserved($date, $value, null, null, self::currentReferralId($livewire))) {
                                                                         $fail('That time slot is already reserved. Please choose another one.');
                                                                     }
                                                                 },

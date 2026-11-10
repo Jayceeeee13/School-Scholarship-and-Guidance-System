@@ -368,6 +368,18 @@ class ApplicationController extends Controller
             'guardian.regex'    => 'Guardian name may only contain letters, spaces, hyphens, periods, and apostrophes.',
         ]);
 
+
+                // ── New Applicant + Academic Scholarship must start at 1st Year ────
+        // (server-side guard, in case the form is bypassed)
+        $applicantType   = TypeOfApplication::find($validated['type_of_application_id']);
+        $scholarshipType = TypeOfScholarship::find($validated['type_of_scholarship_id']);
+
+        if ($applicantType && $scholarshipType
+            && preg_match('/\bnew\b/i', $applicantType->name)
+            && stripos($scholarshipType->name, 'academic') !== false) {
+            $validated['year_level'] = '1st Year';
+        }
+
         // ── Compute age server-side from birthdate ─────────────────────────
         $age = null;
         if (! empty($validated['birthdate'])) {

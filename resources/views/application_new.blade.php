@@ -650,7 +650,7 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <p class="hint">New Academic applicants start at 1st Year. You can change it if needed.</p>
+                            <p class="hint" id="yearHint" style="display:none;"></p>
                             <p class="field-error" data-error-for="year_level">{{ $errors->first('year_level') }}</p>
                         </div>
 
@@ -997,33 +997,49 @@
             if (birth.value) computeAge();
         }
 
-        // ── Default Year Level: New + Academic -> 1st Year ─────────
-        // Applied only until the student changes Year Level themselves, and never
-        // over a value that was already filled in (from their record or a previous try).
-        const appType = form.elements['type_of_application_id'];
-        const schType = form.elements['type_of_scholarship_id'];
-        const yearSel = form.elements['year_level'];
-        let yearTouched = yearSel.value !== '';
+                // ── New Applicant + Academic Scholarship -> Year Level is locked to 1st Year ──
+        const appType  = form.elements['type_of_application_id'];
+        const schType  = form.elements['type_of_scholarship_id'];
+        const yearSel  = form.elements['year_level'];
+        const yearHint = document.getElementById('yearHint');
 
-        yearSel.addEventListener('change', function () { yearTouched = true; });
+        let wasLocked = false;
+        let savedYear = yearSel.value; // value from the student record / a previous try
 
-        function applyDefaultYear() {
-            if (yearTouched) return;
+        yearSel.addEventListener('change', function () {
+            if (!wasLocked) savedYear = yearSel.value;
+        });
 
+        function applyYearRule() {
             const typeOpt = appType.options[appType.selectedIndex];
             const schOpt  = schType.options[schType.selectedIndex];
-            const isNew      = typeOpt && typeOpt.dataset.new === '1';
-            const isAcademic = schOpt && schOpt.dataset.academic === '1';
+            const locked  = !!(typeOpt && typeOpt.dataset.new === '1'
+                            && schOpt && schOpt.dataset.academic === '1');
 
-            if (isNew && isAcademic) {
+            // Remember what was there before locking, so it can be restored later.
+            if (locked && !wasLocked) savedYear = yearSel.value;
+
+            // While locked, only "1st Year" can be picked.
+            Array.from(yearSel.options).forEach(function (opt) {
+                opt.disabled = locked && opt.value !== '1st Year';
+            });
+
+            if (locked) {
                 yearSel.value = '1st Year';
                 setError(yearSel, '');
+                yearHint.textContent = 'New Applicants under the Academic Scholarship start at 1st Year.';
+                yearHint.style.display = 'block';
+            } else {
+                if (wasLocked) yearSel.value = savedYear;
+                yearHint.style.display = 'none';
             }
+
+            wasLocked = locked;
         }
 
-        appType.addEventListener('change', applyDefaultYear);
-        schType.addEventListener('change', applyDefaultYear);
-        applyDefaultYear(); // also covers a preselected Academic scholarship
+        appType.addEventListener('change', applyYearRule);
+        schType.addEventListener('change', applyYearRule);
+        applyYearRule(); // also covers a preselected Academic scholarship
 
         // ── Block invalid characters while typing ──────────────────
         form.addEventListener('input', function (e) {

@@ -17,14 +17,12 @@ use Illuminate\Support\Facades\Log;
 trait ResolvesApplicationContext
 {
     /**
-     * Renewal context for the logged-in user.
      *  - term            : the active term (or null)
-     *  - scholarThisTerm : standing scholarship already granted for the active term
-     *  - returning       : scholar from an earlier term (so they renew)
+     *  - scholarThisTerm : scholarship already granted for the active term
+     *  - returning       : was a scholar / approved in an earlier term
      *  - isRenewal       : returning AND a "Renewal" application type exists
      *  - renewalTypeId   : set only when the Applicant Type must be locked to Renewal
-     *  - applicant       : the application that counts for "already applied"
-     *                      (this term's for returning scholars, latest otherwise)
+     *  - applicant       : this TERM's application (null = nothing submitted yet this term)
      */
     protected function applicationContext(): array
     {
@@ -43,7 +41,27 @@ trait ResolvesApplicationContext
             ->get();
 
         $scholarThisTerm = $term ? $scholars->firstWhere('term_id', $term->id) : $scholars->first();
-        $returning       = $term && $scholars->isNotEmpty() && ! $scholarThisTerm;
+
+        // The application only counts for the term it was made in.
+        $applications = Applicant::where('user_id', $user->id);
+
+        $applicant = $term
+            ? (clone $applications)->where('term_id', $term->id)->latest('id')->first()
+            : (clone $applications)->latest('id')->first();
+
+        // Returning = no scholarship this term, but already got one before,
+        // either as a scholar record or as an approved application.
+        $approvedBefore = $term
+            ? (clone $applications)->where('status', 'approved')
+                ->where(function ($q) use ($term) {
+                    $q->where('term_id', '!=', $term->id)->orWhereNull('term_id');
+                })->exists()
+            : false;
+
+        $returning = (bool) $term
+            && ! $scholarThisTerm
+            && ! $applicant
+            && ($scholars->isNotEmpty() || $approvedBefore);
 
         $renewalTypeId = $returning
             ? TypeOfApplication::where('is_active', 1)->where('name', 'like', '%renewal%')->value('id')
@@ -52,11 +70,6 @@ trait ResolvesApplicationContext
         if ($returning && ! $renewalTypeId) {
             Log::warning('Renewal: scholar is returning but no active "Renewal" application type exists.');
         }
-
-        $applications = Applicant::where('user_id', $user->id);
-        $applicant = $returning
-            ? $applications->where('term_id', $term->id)->latest('id')->first()
-            : $applications->latest('id')->first();
 
         $isRenewal = (bool) $renewalTypeId;
 

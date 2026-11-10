@@ -506,7 +506,10 @@
                                     required>
                                 <option value="">Select Type</option>
                                 @foreach($applicantTypes as $type)
-                                    <option value="{{ $type->id }}" {{ old('type_of_application_id') == $type->id ? 'selected' : '' }}>
+                                    {{-- data-new = 1 when the type name contains the whole word "new" --}}
+                                    <option value="{{ $type->id }}"
+                                            data-new="{{ preg_match('/\bnew\b/i', $type->name) ? 1 : 0 }}"
+                                            {{ old('type_of_application_id') == $type->id ? 'selected' : '' }}>
                                         {{ $type->name }}
                                     </option>
                                 @endforeach
@@ -528,8 +531,10 @@
                                     required>
                                 <option value="">Select Scholarship</option>
                                 @foreach($scholarshipTypes as $type)
+                                    {{-- data-academic = 1 when the scholarship name contains "academic" --}}
                                     <option
                                         value="{{ $type->id }}"
+                                        data-academic="{{ stripos($type->name, 'academic') !== false ? 1 : 0 }}"
                                         {{ (string) $selectedScholarship === (string) $type->id ? 'selected' : '' }}
                                         {{ $type->slots <= 0 ? 'disabled' : '' }}>
                                         {{ $type->name }} — {{ $type->slots }} slot{{ $type->slots === 1 ? '' : 's' }} {{ $type->slots <= 0 ? '(Full)' : 'left' }}
@@ -645,6 +650,7 @@
                                     </option>
                                 @endforeach
                             </select>
+                            <p class="hint">New Academic applicants start at 1st Year. You can change it if needed.</p>
                             <p class="field-error" data-error-for="year_level">{{ $errors->first('year_level') }}</p>
                         </div>
 
@@ -712,8 +718,8 @@
                         </div>
 
                         <div>
-                            <label class="field-label">Facebook Account</label>
-                            <input type="text" name="facebook_account" maxlength="100"
+                            <label class="field-label">Facebook Account <span class="req">*</span></label>
+                            <input type="text" name="facebook_account" required maxlength="100"
                                    value="{{ old('facebook_account', $prefill['facebook_account'] ?? '') }}"
                                    placeholder="facebook.com/yourprofile"
                                    class="field-input {{ $errors->has('facebook_account') ? 'has-error' : '' }}">
@@ -744,8 +750,8 @@
                         </div>
 
                         <div>
-                            <label class="field-label">Father's Contact No.</label>
-                            <input type="tel" name="fathers_contact_no" maxlength="11" inputmode="numeric" autocomplete="off"
+                            <label class="field-label">Father's Contact No. <span class="req">*</span></label>
+                            <input type="tel" name="fathers_contact_no" required maxlength="11" inputmode="numeric" autocomplete="off"
                                    value="{{ old('fathers_contact_no', $prefill['fathers_contact_no'] ?? '') }}"
                                    placeholder="09XXXXXXXXX"
                                    class="field-input {{ $errors->has('fathers_contact_no') ? 'has-error' : '' }}">
@@ -762,8 +768,8 @@
                         </div>
 
                         <div>
-                            <label class="field-label">Mother's Contact No.</label>
-                            <input type="tel" name="mothers_contact_no" maxlength="11" inputmode="numeric" autocomplete="off"
+                            <label class="field-label">Mother's Contact No. <span class="req">*</span></label>
+                            <input type="tel" name="mothers_contact_no" required maxlength="11" inputmode="numeric" autocomplete="off"
                                    value="{{ old('mothers_contact_no', $prefill['mothers_contact_no'] ?? '') }}"
                                    placeholder="09XXXXXXXXX"
                                    class="field-input {{ $errors->has('mothers_contact_no') ? 'has-error' : '' }}">
@@ -771,17 +777,17 @@
                         </div>
 
                         <div>
-                            <label class="field-label">Guardian</label>
-                            <input type="text" name="guardian" maxlength="100"
+                            <label class="field-label">Guardian <span class="req">*</span></label>
+                            <input type="text" name="guardian" required maxlength="100"
                                    value="{{ old('guardian', $prefill['guardian'] ?? '') }}"
-                                   placeholder="Full name (if applicable)"
+                                   placeholder="Full name"
                                    class="field-input {{ $errors->has('guardian') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="guardian">{{ $errors->first('guardian') }}</p>
                         </div>
 
                         <div>
-                            <label class="field-label">Guardian Contact No.</label>
-                            <input type="tel" name="guardian_contact_no" maxlength="11" inputmode="numeric" autocomplete="off"
+                            <label class="field-label">Guardian Contact No. <span class="req">*</span></label>
+                            <input type="tel" name="guardian_contact_no" required maxlength="11" inputmode="numeric" autocomplete="off"
                                    value="{{ old('guardian_contact_no', $prefill['guardian_contact_no'] ?? '') }}"
                                    placeholder="09XXXXXXXXX"
                                    class="field-input {{ $errors->has('guardian_contact_no') ? 'has-error' : '' }}">
@@ -890,9 +896,10 @@
         return '';
     }
 
-    function phoneRule(value, label) {
+    // required = true  -> an empty value is an error
+    function phoneRule(value, label, required) {
         const v = value.replace(/[\s\-]+/g, '');
-        if (!v) return '';
+        if (!v) return required ? label + ' is required.' : '';
         return PHONE_RE.test(v) ? '' : label + ' ' + PHONE_MSG;
     }
 
@@ -919,7 +926,7 @@
         year_level: (v) => v ? '' : 'Please select a year level.',
         gender_id:  (v) => v ? '' : 'Please select a gender.',
 
-        contact_no: (v) => phoneRule(v, 'Contact number'),
+        contact_no: (v) => phoneRule(v, 'Contact number', false),
 
         birthdate: (v) => {
             if (!v) return '';
@@ -929,22 +936,19 @@
             return '';
         },
 
-        religion:         (v) => maxRule(v, 'Religion', 100),
-        facebook_account: (v) => maxRule(v, 'Facebook account', 100),
+        religion: (v) => maxRule(v, 'Religion', 100),
+        facebook_account: (v) => {
+            if (!v.trim()) return 'Facebook account is required.';
+            return maxRule(v, 'Facebook account', 100);
+        },
 
         fathers_name:       (v) => nameRule(v, "Father's name", true),
-        fathers_contact_no: (v) => phoneRule(v, "Father's contact number"),
+        fathers_contact_no: (v) => phoneRule(v, "Father's contact number", true),
         mothers_name:       (v) => nameRule(v, "Mother's name", true),
-        mothers_contact_no: (v) => phoneRule(v, "Mother's contact number"),
+        mothers_contact_no: (v) => phoneRule(v, "Mother's contact number", true),
 
-        guardian: (v) => {
-            const contact = document.querySelector('[name="guardian_contact_no"]').value.trim();
-            if (!v.trim() && contact) {
-                return 'Please enter the guardian name since a guardian contact number was provided.';
-            }
-            return nameRule(v, 'Guardian name', false);
-        },
-        guardian_contact_no: (v) => phoneRule(v, 'Guardian contact number'),
+        guardian:            (v) => nameRule(v, 'Guardian name', true),
+        guardian_contact_no: (v) => phoneRule(v, 'Guardian contact number', true),
     };
 
     function setError(el, message) {
@@ -993,6 +997,34 @@
             if (birth.value) computeAge();
         }
 
+        // ── Default Year Level: New + Academic -> 1st Year ─────────
+        // Applied only until the student changes Year Level themselves, and never
+        // over a value that was already filled in (from their record or a previous try).
+        const appType = form.elements['type_of_application_id'];
+        const schType = form.elements['type_of_scholarship_id'];
+        const yearSel = form.elements['year_level'];
+        let yearTouched = yearSel.value !== '';
+
+        yearSel.addEventListener('change', function () { yearTouched = true; });
+
+        function applyDefaultYear() {
+            if (yearTouched) return;
+
+            const typeOpt = appType.options[appType.selectedIndex];
+            const schOpt  = schType.options[schType.selectedIndex];
+            const isNew      = typeOpt && typeOpt.dataset.new === '1';
+            const isAcademic = schOpt && schOpt.dataset.academic === '1';
+
+            if (isNew && isAcademic) {
+                yearSel.value = '1st Year';
+                setError(yearSel, '');
+            }
+        }
+
+        appType.addEventListener('change', applyDefaultYear);
+        schType.addEventListener('change', applyDefaultYear);
+        applyDefaultYear(); // also covers a preselected Academic scholarship
+
         // ── Block invalid characters while typing ──────────────────
         form.addEventListener('input', function (e) {
             const el = e.target;
@@ -1023,11 +1055,6 @@
 
             // Once a field shows an error, re-check live so it clears as soon as it's fixed.
             if (el.classList.contains('has-error')) validateField(el);
-
-            // Guardian name depends on guardian contact.
-            if (el.name === 'guardian_contact_no') {
-                validateField(form.elements['guardian']);
-            }
         });
 
         // ── Validate when leaving a field / changing a select or date ──

@@ -309,15 +309,17 @@ class ApplicationController extends Controller
             'contact_no' => ['nullable', 'string', 'regex:' . self::PHONE_REGEX],
             'birthdate'  => ['nullable', 'date', 'before:today', 'after:1930-01-01'],
             'religion'   => ['nullable', 'string', 'max:100'],
-            'facebook_account' => ['nullable', 'string', 'max:100'],
+
+            // Required: Facebook account, parents' and guardian details
+            'facebook_account' => ['required', 'string', 'max:100'],
 
             'fathers_name'       => ['required', 'string', 'max:100', 'regex:' . self::NAME_REGEX],
-            'fathers_contact_no' => ['nullable', 'string', 'regex:' . self::PHONE_REGEX],
+            'fathers_contact_no' => ['required', 'string', 'regex:' . self::PHONE_REGEX],
             'mothers_name'       => ['required', 'string', 'max:100', 'regex:' . self::NAME_REGEX],
-            'mothers_contact_no' => ['nullable', 'string', 'regex:' . self::PHONE_REGEX],
+            'mothers_contact_no' => ['required', 'string', 'regex:' . self::PHONE_REGEX],
 
-            'guardian'            => ['nullable', 'string', 'max:100', 'regex:' . self::NAME_REGEX, 'required_with:guardian_contact_no'],
-            'guardian_contact_no' => ['nullable', 'string', 'regex:' . self::PHONE_REGEX],
+            'guardian'            => ['required', 'string', 'max:100', 'regex:' . self::NAME_REGEX],
+            'guardian_contact_no' => ['required', 'string', 'regex:' . self::PHONE_REGEX],
         ], [
             // ── Custom messages ──
             'type_of_application_id.required' => 'Please select an applicant type.',
@@ -344,9 +346,15 @@ class ApplicationController extends Controller
             'gender_id.exists'    => 'The selected gender is not available.',
 
             'contact_no.regex'          => 'Contact number must be a valid PH mobile number (e.g. 09171234567).',
-            'fathers_contact_no.regex'  => "Father's contact number must be a valid PH mobile number (e.g. 09171234567).",
-            'mothers_contact_no.regex'  => "Mother's contact number must be a valid PH mobile number (e.g. 09171234567).",
-            'guardian_contact_no.regex' => 'Guardian contact number must be a valid PH mobile number (e.g. 09171234567).',
+
+            'facebook_account.required' => 'Facebook account is required.',
+
+            'fathers_contact_no.required' => "Father's contact number is required.",
+            'fathers_contact_no.regex'    => "Father's contact number must be a valid PH mobile number (e.g. 09171234567).",
+            'mothers_contact_no.required' => "Mother's contact number is required.",
+            'mothers_contact_no.regex'    => "Mother's contact number must be a valid PH mobile number (e.g. 09171234567).",
+            'guardian_contact_no.required' => 'Guardian contact number is required.',
+            'guardian_contact_no.regex'    => 'Guardian contact number must be a valid PH mobile number (e.g. 09171234567).',
 
             'birthdate.before' => 'Birth date must be a past date.',
             'birthdate.after'  => 'Please enter a valid birth date.',
@@ -356,8 +364,8 @@ class ApplicationController extends Controller
             'mothers_name.required' => "Mother's name is required.",
             'mothers_name.regex'    => "Mother's name may only contain letters, spaces, hyphens, periods, and apostrophes.",
 
-            'guardian.regex'         => 'Guardian name may only contain letters, spaces, hyphens, periods, and apostrophes.',
-            'guardian.required_with' => 'Please enter the guardian name since a guardian contact number was provided.',
+            'guardian.required' => 'Guardian name is required.',
+            'guardian.regex'    => 'Guardian name may only contain letters, spaces, hyphens, periods, and apostrophes.',
         ]);
 
         // ── Compute age server-side from birthdate ─────────────────────────
@@ -401,13 +409,13 @@ class ApplicationController extends Controller
             'birthdate'              => $validated['birthdate'] ?? null,
             'age'                    => $age,
             'religion'               => $validated['religion'] ?? '',
-            'facebook_account'       => $validated['facebook_account'] ?? '',
+            'facebook_account'       => $validated['facebook_account'],
             'fathers_name'           => $validated['fathers_name'],
-            'fathers_contact_no'     => $validated['fathers_contact_no'] ?? '',
+            'fathers_contact_no'     => $validated['fathers_contact_no'],
             'mothers_name'           => $validated['mothers_name'],
-            'mothers_contact_no'     => $validated['mothers_contact_no'] ?? '',
-            'guardian'               => $validated['guardian'] ?? '',
-            'guardian_contact_no'    => $validated['guardian_contact_no'] ?? '',
+            'mothers_contact_no'     => $validated['mothers_contact_no'],
+            'guardian'               => $validated['guardian'],
+            'guardian_contact_no'    => $validated['guardian_contact_no'],
             'status'                 => 'pending',
             'benefit'                => $benefit,
         ]);

@@ -8,7 +8,7 @@ use App\Models\InstitutionalScholar;
 use App\Models\Term;
 use App\Models\Gender;
 use App\Models\Program;
-use App\Models\Students;          // FIX: the model class is "Students" (plural), not "Student"
+use App\Models\Students;          // the model class is "Students" (plural), not "Student"
 use App\Models\TypeOfApplication;
 use App\Models\TypeOfScholarship;
 use Carbon\Carbon;
@@ -28,45 +28,44 @@ class ApplicationController extends Controller
     // 09XXXXXXXXX or +639XXXXXXXXX (spaces/dashes are stripped before validating)
     private const PHONE_REGEX = '/^(09\d{9}|\+639\d{9})$/';
 
-    
     /**
- * Renewal context for the logged-in user.
- *  - scholarThisTerm : standing scholarship already granted for the active term
- *  - returning       : scholar from an earlier term (so they renew)
- *  - applicant       : the application that counts for "already applied"
- *  - renewalTypeId   : set only when the Applicant Type must be locked to Renewal
- */
-private function applicationContext(): array
-{
-    $user      = Auth::user();
-    $term      = Term::active()->first();
-    $studentId = Students::where('user_id', $user->id)->value('student_id');
+     * Renewal context for the logged-in user.
+     *  - scholarThisTerm : standing scholarship already granted for the active term
+     *  - returning       : scholar from an earlier term (so they renew)
+     *  - applicant       : the application that counts for "already applied"
+     *  - renewalTypeId   : set only when the Applicant Type must be locked to Renewal
+     */
+    private function applicationContext(): array
+    {
+        $user      = Auth::user();
+        $term      = Term::active()->first();
+        $studentId = Students::where('user_id', $user->id)->value('student_id');
 
-    $scholars = InstitutionalScholar::where('status', 'active')
-        ->whereNull('revoked_at')
-        ->where(function ($q) use ($user, $studentId) {
-            $q->where('user_id', $user->id);
-            if ($studentId) {
-                $q->orWhere('student_id', $studentId);
-            }
-        })
-        ->get();
+        $scholars = InstitutionalScholar::where('status', 'active')
+            ->whereNull('revoked_at')
+            ->where(function ($q) use ($user, $studentId) {
+                $q->where('user_id', $user->id);
+                if ($studentId) {
+                    $q->orWhere('student_id', $studentId);
+                }
+            })
+            ->get();
 
-    $scholarThisTerm = $term ? $scholars->firstWhere('term_id', $term->id) : $scholars->first();
-    $returning       = $term && $scholars->isNotEmpty() && ! $scholarThisTerm;
+        $scholarThisTerm = $term ? $scholars->firstWhere('term_id', $term->id) : $scholars->first();
+        $returning       = $term && $scholars->isNotEmpty() && ! $scholarThisTerm;
 
-    $renewalTypeId = $returning
-        ? TypeOfApplication::where('is_active', 1)->where('name', 'like', '%renewal%')->value('id')
-        : null;
+        $renewalTypeId = $returning
+            ? TypeOfApplication::where('is_active', 1)->where('name', 'like', '%renewal%')->value('id')
+            : null;
 
-    $applications = Applicant::where('user_id', $user->id);
-    $applicant = $returning
-        ? $applications->where('term_id', $term->id)->latest('id')->first()
-        : $applications->latest('id')->first();
+        $applications = Applicant::where('user_id', $user->id);
+        $applicant = $returning
+            ? $applications->where('term_id', $term->id)->latest('id')->first()
+            : $applications->latest('id')->first();
 
-    return compact('term', 'scholarThisTerm', 'returning', 'renewalTypeId', 'applicant');
-}
-    
+        return compact('term', 'scholarThisTerm', 'returning', 'renewalTypeId', 'applicant');
+    }
+
     /**
      * ID of the Academic scholarship type if the logged-in user has already
      * finished an exam (completed_at filled in); otherwise null.
@@ -254,18 +253,15 @@ private function applicationContext(): array
     {
         $ctx = $this->applicationContext();
 
-if ($ctx['applicant']) {
-    return redirect()->route('gvc')
-        ->with('success', 'You have already submitted an application.')
-        ->with('already_applied', true);
-}
+        // One application per account (per term for returning scholars).
+        if ($ctx['applicant']) {
+            return redirect()->route('gvc')
+                ->with('success', 'You have already submitted an application.')
+                ->with('already_applied', true);
+        }
 
-$renewalTypeId = $ctx['renewalTypeId'];
-
-return view('application_new', compact(
-    'scholarshipTypes', 'applicantTypes', 'genders', 'programs',
-    'academicId', 'prefill', 'renewalTypeId'
-));
+        // Set only when a returning scholar must be locked to "Renewal".
+        $renewalTypeId = $ctx['renewalTypeId'];
 
         $scholarshipTypes = TypeOfScholarship::where('is_active', 1)->get();
         $applicantTypes   = TypeOfApplication::where('is_active', 1)->get();
@@ -291,7 +287,8 @@ return view('application_new', compact(
             'genders',
             'programs',
             'academicId',
-            'prefill'
+            'prefill',
+            'renewalTypeId'
         ));
     }
 
@@ -299,14 +296,14 @@ return view('application_new', compact(
     {
         $ctx = $this->applicationContext();
 
-if ($ctx['applicant']) {
-    return redirect()->route('gvc')->with('already_applied', true);
-}
+        if ($ctx['applicant']) {
+            return redirect()->route('gvc')->with('already_applied', true);
+        }
 
-// Returning scholars are always Renewal (ignores whatever was posted).
-if ($ctx['renewalTypeId']) {
-    $request->merge(['type_of_application_id' => $ctx['renewalTypeId']]);
-}
+        // Returning scholars are always Renewal (ignores whatever was posted).
+        if ($ctx['renewalTypeId']) {
+            $request->merge(['type_of_application_id' => $ctx['renewalTypeId']]);
+        }
 
         // ── Normalize input before validating ──────────────────────────────
         // Strip spaces/dashes from phone numbers so "0917-123-4567" passes.
@@ -384,11 +381,11 @@ if ($ctx['renewalTypeId']) {
             'picture.mimes' => 'The ID picture must be a .jpg, .jpeg, or .png file.',
             'picture.max'   => 'The ID picture must not be larger than 5 MB.',
 
-            'first_name.required' => 'First name is required.',
-            'first_name.regex'    => 'First name may only contain letters, spaces, hyphens, periods, and apostrophes.',
-            'middle_name.regex'   => 'Middle name may only contain letters, spaces, hyphens, periods, and apostrophes.',
-            'last_name.required'  => 'Last name is required.',
-            'last_name.regex'     => 'Last name may only contain letters, spaces, hyphens, periods, and apostrophes.',
+            'first_name.required'  => 'First name is required.',
+            'first_name.regex'     => 'First name may only contain letters, spaces, hyphens, periods, and apostrophes.',
+            'middle_name.regex'    => 'Middle name may only contain letters, spaces, hyphens, periods, and apostrophes.',
+            'last_name.required'   => 'Last name is required.',
+            'last_name.regex'      => 'Last name may only contain letters, spaces, hyphens, periods, and apostrophes.',
             'extension_name.regex' => 'Extension name may only contain letters and periods (e.g. Jr., III).',
 
             'program_id.required' => 'Please select a program.',
@@ -398,14 +395,14 @@ if ($ctx['renewalTypeId']) {
             'gender_id.required'  => 'Please select a gender.',
             'gender_id.exists'    => 'The selected gender is not available.',
 
-            'contact_no.regex'          => 'Contact number must be a valid PH mobile number (e.g. 09171234567).',
+            'contact_no.regex' => 'Contact number must be a valid PH mobile number (e.g. 09171234567).',
 
             'facebook_account.required' => 'Facebook account is required.',
 
-            'fathers_contact_no.required' => "Father's contact number is required.",
-            'fathers_contact_no.regex'    => "Father's contact number must be a valid PH mobile number (e.g. 09171234567).",
-            'mothers_contact_no.required' => "Mother's contact number is required.",
-            'mothers_contact_no.regex'    => "Mother's contact number must be a valid PH mobile number (e.g. 09171234567).",
+            'fathers_contact_no.required'  => "Father's contact number is required.",
+            'fathers_contact_no.regex'     => "Father's contact number must be a valid PH mobile number (e.g. 09171234567).",
+            'mothers_contact_no.required'  => "Mother's contact number is required.",
+            'mothers_contact_no.regex'     => "Mother's contact number must be a valid PH mobile number (e.g. 09171234567).",
             'guardian_contact_no.required' => 'Guardian contact number is required.',
             'guardian_contact_no.regex'    => 'Guardian contact number must be a valid PH mobile number (e.g. 09171234567).',
 
@@ -421,8 +418,7 @@ if ($ctx['renewalTypeId']) {
             'guardian.regex'    => 'Guardian name may only contain letters, spaces, hyphens, periods, and apostrophes.',
         ]);
 
-
-                // ── New Applicant + Academic Scholarship must start at 1st Year ────
+        // ── New Applicant + Academic Scholarship must start at 1st Year ────
         // (server-side guard, in case the form is bypassed)
         $applicantType   = TypeOfApplication::find($validated['type_of_application_id']);
         $scholarshipType = TypeOfScholarship::find($validated['type_of_scholarship_id']);
@@ -490,14 +486,14 @@ if ($ctx['renewalTypeId']) {
     }
 
     public function index()
-{
-    $ctx = $this->applicationContext();
+    {
+        $ctx = $this->applicationContext();
 
-    $applicant        = $ctx['applicant'];
-    $alreadyApplied   = (bool) $applicant;
-    $isAlreadyScholar = (bool) $ctx['scholarThisTerm'];
-    $scholarRecord    = $ctx['scholarThisTerm'];
+        $applicant        = $ctx['applicant'];
+        $alreadyApplied   = (bool) $applicant;
+        $isAlreadyScholar = (bool) $ctx['scholarThisTerm'];
+        $scholarRecord    = $ctx['scholarThisTerm'];
 
-    return view('scholarship', compact('alreadyApplied', 'applicant', 'isAlreadyScholar', 'scholarRecord'));
-}
+        return view('scholarship', compact('alreadyApplied', 'applicant', 'isAlreadyScholar', 'scholarRecord'));
+    }
 }

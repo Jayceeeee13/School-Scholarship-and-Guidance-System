@@ -135,17 +135,28 @@ class ExamController extends Controller
         return view('exam.show', compact('exam', 'categories'));
     }
 
+    /**
+     * Silently record a violation sent from the exam page.
+     * Only whitelisted violation types are stored.
+     */
     public function recordViolation(Request $request, Exam $exam)
     {
         $violation = $request->input('violation');
 
-        if (!$violation) {
-            return response()->json(['ok' => false, 'message' => 'No violation data']);
+        if (
+            !is_array($violation)
+            || !in_array($violation['type'] ?? null, array_keys(ExamAttempt::VIOLATION_LABELS), true)
+        ) {
+            return response()->json(['ok' => false, 'message' => 'Invalid violation data'], 422);
         }
 
-        $sessionKey = 'exam_violations_' . $exam->id . '_' . Auth::id();
-        $violations = session($sessionKey, []);
-        $violations[] = $violation;
+        $sessionKey   = 'exam_violations_' . $exam->id . '_' . Auth::id();
+        $violations   = session($sessionKey, []);
+        $violations[] = [
+            'type'     => $violation['type'],
+            'time'     => $violation['time'] ?? now()->toIso8601String(),
+            'timeLeft' => (int) ($violation['timeLeft'] ?? 0),
+        ];
         session([$sessionKey => $violations]);
 
         return response()->json([

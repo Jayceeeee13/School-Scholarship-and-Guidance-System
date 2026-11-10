@@ -57,12 +57,35 @@ class ViewExamAttempt extends ViewRecord
 
                         TextEntry::make('duration_label')
                             ->label('Duration'),
+                    ]),
+
+                Section::make('Violation Report')
+                    ->description('Behaviour recorded while the examinee was taking the exam.')
+                    ->columns(3)
+                    ->schema([
+                        TextEntry::make('violation_count')
+                            ->label('Total Violations')
+                            ->badge()
+                            ->default(0)
+                            ->color(fn ($state) => match (true) {
+                                (int) $state === 0 => 'success',
+                                (int) $state <= 2  => 'warning',
+                                default            => 'danger',
+                            }),
+
+                        TextEntry::make('violation_summary')
+                            ->label('Breakdown by Type')
+                            ->badge()
+                            ->color('danger')
+                            ->placeholder('✓ No violations')
+                            ->columnSpan(2),
 
                         TextEntry::make('violation_log')
-                            ->label('Violations')
+                            ->label('Detailed Log')
                             ->listWithLineBreaks()
                             ->bulleted()
-                            ->placeholder('✓ No violations'),
+                            ->placeholder('✓ No violations')
+                            ->columnSpanFull(),
                     ]),
 
                 Section::make('Scholarship Grant')
@@ -82,9 +105,9 @@ class ViewExamAttempt extends ViewRecord
                                 (float) $record->percentage >= 85 => '85 – 94   (100% Tuition Fee Discount)',
                                 (float) $record->percentage >= 75 => '75 – 84   (75% Tuition Fee Discount)',
                                 (float) $record->percentage >= 65 => '65 – 74   (50% Tuition Fee Discount)',
-                                (float) $record->percentage >= 60 => '60 – 65   (25% Tuition Fee Discount)',
+                                (float) $record->percentage >= 60 => '60 – 64   (25% Tuition Fee Discount)',
                                 (float) $record->percentage >= 50 => '50 – 59   (10% Tuition Fee Discount)',
-                                default                           => 'Below 50  (No discount qualifed)',
+                                default                           => 'Below 50  (No discount qualified)',
                             }),
                     ]),
 

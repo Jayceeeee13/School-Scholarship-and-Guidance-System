@@ -170,6 +170,11 @@
             .logo-img { transition: transform .3s ease; }
             a:hover > .logo-img { transform: rotate(6deg) scale(1.1); }
         }
+
+        /* Hide exam content if someone prints the page */
+        @media print {
+            body > * { display: none !important; }
+        }
     </style>
 </head>
 
@@ -195,7 +200,7 @@
         <p class="slide-l" style="--d:730ms">✅ Do not close or reload the browser.</p>
         <p class="slide-l" style="--d:810ms">✅ Timer starts immediately after you click Start.</p>
         <p class="slide-l" style="--d:890ms">✅ Unanswered items are counted as incorrect.</p>
-        <p class="slide-l" style="--d:970ms">⚠️ <strong>Switching tabs or windows will be recorded as a violation.</strong></p>
+        <p class="slide-l" style="--d:970ms">⚠️ <strong>Switching tabs or windows, taking screenshots, copying, printing, or leaving fullscreen will be recorded as violations.</strong></p>
     </div>
 
     <button onclick="startExam()"
@@ -214,6 +219,10 @@
         prompt.style.opacity = '0';
         prompt.style.pointerEvents = 'none';
         setTimeout(() => { prompt.style.display = 'none'; }, 350);
+
+        // Tell the Alpine component the exam has really begun, so violations
+        // are only counted after this point.
+        window.dispatchEvent(new Event('exam-started'));
     }
 </script>
 
@@ -498,10 +507,21 @@ function examApp() {
         timer: null,
         activeCategory: 0,
 
+        // Violations are only counted once the examinee clicks "Start Exam"
+        started: false,
+        // Stops violations from being recorded while the form is being submitted
+        submitting: false,
+
         // Silent violation tracking — nothing shown to examinee
         lastViolationTime: {},
 
         init() {
+            // Begin tracking only after the Start button is clicked
+            window.addEventListener('exam-started', () => { this.started = true; });
+
+            // Don't count the page unload/blur caused by submitting
+            document.addEventListener('submit', () => { this.submitting = true; }, true);
+
             // Timer
             this.timer = setInterval(() => {
                 if (this.timeLeft > 0) {
@@ -516,24 +536,82 @@ function examApp() {
                 }
             }, 1000);
 
-            // Tab switch — fires when tab becomes hidden
+            // ── Tab switch ────────────────────────────────────────────────
             document.addEventListener('visibilitychange', () => {
                 if (document.hidden) this.trackViolation('tab_switch');
             });
 
-            // Window blur — skip if tab_switch just fired (they always fire together)
+            // ── Window blur (clicked outside / switched app) ──────────────
+            // Skipped when a more specific violation just fired, since the
+            // browser fires blur together with those events.
             window.addEventListener('blur', () => {
-                if (!this.recentViolation('tab_switch')) {
+                const specific = ['tab_switch', 'screenshot_attempt', 'fullscreen_exit'];
+                if (specific.some(t => this.recentViolation(t))) return;
+                // Give visibilitychange a moment to fire first, then re-check
+                setTimeout(() => {
+                    if (specific.some(t => this.recentViolation(t))) return;
                     this.trackViolation('window_blur');
-                }
+                }, 150);
             });
 
-            // Clipboard attempts
+            // ── Fullscreen exit ───────────────────────────────────────────
+            const onFsChange = () => {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    this.trackViolation('fullscreen_exit');
+                }
+            };
+            document.addEventListener('fullscreenchange', onFsChange);
+            document.addEventListener('webkitfullscreenchange', onFsChange);
+
+            // ── Clipboard ─────────────────────────────────────────────────
             document.addEventListener('copy',  () => this.trackViolation('copy_attempt'));
             document.addEventListener('paste', () => this.trackViolation('paste_attempt'));
             document.addEventListener('cut',   () => this.trackViolation('cut_attempt'));
 
-            // Scroll-based active category tracking
+            // ── Right click ───────────────────────────────────────────────
+            document.addEventListener('contextmenu', () => this.trackViolation('right_click'));
+
+            // ── Screenshot: PrintScreen only fires on keyup on Windows ────
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'PrintScreen') {
+                    this.trackViolation('screenshot_attempt');
+                    // Wipe whatever image PrintScreen put on the clipboard
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText('').catch(() => {});
+                    }
+                }
+            });
+
+            // ── Keyboard shortcuts ────────────────────────────────────────
+            document.addEventListener('keydown', (e) => {
+                // Win+Shift+S (Windows Snipping) / Cmd+Shift+3,4,5 (macOS)
+                const winSnip = e.metaKey && e.shiftKey && e.code === 'KeyS';
+                const macSnip = e.metaKey && e.shiftKey && ['Digit3', 'Digit4', 'Digit5'].includes(e.code);
+                if (winSnip || macSnip) {
+                    this.trackViolation('screenshot_attempt');
+                    return;
+                }
+
+                // Dev tools: F12, Ctrl+Shift+I/J/C, Ctrl+U (view source)
+                const devtools =
+                    e.key === 'F12' ||
+                    (e.ctrlKey && e.shiftKey && ['KeyI', 'KeyJ', 'KeyC'].includes(e.code)) ||
+                    (e.ctrlKey && e.code === 'KeyU');
+                if (devtools) {
+                    e.preventDefault();
+                    this.trackViolation('devtools_attempt');
+                    return;
+                }
+
+                // Print: Ctrl+P / Cmd+P
+                if ((e.ctrlKey || e.metaKey) && e.code === 'KeyP') {
+                    e.preventDefault();
+                    this.trackViolation('print_attempt');
+                }
+            });
+            window.addEventListener('beforeprint', () => this.trackViolation('print_attempt'));
+
+            // ── Scroll-based active category tracking ─────────────────────
             this.$nextTick(() => {
                 this.categories.forEach((cat, idx) => {
                     const el = document.getElementById('category-' + idx);
@@ -555,6 +633,9 @@ function examApp() {
         },
 
         trackViolation(type) {
+            // Ignore anything before the exam started or while submitting
+            if (!this.started || this.submitting) return;
+
             // Deduplicate: ignore if same type fired within last 1500ms
             if (this.recentViolation(type)) return;
             this.lastViolationTime[type] = Date.now();
@@ -570,6 +651,7 @@ function examApp() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 },
                 body: JSON.stringify({ violation: entry }),
@@ -615,6 +697,8 @@ function examApp() {
         buildAnswerInputs(containerId) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
+
+            // Answers
             Object.entries(this.answers).forEach(([questionId, choiceId]) => {
                 if (choiceId !== null && choiceId !== undefined) {
                     const input = document.createElement('input');
@@ -623,6 +707,17 @@ function examApp() {
                     input.value = choiceId;
                     container.appendChild(input);
                 }
+            });
+
+            // Order the questions were displayed in (saved as "position")
+            this.categories.forEach(cat => {
+                cat.questions.forEach(q => {
+                    const input = document.createElement('input');
+                    input.type  = 'hidden';
+                    input.name  = 'question_order[]';
+                    input.value = q.id;
+                    container.appendChild(input);
+                });
             });
         },
 

@@ -32,13 +32,19 @@ class ExamAttempt extends Model
 
     /**
      * Human-readable names for each violation type recorded by exam/show.blade.php.
+     * ExamController::recordViolation() only accepts the keys listed here.
      */
     public const VIOLATION_LABELS = [
-        'tab_switch'    => 'Switched to another browser tab',
-        'window_blur'   => 'Left the exam window (switched app or clicked outside)',
-        'copy_attempt'  => 'Tried to copy text',
-        'paste_attempt' => 'Tried to paste text',
-        'cut_attempt'   => 'Tried to cut text',
+        'tab_switch'         => 'Tab Switching',
+        'window_blur'        => 'Window Blur (clicked outside / switched app)',
+        'fullscreen_exit'    => 'Exited Fullscreen',
+        'screenshot_attempt' => 'Screenshot Attempt',
+        'copy_attempt'       => 'Copy Attempt',
+        'paste_attempt'      => 'Paste Attempt',
+        'cut_attempt'        => 'Cut Attempt',
+        'right_click'        => 'Right Click',
+        'devtools_attempt'   => 'Dev Tools Attempt',
+        'print_attempt'      => 'Print Attempt',
     ];
 
     // ── Auto-set scholarship type to Academic once an exam is finished ────
@@ -131,6 +137,24 @@ class ExamAttempt extends Model
         $s = $seconds % 60;
 
         return $h > 0 ? "{$h}h {$m}m {$s}s" : "{$m}m {$s}s";
+    }
+
+    /**
+     * Count per violation type, most frequent first.
+     * e.g. ['Tab Switching × 3', 'Screenshot Attempt × 1']
+     */
+    public function getViolationSummaryAttribute(): array
+    {
+        return collect($this->violations ?? [])
+            ->groupBy(fn ($v) => $v['type'] ?? 'unknown')
+            ->map(fn ($items, $type) => [
+                'label' => self::violationLabel($type),
+                'count' => $items->count(),
+            ])
+            ->sortByDesc('count')
+            ->map(fn ($row) => "{$row['label']} × {$row['count']}")
+            ->values()
+            ->all();
     }
 
     /** One readable line per recorded violation, with time and time left. */

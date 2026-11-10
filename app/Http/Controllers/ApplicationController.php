@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Applicant;
 use App\Models\ExamAttempt;
+use App\Models\InstitutionalScholar;
+use App\Models\Term;
 use App\Models\Gender;
 use App\Models\Program;
 use App\Models\Students;          // FIX: the model class is "Students" (plural), not "Student"
@@ -26,6 +28,45 @@ class ApplicationController extends Controller
     // 09XXXXXXXXX or +639XXXXXXXXX (spaces/dashes are stripped before validating)
     private const PHONE_REGEX = '/^(09\d{9}|\+639\d{9})$/';
 
+    
+    /**
+ * Renewal context for the logged-in user.
+ *  - scholarThisTerm : standing scholarship already granted for the active term
+ *  - returning       : scholar from an earlier term (so they renew)
+ *  - applicant       : the application that counts for "already applied"
+ *  - renewalTypeId   : set only when the Applicant Type must be locked to Renewal
+ */
+private function applicationContext(): array
+{
+    $user      = Auth::user();
+    $term      = Term::active()->first();
+    $studentId = Students::where('user_id', $user->id)->value('student_id');
+
+    $scholars = InstitutionalScholar::where('status', 'active')
+        ->whereNull('revoked_at')
+        ->where(function ($q) use ($user, $studentId) {
+            $q->where('user_id', $user->id);
+            if ($studentId) {
+                $q->orWhere('student_id', $studentId);
+            }
+        })
+        ->get();
+
+    $scholarThisTerm = $term ? $scholars->firstWhere('term_id', $term->id) : $scholars->first();
+    $returning       = $term && $scholars->isNotEmpty() && ! $scholarThisTerm;
+
+    $renewalTypeId = $returning
+        ? TypeOfApplication::where('is_active', 1)->where('name', 'like', '%renewal%')->value('id')
+        : null;
+
+    $applications = Applicant::where('user_id', $user->id);
+    $applicant = $returning
+        ? $applications->where('term_id', $term->id)->latest('id')->first()
+        : $applications->latest('id')->first();
+
+    return compact('term', 'scholarThisTerm', 'returning', 'renewalTypeId', 'applicant');
+}
+    
     /**
      * ID of the Academic scholarship type if the logged-in user has already
      * finished an exam (completed_at filled in); otherwise null.
@@ -211,13 +252,20 @@ class ApplicationController extends Controller
 
     public function create()
     {
-        // If user already has a submitted application, redirect away
-        $existing = Applicant::where('user_id', Auth::id())->first();
-        if ($existing) {
-            return redirect()->route('gvc')
-                ->with('success', 'You have already submitted an application.')
-                ->with('already_applied', true);
-        }
+        $ctx = $this->applicationContext();
+
+if ($ctx['applicant']) {
+    return redirect()->route('gvc')
+        ->with('success', 'You have already submitted an application.')
+        ->with('already_applied', true);
+}
+
+$renewalTypeId = $ctx['renewalTypeId'];
+
+return view('application_new', compact(
+    'scholarshipTypes', 'applicantTypes', 'genders', 'programs',
+    'academicId', 'prefill', 'renewalTypeId'
+));
 
         $scholarshipTypes = TypeOfScholarship::where('is_active', 1)->get();
         $applicantTypes   = TypeOfApplication::where('is_active', 1)->get();
@@ -249,11 +297,16 @@ class ApplicationController extends Controller
 
     public function store(Request $request)
     {
-        // Double-check at store time (race condition / direct POST guard)
-        if (Applicant::where('user_id', Auth::id())->exists()) {
-            return redirect()->route('gvc')
-                ->with('already_applied', true);
-        }
+        $ctx = $this->applicationContext();
+
+if ($ctx['applicant']) {
+    return redirect()->route('gvc')->with('already_applied', true);
+}
+
+// Returning scholars are always Renewal (ignores whatever was posted).
+if ($ctx['renewalTypeId']) {
+    $request->merge(['type_of_application_id' => $ctx['renewalTypeId']]);
+}
 
         // ── Normalize input before validating ──────────────────────────────
         // Strip spaces/dashes from phone numbers so "0917-123-4567" passes.
@@ -437,9 +490,14 @@ class ApplicationController extends Controller
     }
 
     public function index()
-    {
-        $applicant      = Applicant::where('user_id', Auth::id())->first();
-        $alreadyApplied = (bool) $applicant;
-        return view('scholarship', compact('alreadyApplied', 'applicant'));
-    }
+{
+    $ctx = $this->applicationContext();
+
+    $applicant        = $ctx['applicant'];
+    $alreadyApplied   = (bool) $applicant;
+    $isAlreadyScholar = (bool) $ctx['scholarThisTerm'];
+    $scholarRecord    = $ctx['scholarThisTerm'];
+
+    return view('scholarship', compact('alreadyApplied', 'applicant', 'isAlreadyScholar', 'scholarRecord'));
+}
 }

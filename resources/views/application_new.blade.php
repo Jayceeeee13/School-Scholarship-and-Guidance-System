@@ -500,22 +500,35 @@
 
                         {{-- Applicant Type --}}
                         <div>
-                            <label class="field-label">Applicant Type <span class="req">*</span></label>
-                            <select name="type_of_application_id"
-                                    class="field-input {{ $errors->has('type_of_application_id') ? 'has-error' : '' }}"
-                                    required>
-                                <option value="">Select Type</option>
-                                @foreach($applicantTypes as $type)
-                                    {{-- data-new = 1 when the type name contains the whole word "new" --}}
-                                    <option value="{{ $type->id }}"
-                                            data-new="{{ preg_match('/\bnew\b/i', $type->name) ? 1 : 0 }}"
-                                            {{ old('type_of_application_id') == $type->id ? 'selected' : '' }}>
-                                        {{ $type->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <p class="field-error" data-error-for="type_of_application_id">{{ $errors->first('type_of_application_id') }}</p>
-                        </div>
+    <label class="field-label">Applicant Type <span class="req">*</span></label>
+
+    @if(!empty($renewalTypeId))
+        <select class="field-input" disabled>
+            @foreach($applicantTypes as $type)
+                @if($type->id == $renewalTypeId)
+                    <option selected>{{ $type->name }}</option>
+                @endif
+            @endforeach
+        </select>
+        <input type="hidden" name="type_of_application_id" value="{{ $renewalTypeId }}">
+        <p class="lock-note">Set automatically to Renewal because you are a scholar from a previous term.</p>
+    @else
+        <select name="type_of_application_id"
+                class="field-input {{ $errors->has('type_of_application_id') ? 'has-error' : '' }}"
+                required>
+            <option value="">Select Type</option>
+            @foreach($applicantTypes as $type)
+                <option value="{{ $type->id }}"
+                        data-new="{{ preg_match('/\bnew\b/i', $type->name) ? 1 : 0 }}"
+                        {{ old('type_of_application_id') == $type->id ? 'selected' : '' }}>
+                    {{ $type->name }}
+                </option>
+            @endforeach
+        </select>
+    @endif
+
+    <p class="field-error" data-error-for="type_of_application_id">{{ $errors->first('type_of_application_id') }}</p>
+</div>
 
                         {{-- Scholarship Type --}}
                         <div>
@@ -1011,7 +1024,7 @@
         });
 
         function applyYearRule() {
-            const typeOpt = appType.options[appType.selectedIndex];
+            const typeOpt = appType.options ? appType.options[appType.selectedIndex] : null;
             const schOpt  = schType.options[schType.selectedIndex];
             const locked  = !!(typeOpt && typeOpt.dataset.new === '1'
                             && schOpt && schOpt.dataset.academic === '1');

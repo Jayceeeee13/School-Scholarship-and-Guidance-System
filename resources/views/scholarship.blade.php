@@ -51,9 +51,9 @@
 
     // A student may already hold a Scholars record without ever going through
     // the Applicant flow (e.g. imported by the scholarship office), so
-    // "already applied" alone isn't enough to gate re-applying.
+    <!-- // "already applied" alone isn't enough to gate re-applying.
     $scholarRecord    = \App\Models\Scholars::forUser(auth()->user());
-    $isAlreadyScholar = (bool) $scholarRecord;
+    $isAlreadyScholar = (bool) $scholarRecord; -->
 
     // Heroicons (outline, v1) path data
     $icons = [

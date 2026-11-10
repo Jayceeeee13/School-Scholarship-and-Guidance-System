@@ -13,6 +13,7 @@ class Applicant extends Model
 
     protected $fillable = [
         'user_id',
+        'term_id',
         'picture',
         'type_of_application_id',
         'first_name',
@@ -51,23 +52,32 @@ class Applicant extends Model
     // ── Auto-set scholarship type to Academic if the user already finished an exam ──
 
     protected static function booted(): void
-    {
-        static::creating(function (Applicant $applicant) {
-            if (! $applicant->user_id) {
-                return;
-            }
+{
+    static::creating(function (Applicant $applicant) {
+        // Stamp the term the application was made in.
+        if (! $applicant->term_id) {
+            $applicant->term_id = Term::active()->value('id');
+        }
 
-            // An exam counts as finished once completed_at is filled in.
-            $hasTakenExam = ExamAttempt::query()
-                ->where('user_id', $applicant->user_id)
-                ->whereNotNull('completed_at')
-                ->exists();
+        if (! $applicant->user_id) {
+            return;
+        }
 
-            if ($hasTakenExam && $academicId = ExamAttempt::academicScholarshipId()) {
-                $applicant->type_of_scholarship_id = $academicId;
-            }
-        });
-    }
+        $hasTakenExam = ExamAttempt::query()
+            ->where('user_id', $applicant->user_id)
+            ->whereNotNull('completed_at')
+            ->exists();
+
+        if ($hasTakenExam && $academicId = ExamAttempt::academicScholarshipId()) {
+            $applicant->type_of_scholarship_id = $academicId;
+        }
+    });
+}
+
+public function term()
+{
+    return $this->belongsTo(Term::class);
+}
 
     // ── Relationships ────────────────────────────────────────────────────
 

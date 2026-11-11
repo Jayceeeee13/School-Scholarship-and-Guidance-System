@@ -596,7 +596,7 @@
             label: 'Track / Strand',
             min: 2,
             max: 100,
-            disallowed: /[^A-Za-z0-9\s\-.\/&(),]/g,      // characters to strip
+            disallowed: /[^\p{L}\s]/gu,      // strip anything that is not a letter or space
         },
         lastSchoolField: {
             label: 'School name',

@@ -1224,7 +1224,7 @@
                                     <td style="font-weight:600;">{{ trim($applicant->first_name . ' ' . $applicant->last_name) }}</td>
                                     <td><span class="pill pill-info">{{ optional($applicant->typeOfScholarship)->name ?? '—' }}</span></td>
                                     <td><span class="pill pill-{{ $applicant->status }}">{{ ucfirst($applicant->status) }}</span></td>
-                                    <td><a href="{{ route('filament.admin.resources.applicants.edit', ['record' => $applicant->id]) }}" class="db-view-link">View</a></td>
+                                    <td><a href="{{ route('filament.admin.resources.applicants.view', ['record' => $applicant->id]) }}" class="db-view-link">View</a></td>
                                 </tr>
                                 @empty
                                 <tr><td colspan="5" class="db-empty">No applicants{{ $schoolYear ? ' for this period.' : ' yet.' }}</td></tr>
@@ -1263,7 +1263,7 @@
                                     <td><span class="pill pill-time">{{ optional($apt->timeSlot)->name ?? '—' }}</span></td>
                                     <td style="font-weight:600;">{{ $apt->full_name }}</td>
                                     <td><span class="pill pill-{{ $apt->status }}">{{ ucfirst($apt->status) }}</span></td>
-                                    <td><a href="{{ route('filament.admin.resources.counseling-appointments.edit', ['record' => $apt->id]) }}" class="db-view-link">View</a></td>
+                                    <td><a href="{{ route('filament.admin.resources.counseling-appointments.view', ['record' => $apt->id]) }}" class="db-view-link">View</a></td>
                                 </tr>
                                 @empty
                                 <tr><td colspan="5" class="db-empty">No appointments{{ $schoolYear ? ' for this period.' : ' yet.' }}</td></tr>

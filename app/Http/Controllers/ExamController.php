@@ -61,14 +61,43 @@ class ExamController extends Controller
                 ->with('info', 'You have already completed this exam.');
         }
 
+        // Clean up whitespace before validating (trim + collapse repeated spaces)
+        $request->merge([
+            'track_strand' => preg_replace('/\s+/u', ' ', trim((string) $request->input('track_strand'))),
+            'last_school'  => preg_replace('/\s+/u', ' ', trim((string) $request->input('last_school'))),
+        ]);
+
         $request->validate([
-            'track_strand'     => 'required|string|max:150',
-            'last_school'      => 'required|string|max:200',
+            'track_strand' => [
+                'required',
+                'string',
+                'min:2',
+                'max:100',
+                'regex:/^[A-Za-z0-9\s\-\.\/&(),]+$/',
+                'regex:/\p{L}/u', // must contain at least one letter
+            ],
+            'last_school' => [
+                'required',
+                'string',
+                'min:3',
+                'max:150',
+                "regex:/^[\p{L}0-9\s\-\.\,\'’&()\/]+$/u",
+                'regex:/\p{L}/u', // must contain at least one letter
+            ],
             'age'              => 'required|integer|min:15|max:60',
             'birth_date'       => 'required|date',
             'address'          => 'required|string|max:255',
             'contact_number'   => 'required|string|max:20',
             'preferred_course' => 'required|string',
+        ], [
+            'track_strand.required' => 'Please enter your Track / Strand.',
+            'track_strand.min'      => 'Track / Strand must be at least 2 characters.',
+            'track_strand.max'      => 'Track / Strand must not exceed 100 characters.',
+            'track_strand.regex'    => 'Track / Strand contains invalid characters or has no letters.',
+            'last_school.required'  => 'Please enter your last school attended.',
+            'last_school.min'       => 'School name must be at least 3 characters.',
+            'last_school.max'       => 'School name must not exceed 150 characters.',
+            'last_school.regex'     => 'School name contains invalid characters or has no letters.',
         ]);
 
         $user      = Auth::user();

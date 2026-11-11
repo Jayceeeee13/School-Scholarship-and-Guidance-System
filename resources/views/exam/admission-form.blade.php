@@ -333,7 +333,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('exam.admission.store', $exam) }}" id="admissionForm">
+            <form method="POST" action="{{ route('exam.admission.store', $exam) }}" id="admissionForm" novalidate>
                 @csrf
 
                 {{-- ── PERSONAL INFORMATION ── --}}
@@ -435,31 +435,39 @@
                         @enderror
                     </div>
 
-                    {{-- Track / Strand — manual entry, moved below contact number --}}
+                    {{-- Track / Strand — manual entry, validated --}}
                     <div class="rise mb-5" style="--d:660ms">
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1.5">
+                        <label for="trackStrandField" class="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1.5">
                             Track / Strand Graduated <span class="text-red-400">*</span>
                         </label>
                         <input type="text"
                                name="track_strand"
+                               id="trackStrandField"
                                value="{{ old('track_strand') }}"
                                placeholder="e.g. STEM, ABM, HUMSS, TVL-ICT"
+                               required minlength="2" maxlength="100"
+                               autocomplete="off"
                                class="w-full border-0 border-b-2 border-slate-200 focus:border-green-600 bg-transparent py-2 text-sm text-slate-800 outline-none transition placeholder:text-slate-300 @error('track_strand') border-red-400 @enderror">
+                        <p class="text-xs text-red-500 mt-1 hidden" data-error-for="trackStrandField"></p>
                         @error('track_strand')
                             <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
                         @enderror
                     </div>
 
-                    {{-- Last School Attended — manual entry, moved below track/strand --}}
+                    {{-- Last School Attended — manual entry, validated --}}
                     <div class="rise mb-0" style="--d:740ms">
-                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1.5">
+                        <label for="lastSchoolField" class="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1.5">
                             Last School Attended <span class="text-red-400">*</span>
                         </label>
                         <input type="text"
                                name="last_school"
+                               id="lastSchoolField"
                                value="{{ old('last_school') }}"
                                placeholder="e.g. Koronadal National Comprehensive High School"
+                               required minlength="3" maxlength="150"
+                               autocomplete="off"
                                class="w-full border-0 border-b-2 border-slate-200 focus:border-green-600 bg-transparent py-2 text-sm text-slate-800 outline-none transition placeholder:text-slate-300 @error('last_school') border-red-400 @enderror">
+                        <p class="text-xs text-red-500 mt-1 hidden" data-error-for="lastSchoolField"></p>
                         @error('last_school')
                             <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
                         @enderror
@@ -582,8 +590,82 @@
         // birthDateField is readonly so no 'change' listener needed
     }
 
-    // ── Form validation: require preferred_course before submit ───────────────
+    // ── Track / Strand & Last School validation ──────────────────────────────
+    const textRules = {
+        trackStrandField: {
+            label: 'Track / Strand',
+            min: 2,
+            max: 100,
+            disallowed: /[^A-Za-z0-9\s\-.\/&(),]/g,      // characters to strip
+        },
+        lastSchoolField: {
+            label: 'School name',
+            min: 3,
+            max: 150,
+            disallowed: /[^\p{L}0-9\s\-.,'’&()\/]/gu,
+        },
+    };
+
+    function showFieldError(input, message) {
+        const box = document.querySelector('[data-error-for="' + input.id + '"]');
+        if (!box) return;
+        box.textContent = message;
+        box.classList.toggle('hidden', !message);
+        input.classList.toggle('border-red-400', !!message);
+    }
+
+    function checkTextField(input) {
+        const rule  = textRules[input.id];
+        const value = input.value.replace(/\s+/g, ' ').trim();
+
+        if (!value)                  return rule.label + ' is required.';
+        if (value.length < rule.min) return rule.label + ' must be at least ' + rule.min + ' characters.';
+        if (value.length > rule.max) return rule.label + ' must not exceed ' + rule.max + ' characters.';
+        if (!/\p{L}/u.test(value))   return rule.label + ' must contain at least one letter.';
+        return '';
+    }
+
+    Object.keys(textRules).forEach(function (id) {
+        const input = document.getElementById(id);
+        if (!input) return;
+
+        // Strip disallowed characters as the user types or pastes
+        input.addEventListener('input', function () {
+            input.value = input.value
+                .replace(textRules[id].disallowed, '')
+                .replace(/^\s+/, '')
+                .replace(/\s{2,}/g, ' ');
+            if (input.value) showFieldError(input, '');
+        });
+
+        // Validate when leaving the field
+        input.addEventListener('blur', function () {
+            input.value = input.value.trim();
+            showFieldError(input, checkTextField(input));
+        });
+    });
+
+    // ── Form validation: text fields + preferred_course before submit ─────────
     document.getElementById('admissionForm')?.addEventListener('submit', function (e) {
+
+        // 1) Validate Track / Strand and Last School
+        let firstInvalid = null;
+        Object.keys(textRules).forEach(function (id) {
+            const input = document.getElementById(id);
+            if (!input) return;
+            const error = checkTextField(input);
+            showFieldError(input, error);
+            if (error && !firstInvalid) firstInvalid = input;
+        });
+
+        if (firstInvalid) {
+            e.preventDefault();
+            firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstInvalid.focus();
+            return;
+        }
+
+        // 2) Require a preferred course
         const selected = document.querySelector('input[name="preferred_course"]:checked');
 
         if (!selected) {

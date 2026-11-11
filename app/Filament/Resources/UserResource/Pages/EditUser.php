@@ -21,46 +21,62 @@ class EditUser extends EditRecord
         ];
     }
 
-    /**
-     * "Save changes" stays disabled until the form differs from how it
-     * looked when the page loaded. (No need to reset the baseline after
-     * saving, because getRedirectUrl() sends you to the View page.)
-     */
-    protected function getSaveFormAction(): Actions\Action
-{
-    return parent::getSaveFormAction()
-        ->extraAttributes([
-            'x-data' => <<<'JS'
-                {
-                    original: null,
-                    init() {
-                        // Wait for Filament fields to finish hydrating/normalizing,
-                        // then remember the form state as the baseline.
-                        setTimeout(() => {
-                            this.original = JSON.stringify(this.$wire.data)
-                        }, 600)
-                    },
-                    get pristine() {
-                        return this.original === null
-                            || JSON.stringify(this.$wire.data) === this.original
-                    },
-                }
-                JS,
-            'x-bind:disabled' => 'pristine',
-            'x-bind:class'    => "{ 'opacity-50 cursor-not-allowed pointer-events-none': pristine }",
-        ]);
-}
-
     protected function getRedirectUrl(): string
     {
         return UserResource::getUrl('view', ['record' => $this->record]);
     }
 
     /**
-     * User → Personnel sync (the reverse of ListUsers::syncPersonnelToUser).
-     *
-     * Name is intentionally NOT synced back: a single `name` can't be
-     * reliably split into first / middle / last name.
+     * If nothing was changed, skip the save entirely:
+     * no "Saved" notification, no personnel sync, no activity log.
+     */
+    protected function beforeSave(): void
+    {
+        if ($this->formHasChanges()) {
+            return;
+        }
+
+        $this->redirect($this->getRedirectUrl(), navigate: true);
+
+        $this->halt();
+    }
+
+    protected function formHasChanges(): bool
+    {
+        $record = $this->getRecord();
+
+        // Dehydrated values (what would actually be written to the users table).
+        $data = $this->form->getState(shouldCallHooksBefore: false);
+
+        // Regular columns: fill a copy and see if anything is dirty.
+        $copy = $record->replicate();
+        $copy->setRawAttributes($record->getAttributes(), true);
+        $copy->exists = true;
+        $copy->fill($data);
+
+        if ($copy->isDirty()) {
+            return true;
+        }
+
+        // Roles are a relationship, so they are not part of $data.
+        $newRoles = collect($this->data['roles'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
+
+        $oldRoles = $record->roles()
+            ->pluck('roles.id')
+            ->map(fn ($id) => (int) $id)
+            ->sort()
+            ->values()
+            ->all();
+
+        return $newRoles !== $oldRoles;
+    }
+
+    /**
+     * User → Personnel sync.
      *
      * user field   →  personnel field
      *   email      →  email

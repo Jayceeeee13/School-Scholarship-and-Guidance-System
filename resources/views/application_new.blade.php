@@ -429,9 +429,9 @@
 
                 <div style="display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;">
                     <a href="{{ url('/gvc') }}"
-                       style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:10px;background:var(--green-mid);color:#fff;font-size:0.875rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(20,90,50,0.25);transition:background 0.15s;"
-                       onmouseover="this.style.background='var(--green-deep)'"
-                       onmouseout="this.style.background='var(--green-mid)'">
+                    style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:10px;background:var(--green-mid);color:#fff;font-size:0.875rem;font-weight:700;text-decoration:none;box-shadow:0 2px 8px rgba(20,90,50,0.25);transition:background 0.15s;"
+                    onmouseover="this.style.background='var(--green-deep)'"
+                    onmouseout="this.style.background='var(--green-mid)'">
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         Back to Home
                     </a>
@@ -460,12 +460,12 @@
             </div>
 
             <form id="applicationForm"
-                  class="app-form"
-                  method="POST"
-                  action="{{ route('application_new.post') }}"
-                  enctype="multipart/form-data"
-                  novalidate
-                  style="padding:32px 40px;display:flex;flex-direction:column;gap:32px;">
+                class="app-form"
+                method="POST"
+                action="{{ route('application_new.post') }}"
+                enctype="multipart/form-data"
+                novalidate
+                style="padding:32px 40px;display:flex;flex-direction:column;gap:32px;">
                 @csrf
 
                 {{-- ── SERVER-SIDE ERROR SUMMARY ─────────────────── --}}
@@ -500,35 +500,35 @@
 
                         {{-- Applicant Type --}}
                         <div>
-    <label class="field-label">Applicant Type <span class="req">*</span></label>
+                            <label class="field-label">Applicant Type <span class="req">*</span></label>
 
-    @if(!empty($renewalTypeId))
-        <select class="field-input" disabled>
-            @foreach($applicantTypes as $type)
-                @if($type->id == $renewalTypeId)
-                    <option selected>{{ $type->name }}</option>
-                @endif
-            @endforeach
-        </select>
-        <input type="hidden" name="type_of_application_id" value="{{ $renewalTypeId }}">
-        <p class="lock-note">Set automatically to Renewal because you are a scholar from a previous term.</p>
-    @else
-        <select name="type_of_application_id"
-                class="field-input {{ $errors->has('type_of_application_id') ? 'has-error' : '' }}"
-                required>
-            <option value="">Select Type</option>
-            @foreach($applicantTypes as $type)
-                <option value="{{ $type->id }}"
-                        data-new="{{ preg_match('/\bnew\b/i', $type->name) ? 1 : 0 }}"
-                        {{ old('type_of_application_id') == $type->id ? 'selected' : '' }}>
-                    {{ $type->name }}
-                </option>
-            @endforeach
-        </select>
-    @endif
+                            @if(!empty($renewalTypeId))
+                                <select class="field-input" disabled>
+                                    @foreach($applicantTypes as $type)
+                                        @if($type->id == $renewalTypeId)
+                                            <option selected>{{ $type->name }}</option>
+                                        @endif
+                                    @endforeach
+                                </select>
+                                <input type="hidden" name="type_of_application_id" value="{{ $renewalTypeId }}">
+                                <p class="lock-note">Set automatically to Renewal because you are a scholar from a previous term.</p>
+                            @else
+                                <select name="type_of_application_id"
+                                        class="field-input {{ $errors->has('type_of_application_id') ? 'has-error' : '' }}"
+                                        required>
+                                    <option value="">Select Type</option>
+                                    @foreach($applicantTypes as $type)
+                                        <option value="{{ $type->id }}"
+                                                data-new="{{ preg_match('/\bnew\b/i', $type->name) ? 1 : 0 }}"
+                                                {{ old('type_of_application_id') == $type->id ? 'selected' : '' }}>
+                                            {{ $type->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            @endif
 
-    <p class="field-error" data-error-for="type_of_application_id">{{ $errors->first('type_of_application_id') }}</p>
-</div>
+                            <p class="field-error" data-error-for="type_of_application_id">{{ $errors->first('type_of_application_id') }}</p>
+                        </div>
 
                         {{-- Scholarship Type --}}
                         <div>
@@ -578,8 +578,8 @@
                                 <span x-text="fileName || 'Click to upload .jpg, .jpeg, or .png (max 5 MB)'" style="font-size:0.85rem;"></span>
                             </label>
                             <input id="picture" name="picture" type="file"
-                                   accept=".jpg,.jpeg,.png,image/jpeg,image/png" style="display:none;"
-                                   @change="fileName = validatePicture($event.target) ? ($event.target.files[0]?.name || '') : ''">
+                                accept=".jpg,.jpeg,.png,image/jpeg,image/png" style="display:none;"
+                                @change="fileName = validatePicture($event.target) ? ($event.target.files[0]?.name || '') : ''">
                             <p class="field-error" data-error-for="picture">{{ $errors->first('picture') }}</p>
                         </div>
 
@@ -600,39 +600,39 @@
                         <div>
                             <label class="field-label">First Name <span class="req">*</span></label>
                             <input type="text" name="first_name" required maxlength="100"
-                                   autocomplete="given-name"
-                                   value="{{ old('first_name', $prefill['first_name'] ?? '') }}"
-                                   placeholder="e.g. Juan"
-                                   class="field-input {{ $errors->has('first_name') ? 'has-error' : '' }}">
+                                autocomplete="given-name"
+                                value="{{ old('first_name', $prefill['first_name'] ?? '') }}"
+                                placeholder="e.g. Juan"
+                                class="field-input {{ $errors->has('first_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="first_name">{{ $errors->first('first_name') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Middle Name</label>
                             <input type="text" name="middle_name" maxlength="100"
-                                   autocomplete="additional-name"
-                                   value="{{ old('middle_name', $prefill['middle_name'] ?? '') }}"
-                                   placeholder="e.g. Santos"
-                                   class="field-input {{ $errors->has('middle_name') ? 'has-error' : '' }}">
+                                autocomplete="additional-name"
+                                value="{{ old('middle_name', $prefill['middle_name'] ?? '') }}"
+                                placeholder="e.g. Santos"
+                                class="field-input {{ $errors->has('middle_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="middle_name">{{ $errors->first('middle_name') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Last Name <span class="req">*</span></label>
                             <input type="text" name="last_name" required maxlength="100"
-                                   autocomplete="family-name"
-                                   value="{{ old('last_name', $prefill['last_name'] ?? '') }}"
-                                   placeholder="e.g. Dela Cruz"
-                                   class="field-input {{ $errors->has('last_name') ? 'has-error' : '' }}">
+                                autocomplete="family-name"
+                                value="{{ old('last_name', $prefill['last_name'] ?? '') }}"
+                                placeholder="e.g. Dela Cruz"
+                                class="field-input {{ $errors->has('last_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="last_name">{{ $errors->first('last_name') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Extension Name</label>
                             <input type="text" name="extension_name" maxlength="20"
-                                   value="{{ old('extension_name', $prefill['extension_name'] ?? '') }}"
-                                   placeholder="e.g. Jr, Sr, III"
-                                   class="field-input {{ $errors->has('extension_name') ? 'has-error' : '' }}">
+                                value="{{ old('extension_name', $prefill['extension_name'] ?? '') }}"
+                                placeholder="e.g. Jr, Sr, III"
+                                class="field-input {{ $errors->has('extension_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="extension_name">{{ $errors->first('extension_name') }}</p>
                         </div>
 
@@ -685,10 +685,10 @@
                         <div>
                             <label class="field-label">Contact Number</label>
                             <input type="tel" name="contact_no" maxlength="11" inputmode="numeric"
-                                   autocomplete="tel"
-                                   value="{{ old('contact_no', $prefill['contact_no'] ?? '') }}"
-                                   placeholder="09XXXXXXXXX"
-                                   class="field-input {{ $errors->has('contact_no') ? 'has-error' : '' }}">
+                                autocomplete="tel"
+                                value="{{ old('contact_no', $prefill['contact_no'] ?? '') }}"
+                                placeholder="09XXXXXXXXX"
+                                class="field-input {{ $errors->has('contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="contact_no">{{ $errors->first('contact_no') }}</p>
                         </div>
 
@@ -696,12 +696,12 @@
                         <div>
                             <label class="field-label">Birth Date</label>
                             <input type="date" name="birthdate"
-                                   id="birthdate"
-                                   min="1930-01-02"
-                                   max="{{ now()->subDay()->toDateString() }}"
-                                   value="{{ old('birthdate', $prefill['birthdate'] ?? '') }}"
-                                   class="field-input {{ $errors->has('birthdate') ? 'has-error' : '' }}"
-                                   style="color:#4a5568;">
+                                id="birthdate"
+                                min="1930-01-02"
+                                max="{{ now()->subDay()->toDateString() }}"
+                                value="{{ old('birthdate', $prefill['birthdate'] ?? '') }}"
+                                class="field-input {{ $errors->has('birthdate') ? 'has-error' : '' }}"
+                                style="color:#4a5568;">
                             <p class="field-error" data-error-for="birthdate">{{ $errors->first('birthdate') }}</p>
                         </div>
 
@@ -714,28 +714,30 @@
                                 </span>
                             </label>
                             <input type="number" name="age" id="age"
-                                   min="1" max="99"
-                                   value="{{ old('age') }}"
-                                   placeholder="Auto-computed"
-                                   class="field-input"
-                                   readonly>
+                                min="1" max="99"
+                                value="{{ old('age') }}"
+                                placeholder="Auto-computed"
+                                class="field-input"
+                                readonly>
                         </div>
 
+                        {{-- Religion (letters and spaces only) --}}
                         <div>
                             <label class="field-label">Religion</label>
                             <input type="text" name="religion" maxlength="100"
-                                   value="{{ old('religion', $prefill['religion'] ?? '') }}"
-                                   placeholder="e.g. Roman Catholic"
-                                   class="field-input {{ $errors->has('religion') ? 'has-error' : '' }}">
+                                autocomplete="off"
+                                value="{{ old('religion', $prefill['religion'] ?? '') }}"
+                                placeholder="e.g. Roman Catholic"
+                                class="field-input {{ $errors->has('religion') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="religion">{{ $errors->first('religion') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Facebook Account <span class="req">*</span></label>
                             <input type="text" name="facebook_account" required maxlength="100"
-                                   value="{{ old('facebook_account', $prefill['facebook_account'] ?? '') }}"
-                                   placeholder="facebook.com/yourprofile"
-                                   class="field-input {{ $errors->has('facebook_account') ? 'has-error' : '' }}">
+                                value="{{ old('facebook_account', $prefill['facebook_account'] ?? '') }}"
+                                placeholder="facebook.com/yourprofile"
+                                class="field-input {{ $errors->has('facebook_account') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="facebook_account">{{ $errors->first('facebook_account') }}</p>
                         </div>
 
@@ -756,54 +758,54 @@
                         <div>
                             <label class="field-label">Father's Name <span class="req">*</span></label>
                             <input type="text" name="fathers_name" required maxlength="100"
-                                   value="{{ old('fathers_name', $prefill['fathers_name'] ?? '') }}"
-                                   placeholder="Full name"
-                                   class="field-input {{ $errors->has('fathers_name') ? 'has-error' : '' }}">
+                                value="{{ old('fathers_name', $prefill['fathers_name'] ?? '') }}"
+                                placeholder="Full name"
+                                class="field-input {{ $errors->has('fathers_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="fathers_name">{{ $errors->first('fathers_name') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Father's Contact No. <span class="req">*</span></label>
                             <input type="tel" name="fathers_contact_no" required maxlength="11" inputmode="numeric" autocomplete="off"
-                                   value="{{ old('fathers_contact_no', $prefill['fathers_contact_no'] ?? '') }}"
-                                   placeholder="09XXXXXXXXX"
-                                   class="field-input {{ $errors->has('fathers_contact_no') ? 'has-error' : '' }}">
+                                value="{{ old('fathers_contact_no', $prefill['fathers_contact_no'] ?? '') }}"
+                                placeholder="09XXXXXXXXX"
+                                class="field-input {{ $errors->has('fathers_contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="fathers_contact_no">{{ $errors->first('fathers_contact_no') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Mother's Name <span class="req">*</span></label>
                             <input type="text" name="mothers_name" required maxlength="100"
-                                   value="{{ old('mothers_name', $prefill['mothers_name'] ?? '') }}"
-                                   placeholder="Full name"
-                                   class="field-input {{ $errors->has('mothers_name') ? 'has-error' : '' }}">
+                                value="{{ old('mothers_name', $prefill['mothers_name'] ?? '') }}"
+                                placeholder="Full name"
+                                class="field-input {{ $errors->has('mothers_name') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="mothers_name">{{ $errors->first('mothers_name') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Mother's Contact No. <span class="req">*</span></label>
                             <input type="tel" name="mothers_contact_no" required maxlength="11" inputmode="numeric" autocomplete="off"
-                                   value="{{ old('mothers_contact_no', $prefill['mothers_contact_no'] ?? '') }}"
-                                   placeholder="09XXXXXXXXX"
-                                   class="field-input {{ $errors->has('mothers_contact_no') ? 'has-error' : '' }}">
+                                value="{{ old('mothers_contact_no', $prefill['mothers_contact_no'] ?? '') }}"
+                                placeholder="09XXXXXXXXX"
+                                class="field-input {{ $errors->has('mothers_contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="mothers_contact_no">{{ $errors->first('mothers_contact_no') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Guardian <span class="req">*</span></label>
                             <input type="text" name="guardian" required maxlength="100"
-                                   value="{{ old('guardian', $prefill['guardian'] ?? '') }}"
-                                   placeholder="Full name"
-                                   class="field-input {{ $errors->has('guardian') ? 'has-error' : '' }}">
+                                value="{{ old('guardian', $prefill['guardian'] ?? '') }}"
+                                placeholder="Full name"
+                                class="field-input {{ $errors->has('guardian') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="guardian">{{ $errors->first('guardian') }}</p>
                         </div>
 
                         <div>
                             <label class="field-label">Guardian Contact No. <span class="req">*</span></label>
                             <input type="tel" name="guardian_contact_no" required maxlength="11" inputmode="numeric" autocomplete="off"
-                                   value="{{ old('guardian_contact_no', $prefill['guardian_contact_no'] ?? '') }}"
-                                   placeholder="09XXXXXXXXX"
-                                   class="field-input {{ $errors->has('guardian_contact_no') ? 'has-error' : '' }}">
+                                value="{{ old('guardian_contact_no', $prefill['guardian_contact_no'] ?? '') }}"
+                                placeholder="09XXXXXXXXX"
+                                class="field-input {{ $errors->has('guardian_contact_no') ? 'has-error' : '' }}">
                             <p class="field-error" data-error-for="guardian_contact_no">{{ $errors->first('guardian_contact_no') }}</p>
                         </div>
 
@@ -844,7 +846,7 @@
 
 <script>
     /* ═══════════════════════════════════════════════════════════════
-       Age auto-compute
+    Age auto-compute
     ═══════════════════════════════════════════════════════════════ */
     function computeAge() {
         const birthdateVal = document.getElementById('birthdate').value;
@@ -869,14 +871,18 @@
     }
 
     /* ═══════════════════════════════════════════════════════════════
-       Client-side validation — mirrors ApplicationController rules.
-       (The server still re-validates everything on submit.)
+    Client-side validation — mirrors ApplicationController rules.
+    (The server still re-validates everything on submit.)
     ═══════════════════════════════════════════════════════════════ */
     // Letters, spaces, hyphens, periods, apostrophes — same as the server's NAME_REGEX,
     // so pre-filled names like "Ma. Cristina" or "O'Brien" are accepted.
     const NAME_RE  = /^[\p{L}\s\-.']+$/u;
     const EXT_RE   = /^[A-Za-z.\s]+$/;  // letters, periods and spaces (e.g. "Jr.", "III")
     const PHONE_RE = /^09\d{9}$/;       // exactly 11 digits, starting with 09
+
+    // Religion: letters and spaces only (no numbers or special characters)
+    const RELIGION_RE  = /^[\p{L}\s]+$/u;
+    const RELIGION_MSG = 'Religion may only contain letters and spaces.';
 
     const NAME_MSG  = 'may only contain letters, spaces, hyphens, periods, and apostrophes.';
     const PHONE_MSG = 'must be exactly 11 digits and start with 09 (e.g. 09171234567).';
@@ -949,7 +955,12 @@
             return '';
         },
 
-        religion: (v) => maxRule(v, 'Religion', 100),
+        religion: (v) => {
+            const t = v.trim();
+            if (!t) return '';                                   // optional field
+            if (t.length > 100) return 'Religion must not exceed 100 characters.';
+            return RELIGION_RE.test(t) ? '' : RELIGION_MSG;
+        },
         facebook_account: (v) => {
             if (!v.trim()) return 'Facebook account is required.';
             return maxRule(v, 'Facebook account', 100);
@@ -1010,7 +1021,7 @@
             if (birth.value) computeAge();
         }
 
-                // ── New Applicant + Academic Scholarship -> Year Level is locked to 1st Year ──
+        // ── New Applicant + Academic Scholarship -> Year Level is locked to 1st Year ──
         const appType  = form.elements['type_of_application_id'];
         const schType  = form.elements['type_of_scholarship_id'];
         const yearSel  = form.elements['year_level'];
@@ -1073,6 +1084,13 @@
                 // Letters, periods and spaces only (kept exactly as typed, e.g. "III").
                 const cleaned = el.value
                     .replace(/[^A-Za-z.\s]/g, '')
+                    .replace(/^\s+/, '')
+                    .replace(/\s{2,}/g, ' ');
+                if (cleaned !== el.value) el.value = cleaned;
+            } else if (el.name === 'religion') {
+                // Letters and spaces only (no numbers or special characters).
+                const cleaned = el.value
+                    .replace(/[^\p{L}\s]/gu, '')
                     .replace(/^\s+/, '')
                     .replace(/\s{2,}/g, ' ');
                 if (cleaned !== el.value) el.value = cleaned;

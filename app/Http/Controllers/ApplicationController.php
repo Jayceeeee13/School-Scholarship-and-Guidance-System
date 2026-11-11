@@ -26,6 +26,9 @@ class ApplicationController extends Controller
     // Letters (incl. ñ, accents), spaces, hyphens, periods, apostrophes
     private const NAME_REGEX = "/^[\pL\s\-\.']+$/u";
 
+    // Letters (incl. ñ, accents) and spaces only - no numbers or special characters
+    private const RELIGION_REGEX = "/^[\pL\s]+$/u";
+
     // 09XXXXXXXXX or +639XXXXXXXXX (spaces/dashes are stripped before validating)
     private const PHONE_REGEX = '/^(09\d{9}|\+639\d{9})$/';
 
@@ -323,7 +326,7 @@ class ApplicationController extends Controller
 
             'contact_no' => ['nullable', 'string', 'regex:' . self::PHONE_REGEX],
             'birthdate'  => ['nullable', 'date', 'before:today', 'after:1930-01-01'],
-            'religion'   => ['nullable', 'string', 'max:100'],
+            'religion'   => ['nullable', 'string', 'max:100', 'regex:' . self::RELIGION_REGEX],
 
             // Required: Facebook account, parents' and guardian details
             'facebook_account' => ['required', 'string', 'max:100'],
@@ -361,6 +364,8 @@ class ApplicationController extends Controller
             'gender_id.exists'    => 'The selected gender is not available.',
 
             'contact_no.regex' => 'Contact number must be a valid PH mobile number (e.g. 09171234567).',
+
+            'religion.regex' => 'Religion may only contain letters and spaces.',
 
             'facebook_account.required' => 'Facebook account is required.',
 

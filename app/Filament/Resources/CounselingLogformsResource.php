@@ -11,7 +11,12 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\TextEntry\TextEntrySize;
 use Filament\Resources\Resource;
+use Filament\Support\Enums\FontWeight;
 use Filament\Tables;
 use Filament\Tables\Table;
 
@@ -103,6 +108,18 @@ class CounselingLogformsResource extends Resource
 
             $component->state($details[$field] ?? '');
         };
+    }
+
+    /**
+     * Student details for the View page (works for both walk-in and scheduled).
+     */
+    protected static function viewDetails(CounselingLogforms $record): array
+    {
+        return static::resolveStudentDetails(
+            $record->type,
+            $record->walkin_student_id,
+            $record->counseling_appointments_id,
+        );
     }
 
     public static function form(Form $form): Form
@@ -385,6 +402,171 @@ class CounselingLogformsResource extends Resource
             ]);
     }
 
+    // ── View page (read-only, same look as Applicants) ─────────────────────
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist->schema([
+
+            // ── Appointment Status ─────────────────────────────────
+            Infolists\Components\Section::make('Appointment Details')
+                ->description('Type of appointment and term')
+                ->icon('heroicon-o-clipboard-document-check')
+                ->schema([
+                    Infolists\Components\Grid::make(3)->schema([
+                        TextEntry::make('type')
+                            ->label('Appointment Type')
+                            ->badge()
+                            ->formatStateUsing(fn (?string $state): string => match ($state) {
+                                'walk_in'   => 'Walk-in',
+                                'scheduled' => 'Scheduled Appointment',
+                                default     => $state ?? 'N/A',
+                            })
+                            ->color(fn (?string $state): string => match ($state) {
+                                'walk_in'   => 'warning',
+                                'scheduled' => 'success',
+                                default     => 'gray',
+                            }),
+
+                        TextEntry::make('term_label')
+                            ->label('School Year & Semester')
+                            ->icon('heroicon-o-calendar')
+                            ->state(fn (CounselingLogforms $record): string =>
+                                Term::find($record->term_id)?->label ?? 'N/A'
+                            ),
+
+                        Infolists\Components\IconEntry::make('follow_up_required')
+                            ->label('Follow-up Required')
+                            ->boolean()
+                            ->visible(fn (CounselingLogforms $record): bool => $record->type === 'walk_in'),
+                    ]),
+                ]),
+
+            // ── Student Information ────────────────────────────────
+            Infolists\Components\Section::make('Student Information')
+                ->description('Student details for this counseling session')
+                ->icon('heroicon-o-user')
+                ->collapsible()
+                ->schema([
+                    Infolists\Components\Grid::make(2)->schema([
+                        TextEntry::make('student_name')
+                            ->label('Name')
+                            ->icon('heroicon-o-user')
+                            ->size(TextEntrySize::Large)
+                            ->weight(FontWeight::Bold)
+                            ->state(fn (CounselingLogforms $record): string =>
+                                static::viewDetails($record)['display_name'] ?: 'N/A'
+                            ),
+
+                        TextEntry::make('student_course')
+                            ->label('Course & Year')
+                            ->icon('heroicon-o-academic-cap')
+                            ->state(fn (CounselingLogforms $record): string =>
+                                static::viewDetails($record)['display_course'] ?: 'N/A'
+                            ),
+
+                        TextEntry::make('student_contact')
+                            ->label('Contact Number')
+                            ->icon('heroicon-o-phone')
+                            ->state(fn (CounselingLogforms $record): string =>
+                                static::viewDetails($record)['display_contact'] ?: 'N/A'
+                            ),
+
+                        TextEntry::make('student_address')
+                            ->label('Address')
+                            ->icon('heroicon-o-home')
+                            ->state(fn (CounselingLogforms $record): string =>
+                                static::viewDetails($record)['display_address'] ?: 'N/A'
+                            ),
+                    ]),
+                ]),
+
+            // ── Counseling Details ─────────────────────────────────
+            Infolists\Components\Section::make('Counseling Details')
+                ->description('Support needed, concern and remarks')
+                ->icon('heroicon-o-chat-bubble-left-right')
+                ->collapsible()
+                ->schema([
+                    TextEntry::make('support_needed_name')
+                        ->label('Support Needed')
+                        ->icon('heroicon-o-lifebuoy')
+                        ->badge()
+                        ->color('success')
+                        ->state(fn (CounselingLogforms $record): string =>
+                            \App\Models\SupportNeeded::find($record->support_needed_id)?->name ?? 'N/A'
+                        ),
+
+                    TextEntry::make('concern')
+                        ->label('Concern')
+                        ->placeholder('N/A')
+                        ->columnSpanFull(),
+
+                    TextEntry::make('remarks')
+                        ->label('Remarks')
+                        ->placeholder('N/A')
+                        ->columnSpanFull(),
+                ]),
+
+            // ── Anecdotal Records ──────────────────────────────────
+            Infolists\Components\Section::make('Anecdotal Records')
+                ->description('Observations and interventions recorded')
+                ->icon('heroicon-o-clipboard-document-list')
+                ->collapsible()
+                ->schema([
+                    Infolists\Components\RepeatableEntry::make('anecdotals')
+                        ->label('')
+                        ->contained(true)
+                        ->placeholder('No anecdotal records.')
+                        ->schema([
+                            Infolists\Components\Grid::make(3)->schema([
+                                TextEntry::make('display_name')
+                                    ->label('Name')
+                                    ->icon('heroicon-o-user')
+                                    ->weight(FontWeight::Bold)
+                                    ->placeholder('N/A'),
+                                TextEntry::make('display_course')
+                                    ->label('Course')
+                                    ->icon('heroicon-o-academic-cap')
+                                    ->placeholder('N/A'),
+                                TextEntry::make('display_contact')
+                                    ->label('Contact')
+                                    ->icon('heroicon-o-phone')
+                                    ->placeholder('N/A'),
+                                TextEntry::make('display_address')
+                                    ->label('Address')
+                                    ->icon('heroicon-o-home')
+                                    ->placeholder('N/A')
+                                    ->columnSpan(2),
+                                TextEntry::make('area_concern')
+                                    ->label('Area of Concern')
+                                    ->badge()
+                                    ->color('warning')
+                                    ->placeholder('N/A'),
+                            ]),
+
+                            TextEntry::make('concern')
+                                ->label('Observation')
+                                ->html()
+                                ->placeholder('N/A')
+                                ->columnSpanFull(),
+
+                            TextEntry::make('intervention')
+                                ->label('Intervention')
+                                ->html()
+                                ->placeholder('N/A')
+                                ->columnSpanFull(),
+
+                            TextEntry::make('interviewed_by')
+                                ->label('Interviewed By')
+                                ->icon('heroicon-o-user-circle')
+                                ->state(fn ($record): string => $record->personnel
+                                    ? trim("{$record->personnel->first_name} {$record->personnel->middle_name} {$record->personnel->last_name}")
+                                    : 'N/A'
+                                ),
+                        ]),
+                ]),
+        ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -423,6 +605,7 @@ class CounselingLogformsResource extends Resource
         return [
             'index'  => Pages\ListCounselingLogforms::route('/'),
             'create' => Pages\CreateCounselingLogforms::route('/create'),
+            'view'   => Pages\ViewCounselingLogforms::route('/{record}'),
             'edit'   => Pages\EditCounselingLogforms::route('/{record}/edit'),
         ];
     }

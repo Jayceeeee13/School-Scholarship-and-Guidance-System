@@ -21,6 +21,23 @@ class EditUser extends EditRecord
         ];
     }
 
+    /**
+     * "Save changes" stays disabled until the form differs from how it
+     * looked when the page loaded. (No need to reset the baseline after
+     * saving, because getRedirectUrl() sends you to the View page.)
+     */
+    protected function getSaveFormAction(): Actions\Action
+    {
+        $isPristine = 'JSON.stringify($wire.data) === original';
+
+        return parent::getSaveFormAction()
+            ->extraAttributes([
+                'x-data'          => '{ original: JSON.stringify($wire.data) }',
+                'x-bind:disabled' => $isPristine,
+                'x-bind:class'    => "{ 'opacity-50 cursor-not-allowed pointer-events-none': {$isPristine} }",
+            ]);
+    }
+
     protected function getRedirectUrl(): string
     {
         return UserResource::getUrl('view', ['record' => $this->record]);

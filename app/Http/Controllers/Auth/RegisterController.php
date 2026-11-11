@@ -82,8 +82,7 @@ class RegisterController extends Controller
 
         // The contact number copied from the student record must not already
         // belong to another user account.
-        if (! empty($student->contact_no)
-            && User::where('contact_no', $student->contact_no)->exists()) {
+        if (! empty($student->contact_no) && $this->contactInUse($student->contact_no)) {
             return back()->withErrors([
                 'student_id' => 'The contact number on your student record is already used by another account. Please contact the registrar or admin office to resolve this.',
             ])->withInput();
@@ -141,7 +140,15 @@ class RegisterController extends Controller
             'password_confirmation_unenrolled' => ['required', 'same:password_unenrolled'],
 
             // Digits only, up to 11 digits, and must not belong to another user.
-            'contact_no' => ['required', 'regex:/^[0-9]{1,11}$/', 'unique:users,contact_no'],
+            'contact_no' => [
+                'required',
+                'regex:/^[0-9]{1,11}$/',
+                function ($attribute, $value, $fail) {
+                    if ($this->contactInUse($value, true)) {
+                        $fail('This contact number is already used by another account or belongs to a student record. If you are an enrolled student, please register using the Student tab.');
+                    }
+                },
+            ],
             'gender_id'  => ['nullable', 'integer'],
             'address'    => ['required', 'string', 'max:255'],
         ], [
@@ -149,7 +156,6 @@ class RegisterController extends Controller
             'last_name.regex'           => 'Last name may only contain letters and spaces (no numbers or special characters).',
             'email_unenrolled.unique'   => 'This email is already used by an existing account. Please use a different email or log in instead.',
             'contact_no.regex'          => 'Contact number must contain digits only (up to 11 digits).',
-            'contact_no.unique'         => 'This contact number is already used by another account.',
             'birthdate.before_or_equal' => 'Please enter a realistic birthdate. It cannot be in the current year or later.',
             'birthdate.after_or_equal'  => 'Please enter a realistic birthdate.',
         ]);
@@ -171,6 +177,45 @@ class RegisterController extends Controller
 
         return redirect()->route('login')
             ->with('success', 'Account created! You can now log in.');
+    }
+
+    /**
+     * True if the contact number already belongs to a user account.
+     *
+     * Checks the users table and the students table. By default only students that
+     * already have an account (students.user_id is set) count; pass true to also count
+     * student records that have no account yet (used by the visitor form).
+     * Formatting is ignored (spaces, dashes, +, brackets)
+     * and the common Philippine forms of the same number are treated as equal:
+     * 09123456789, 9123456789, 639123456789 and +639123456789.
+     */
+    private function contactInUse(?string $contact, bool $includeUnlinkedStudents = false): bool
+    {
+        $digits = preg_replace('/\D/', '', (string) $contact);
+
+        if ($digits === '') {
+            return false;
+        }
+
+        $last10   = substr($digits, -10);
+        $variants = array_values(array_unique([$digits, $last10, '0' . $last10, '63' . $last10]));
+        $marks    = implode(',', array_fill(0, count($variants), '?'));
+
+        // Strip spaces, dashes, plus signs and brackets from a stored value before comparing.
+        $clean = fn (string $col) =>
+            "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE({$col}, ' ', ''), '-', ''), '+', ''), '(', ''), ')', '')";
+
+        if (User::whereRaw($clean('contact_no') . " IN ({$marks})", $variants)->exists()) {
+            return true;
+        }
+
+        $students = Students::whereRaw($clean('contact_no') . " IN ({$marks})", $variants);
+
+        if (! $includeUnlinkedStudents) {
+            $students->whereNotNull('user_id');
+        }
+
+        return $students->exists();
     }
 
     private function studentRoleId(): int

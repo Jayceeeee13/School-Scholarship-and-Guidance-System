@@ -11,8 +11,13 @@ use App\Models\Term;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Components\TextInput;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\TextEntry\TextEntrySize;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
+use Filament\Support\Enums\FontWeight;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Filters\Filter;
@@ -42,23 +47,23 @@ class StudentsResource extends Resource
      * or by last name + birthdate.
      */
     protected static function matchingUserSubquery(): \Closure
-{
-    $students = (new Students)->getTable();
+    {
+        $students = (new Students)->getTable();
 
-    return function ($sub) use ($students) {
-        $sub->selectRaw('1')
-            ->from('users')
-            ->where(function ($match) use ($students) {
-                $match->whereRaw(
-                    "LOWER(TRIM(users.email)) COLLATE utf8mb4_unicode_ci = LOWER(TRIM({$students}.email)) COLLATE utf8mb4_unicode_ci"
-                )->orWhere(function ($n) use ($students) {
-                    $n->whereRaw(
-                        "LOWER(TRIM(users.last_name)) COLLATE utf8mb4_unicode_ci = LOWER(TRIM({$students}.last_name)) COLLATE utf8mb4_unicode_ci"
-                    )->whereColumn('users.birthdate', "{$students}.birth_date");
+        return function ($sub) use ($students) {
+            $sub->selectRaw('1')
+                ->from('users')
+                ->where(function ($match) use ($students) {
+                    $match->whereRaw(
+                        "LOWER(TRIM(users.email)) COLLATE utf8mb4_unicode_ci = LOWER(TRIM({$students}.email)) COLLATE utf8mb4_unicode_ci"
+                    )->orWhere(function ($n) use ($students) {
+                        $n->whereRaw(
+                            "LOWER(TRIM(users.last_name)) COLLATE utf8mb4_unicode_ci = LOWER(TRIM({$students}.last_name)) COLLATE utf8mb4_unicode_ci"
+                        )->whereColumn('users.birthdate', "{$students}.birth_date");
+                    });
                 });
-            });
-    };
-}
+        };
+    }
 
     protected static function withAccountQuery(Builder $query): Builder
     {
@@ -102,73 +107,73 @@ class StudentsResource extends Resource
                     ->columns(3)
                     ->schema([
                         Forms\Components\TextInput::make('student_id')
-    ->label('Student ID')
-    ->required()
-    ->numeric()
-    ->length(6)
-    ->rule('regex:/^[0-9]{6}$/')
-    ->validationMessages([
-        'regex'  => 'Student ID must be exactly 6 digits.',
-        'digits' => 'Student ID must be exactly 6 digits.',
-    ])
-    ->extraInputAttributes([
-        'maxlength'  => '6',
-        'inputmode'  => 'numeric',
-        'onkeypress' => "return /^[0-9]$/.test(event.key)",
-    ])
-    ->unique(ignoreRecord: true)
-    ->columnSpan(1),
+                            ->label('Student ID')
+                            ->required()
+                            ->numeric()
+                            ->length(6)
+                            ->rule('regex:/^[0-9]{6}$/')
+                            ->validationMessages([
+                                'regex'  => 'Student ID must be exactly 6 digits.',
+                                'digits' => 'Student ID must be exactly 6 digits.',
+                            ])
+                            ->extraInputAttributes([
+                                'maxlength'  => '6',
+                                'inputmode'  => 'numeric',
+                                'onkeypress' => "return /^[0-9]$/.test(event.key)",
+                            ])
+                            ->unique(ignoreRecord: true)
+                            ->columnSpan(1),
+
                         TextInput::make('first_name')
-    ->label('First Name')
-    ->required()
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'First name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+                            ->label('First Name')
+                            ->required()
+                            ->maxLength(100)
+                            ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                            ->validationMessages([
+                                'regex' => 'First name can only contain letters, spaces, hyphens, and periods.',
+                            ])
+                            ->extraInputAttributes([
+                                'style'      => 'text-transform: capitalize;',
+                                'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                            ])
+                            ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
 
-TextInput::make('middle_name')
-    ->label('Middle Name')
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'Middle name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+                        TextInput::make('middle_name')
+                            ->label('Middle Name')
+                            ->maxLength(100)
+                            ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                            ->validationMessages([
+                                'regex' => 'Middle name can only contain letters, spaces, hyphens, and periods.',
+                            ])
+                            ->extraInputAttributes([
+                                'style'      => 'text-transform: capitalize;',
+                                'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                            ])
+                            ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
 
-TextInput::make('last_name')
-    ->label('Last Name')
-    ->required()
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'Last name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+                        TextInput::make('last_name')
+                            ->label('Last Name')
+                            ->required()
+                            ->maxLength(100)
+                            ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                            ->validationMessages([
+                                'regex' => 'Last name can only contain letters, spaces, hyphens, and periods.',
+                            ])
+                            ->extraInputAttributes([
+                                'style'      => 'text-transform: capitalize;',
+                                'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                            ])
+                            ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
 
-TextInput::make('extension_name')
-    ->label('Extension Name')
-    ->placeholder('Jr., Sr., III, etc.')
-    ->maxLength(200)
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
-                            
+                        TextInput::make('extension_name')
+                            ->label('Extension Name')
+                            ->placeholder('Jr., Sr., III, etc.')
+                            ->maxLength(200)
+                            ->extraInputAttributes([
+                                'style'      => 'text-transform: capitalize;',
+                                'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                            ])
+                            ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
                     ]),
 
                 // ── Personal Details ───────────────────────────────────────
@@ -188,22 +193,22 @@ TextInput::make('extension_name')
                             ->preload()
                             ->required(),
                         TextInput::make('contact_no')
-    ->label('Contact Number')
-    ->tel()
-    ->required()
-    ->maxLength(11)
-    ->minLength(11)
-    ->rule('regex:/^[0-9]+$/')
-    ->validationMessages([
-        'regex'     => 'Contact number can only contain digits.',
-        'min'       => 'Contact number must be exactly 11 digits.',
-        'max'       => 'Contact number must be exactly 11 digits.',
-    ])
-    ->extraInputAttributes([
-        'onkeypress' => "return /^[0-9]$/.test(event.key)",
-        'maxlength'  => '11',
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
+                            ->label('Contact Number')
+                            ->tel()
+                            ->required()
+                            ->maxLength(11)
+                            ->minLength(11)
+                            ->rule('regex:/^[0-9]+$/')
+                            ->validationMessages([
+                                'regex' => 'Contact number can only contain digits.',
+                                'min'   => 'Contact number must be exactly 11 digits.',
+                                'max'   => 'Contact number must be exactly 11 digits.',
+                            ])
+                            ->extraInputAttributes([
+                                'onkeypress' => "return /^[0-9]$/.test(event.key)",
+                                'maxlength'  => '11',
+                            ])
+                            ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
                         Forms\Components\TextInput::make('email')
                             ->email()
                             ->required()
@@ -211,9 +216,9 @@ TextInput::make('extension_name')
                         Forms\Components\TextInput::make('address')
                             ->required()
                             ->maxLength(500)
-                                ->extraInputAttributes([
+                            ->extraInputAttributes([
                                 'style' => 'text-transform: capitalize;',
-                                ])
+                            ])
                             ->columnSpanFull(),
                         Forms\Components\TextInput::make('zipcode')
                             ->required()
@@ -248,90 +253,90 @@ TextInput::make('extension_name')
                             ->columns(3)
                             ->schema([
                                 TextInput::make('fathers_firstname')
-    ->label('Fathers First Name')
-    ->required()
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'First name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+                                    ->label('Fathers First Name')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'First name can only contain letters, spaces, hyphens, and periods.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'style'      => 'text-transform: capitalize;',
+                                        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
 
-TextInput::make('fathers_middlename')
-    ->label('Fathers Middle Name')
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'Middle name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+                                TextInput::make('fathers_middlename')
+                                    ->label('Fathers Middle Name')
+                                    ->maxLength(100)
+                                    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'Middle name can only contain letters, spaces, hyphens, and periods.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'style'      => 'text-transform: capitalize;',
+                                        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
 
-TextInput::make('fathers_lastname')
-    ->label('Fathers Last Name')
-    ->required()
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'Last name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+                                TextInput::make('fathers_lastname')
+                                    ->label('Fathers Last Name')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'Last name can only contain letters, spaces, hyphens, and periods.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'style'      => 'text-transform: capitalize;',
+                                        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
                             ]),
 
                         Forms\Components\Fieldset::make("Mother's Information")
                             ->columns(3)
                             ->schema([
                                 TextInput::make('mothers_firstname')
-    ->label('Mothers First Name')
-    ->required()
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'First name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+                                    ->label('Mothers First Name')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'First name can only contain letters, spaces, hyphens, and periods.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'style'      => 'text-transform: capitalize;',
+                                        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
 
-TextInput::make('mothers_middlename')
-    ->label('Mothers Middle Name')
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'Middle name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+                                TextInput::make('mothers_middlename')
+                                    ->label('Mothers Middle Name')
+                                    ->maxLength(100)
+                                    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'Middle name can only contain letters, spaces, hyphens, and periods.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'style'      => 'text-transform: capitalize;',
+                                        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
 
-TextInput::make('mothers_lastname')
-    ->label('Mothers Last Name')
-    ->required()
-    ->maxLength(100)
-    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
-    ->validationMessages([
-        'regex' => 'Last name can only contain letters, spaces, hyphens, and periods.',
-    ])
-    ->extraInputAttributes([
-        'style'      => 'text-transform: capitalize;',
-        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
-    ])
-    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
+                                TextInput::make('mothers_lastname')
+                                    ->label('Mothers Last Name')
+                                    ->required()
+                                    ->maxLength(100)
+                                    ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
+                                    ->validationMessages([
+                                        'regex' => 'Last name can only contain letters, spaces, hyphens, and periods.',
+                                    ])
+                                    ->extraInputAttributes([
+                                        'style'      => 'text-transform: capitalize;',
+                                        'onkeypress' => "return /^[a-zA-Z\s\'\-\.]$/.test(event.key)",
+                                    ])
+                                    ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
                             ]),
                     ]),
 
@@ -351,6 +356,148 @@ TextInput::make('mothers_lastname')
                             ->default(null),
                     ]),
             ]);
+    }
+
+    // ── View page (read-only, same look as Applicants) ─────────────────────
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist->schema([
+
+            // ── Account Status ─────────────────────────────────────
+            Infolists\Components\Section::make('Account Status')
+                ->description('Student record and user account status')
+                ->icon('heroicon-o-clipboard-document-check')
+                ->schema([
+                    Infolists\Components\Grid::make(3)->schema([
+                        TextEntry::make('student_id')
+                            ->label('Student ID')
+                            ->icon('heroicon-o-identification')
+                            ->weight(FontWeight::Bold),
+
+                        Infolists\Components\IconEntry::make('has_account')
+                            ->label('User Account')
+                            ->state(fn (Students $record): bool => static::recordHasAccount($record))
+                            ->boolean()
+                            ->trueIcon('heroicon-o-check-circle')
+                            ->falseIcon('heroicon-o-x-circle')
+                            ->trueColor('success')
+                            ->falseColor('danger'),
+
+                        TextEntry::make('created_at')
+                            ->label('Added On')
+                            ->icon('heroicon-o-calendar')
+                            ->dateTime('M d, Y h:i A'),
+                    ]),
+                ]),
+
+            // ── Personal Information ───────────────────────────────
+            Infolists\Components\Section::make('Personal Information')
+                ->description('Student personal details')
+                ->icon('heroicon-o-user')
+                ->collapsible()
+                ->schema([
+                    Infolists\Components\Grid::make(3)->schema([
+                        TextEntry::make('first_name')
+                            ->label('First Name')
+                            ->icon('heroicon-o-user')
+                            ->size(TextEntrySize::Large)
+                            ->weight(FontWeight::Bold),
+                        TextEntry::make('middle_name')
+                            ->label('Middle Name')
+                            ->icon('heroicon-o-user')
+                            ->placeholder('N/A'),
+                        TextEntry::make('last_name')
+                            ->label('Last Name')
+                            ->icon('heroicon-o-user')
+                            ->size(TextEntrySize::Large)
+                            ->weight(FontWeight::Bold),
+                        TextEntry::make('extension_name')
+                            ->label('Extension')
+                            ->placeholder('N/A'),
+                    ]),
+
+                    Infolists\Components\Grid::make(3)->schema([
+                        TextEntry::make('birth_date')
+                            ->label('Date of Birth')
+                            ->icon('heroicon-o-cake')
+                            ->date('M d, Y'),
+                        TextEntry::make('age')
+                            ->label('Age')
+                            ->icon('heroicon-o-calendar-days')
+                            ->state(fn (Students $record) => $record->birth_date
+                                ? \Carbon\Carbon::parse($record->birth_date)->age . ' years old'
+                                : 'N/A'),
+                        TextEntry::make('gender.name')
+                            ->label('Gender')
+                            ->icon('heroicon-o-user-circle')
+                            ->placeholder('N/A'),
+                        TextEntry::make('contact_no')
+                            ->label('Contact Number')
+                            ->icon('heroicon-o-phone'),
+                        TextEntry::make('email')
+                            ->label('Email')
+                            ->icon('heroicon-o-envelope'),
+                        TextEntry::make('zipcode')
+                            ->label('Zip Code')
+                            ->icon('heroicon-o-map-pin'),
+                        TextEntry::make('address')
+                            ->label('Address')
+                            ->icon('heroicon-o-home')
+                            ->columnSpanFull(),
+                    ]),
+                ]),
+
+            // ── Academic Information ───────────────────────────────
+            Infolists\Components\Section::make('Academic Information')
+                ->description('Program enrollment and academic standing')
+                ->icon('heroicon-o-academic-cap')
+                ->collapsible()
+                ->schema([
+                    Infolists\Components\Grid::make(2)->schema([
+                        TextEntry::make('program.name')
+                            ->label('Program')
+                            ->icon('heroicon-o-academic-cap'),
+                        TextEntry::make('year_level')
+                            ->label('Year Level')
+                            ->badge()
+                            ->color('success'),
+                    ]),
+                ]),
+
+            // ── Parents / Guardians ────────────────────────────────
+            Infolists\Components\Section::make('Parents / Guardians')
+                ->description("Father's and mother's information")
+                ->icon('heroicon-o-users')
+                ->collapsible()
+                ->schema([
+                    Infolists\Components\Fieldset::make("Father's Information")
+                        ->columns(3)
+                        ->schema([
+                            TextEntry::make('fathers_firstname')->label('First Name')->icon('heroicon-o-user')->placeholder('N/A'),
+                            TextEntry::make('fathers_middlename')->label('Middle Name')->icon('heroicon-o-user')->placeholder('N/A'),
+                            TextEntry::make('fathers_lastname')->label('Last Name')->icon('heroicon-o-user')->placeholder('N/A'),
+                        ]),
+                    Infolists\Components\Fieldset::make("Mother's Information")
+                        ->columns(3)
+                        ->schema([
+                            TextEntry::make('mothers_firstname')->label('First Name')->icon('heroicon-o-user')->placeholder('N/A'),
+                            TextEntry::make('mothers_middlename')->label('Middle Name')->icon('heroicon-o-user')->placeholder('N/A'),
+                            TextEntry::make('mothers_lastname')->label('Last Name')->icon('heroicon-o-user')->placeholder('N/A'),
+                        ]),
+                ]),
+
+            // ── Additional Information ─────────────────────────────
+            Infolists\Components\Section::make('Additional Information')
+                ->description('Disability and indigenous people group')
+                ->icon('heroicon-o-information-circle')
+                ->collapsible()
+                ->collapsed()
+                ->columns(2)
+                ->schema([
+                    TextEntry::make('disability')->placeholder('N/A'),
+                    TextEntry::make('ip_group')->label('Indigenous People Group')->placeholder('N/A'),
+                ]),
+        ]);
     }
 
     public static function table(Table $table): Table
@@ -391,19 +538,19 @@ TextInput::make('mothers_lastname')
                 Tables\Columns\TextColumn::make('email')
                     ->searchable(),
                 Tables\Columns\IconColumn::make('has_account')
-                ->label('Account')
-                ->getStateUsing(fn (Students $record): bool => static::recordHasAccount($record))
-                ->boolean()
-                ->trueIcon('heroicon-o-check-circle')
-                ->falseIcon('heroicon-o-x-circle')
-                ->trueColor('success')
-                ->falseColor('danger')
-                ->tooltip(fn (Students $record): string => filled($record->user_id)
-                    ? 'Has a user account'
-                    : (static::recordHasAccount($record)
-                        ? 'A matching user account exists but is not linked to this student record yet'
-                        : 'No user account yet'))
-                ->alignCenter(),
+                    ->label('Account')
+                    ->getStateUsing(fn (Students $record): bool => static::recordHasAccount($record))
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger')
+                    ->tooltip(fn (Students $record): string => filled($record->user_id)
+                        ? 'Has a user account'
+                        : (static::recordHasAccount($record)
+                            ? 'A matching user account exists but is not linked to this student record yet'
+                            : 'No user account yet'))
+                    ->alignCenter(),
                 Tables\Columns\TextColumn::make('fathers_firstname')
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -602,27 +749,29 @@ TextInput::make('mothers_lastname')
                     )
                     ->placeholder('All Terms')
                     ->searchable(),
-                    Tables\Filters\SelectFilter::make('year_level')
-        ->label('Year Level')
-        ->options(fn () => Students::query()
-            ->whereNotNull('year_level')
-            ->where('year_level', '!=', '')
-            ->distinct()
-            ->orderBy('year_level')
-            ->pluck('year_level', 'year_level')
-            ->all())
-        ->multiple()
-        ->placeholder('All Year Levels'),
-                    Tables\Filters\TernaryFilter::make('has_account')
-    ->label('User Account')
-    ->placeholder('All students')
-    ->trueLabel('With account')
-    ->falseLabel('Without account')
-    ->queries(
-        true:  fn (Builder $query) => static::withAccountQuery($query),
-        false: fn (Builder $query) => static::withoutAccountQuery($query),
-        blank: fn (Builder $query) => $query,
-    ),
+
+                Tables\Filters\SelectFilter::make('year_level')
+                    ->label('Year Level')
+                    ->options(fn () => Students::query()
+                        ->whereNotNull('year_level')
+                        ->where('year_level', '!=', '')
+                        ->distinct()
+                        ->orderBy('year_level')
+                        ->pluck('year_level', 'year_level')
+                        ->all())
+                    ->multiple()
+                    ->placeholder('All Year Levels'),
+
+                Tables\Filters\TernaryFilter::make('has_account')
+                    ->label('User Account')
+                    ->placeholder('All students')
+                    ->trueLabel('With account')
+                    ->falseLabel('Without account')
+                    ->queries(
+                        true:  fn (Builder $query) => static::withAccountQuery($query),
+                        false: fn (Builder $query) => static::withoutAccountQuery($query),
+                        blank: fn (Builder $query) => $query,
+                    ),
             ])
             ->filtersLayout(Tables\Enums\FiltersLayout::AboveContent)
             ->actions([
@@ -631,11 +780,11 @@ TextInput::make('mothers_lastname')
                     Tables\Actions\EditAction::make(),
                     // Tables\Actions\DeleteAction::make(),
                 ])
-                ->label('Actions')
-                ->icon('heroicon-m-ellipsis-vertical')
-                ->size('sm')
-                ->color('gray')
-                ->button(),
+                    ->label('Actions')
+                    ->icon('heroicon-m-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('gray')
+                    ->button(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -665,6 +814,7 @@ TextInput::make('mothers_lastname')
         return [
             'index'  => Pages\ListStudents::route('/'),
             'create' => Pages\CreateStudents::route('/create'),
+            'view'   => Pages\ViewStudents::route('/{record}'),
             'edit'   => Pages\EditStudents::route('/{record}/edit'),
         ];
     }

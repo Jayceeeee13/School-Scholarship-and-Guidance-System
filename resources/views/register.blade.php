@@ -374,6 +374,7 @@
                                 @elseif ($f['type'] === 'password')
                                     <div class="relative">
                                         <input type="password" name="{{ $f['name'] }}" id="{{ $id }}"
+                                               autocomplete="new-password"
                                                @if (!empty($f['hint']))
                                                    minlength="11"
                                                    pattern="(?=.*\p{Lu})(?=.*\d)(?=.*[^\p{L}\d\s]).{11,}"
@@ -447,6 +448,13 @@
 
         document.querySelectorAll('[data-section]').forEach(el =>
             el.classList.toggle('hidden', el.dataset.section !== type));
+
+        // Disable the inputs of the hidden form so they are never validated or submitted
+        document.querySelectorAll('[data-section]').forEach(section => {
+            section.querySelectorAll('input, select').forEach(field => {
+                field.disabled = section.dataset.section !== type;
+            });
+        });
 
         document.querySelectorAll('[data-hint]').forEach(el =>
             el.classList.toggle('hidden', el.dataset.hint !== type));

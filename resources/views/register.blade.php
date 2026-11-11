@@ -190,6 +190,7 @@
     // half => true places the field in a half-width column.
     // required => false removes the red asterisk.
     // digits => true limits the input to numbers only (max 11).
+    // letters => true limits the input to letters (plus space . - ').
     $sections = [
         'enrolled' => [
             ['name' => 'student_id',          'label' => 'Student ID', 'type' => 'text', 'placeholder' => 'e.g. 2024-00001'],
@@ -201,8 +202,8 @@
             ['name' => 'password_confirmation', 'label' => 'Confirm Password', 'type' => 'password', 'id' => 'password_confirm_enrolled'],
         ],
         'unenrolled' => [
-            ['name' => 'first_name', 'label' => 'First Name', 'type' => 'text', 'half' => true],
-            ['name' => 'last_name',  'label' => 'Last Name',  'type' => 'text', 'half' => true],
+            ['name' => 'first_name', 'label' => 'First Name', 'type' => 'text', 'half' => true, 'letters' => true],
+            ['name' => 'last_name',  'label' => 'Last Name',  'type' => 'text', 'half' => true, 'letters' => true],
             ['name' => 'birthdate',  'label' => 'Birthdate',  'type' => 'date'],
             ['name' => 'gender_id',  'label' => 'Gender',     'type' => 'select', 'required' => false,
                 'placeholder' => 'Select gender (optional)', 'options' => [1 => 'Male', 2 => 'Female']],
@@ -387,6 +388,7 @@
                                            value="{{ old($f['name']) }}"
                                            @if (!empty($f['placeholder'])) placeholder="{{ $f['placeholder'] }}" @endif
                                            @if (!empty($f['digits'])) inputmode="numeric" maxlength="11" pattern="[0-9]{1,11}" data-digits @endif
+                                           @if (!empty($f['letters'])) pattern="[\p{L}\s.\-']+" title="Letters only (no numbers or special characters)" data-letters @endif
                                            @if ($f['type'] === 'date') min="{{ $minBirthdate }}" max="{{ $maxBirthdate }}" @endif
                                            class="{{ $inputClass($f['name']) }}">
                                 @endif
@@ -456,6 +458,15 @@
     document.querySelectorAll('[data-digits]').forEach(el => {
         el.addEventListener('input', () => {
             el.value = el.value.replace(/\D/g, '').slice(0, 11);
+        });
+    });
+
+    // Names: letters only (plus space . - '), also covers pasted text.
+    // For strictly letters and spaces, use /[^\p{L}\s]/gu here and
+    // pattern="[\p{L}\s]+" on the input.
+    document.querySelectorAll('[data-letters]').forEach(el => {
+        el.addEventListener('input', () => {
+            el.value = el.value.replace(/[^\p{L}\s.\-']/gu, '');
         });
     });
 

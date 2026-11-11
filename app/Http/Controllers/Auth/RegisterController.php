@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\Students;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 
 class RegisterController extends Controller
@@ -79,19 +80,39 @@ class RegisterController extends Controller
             ])->withInput();
         }
 
+        // The contact number copied from the student record must not already
+        // belong to another user account.
+        if (! empty($student->contact_no)
+            && User::where('contact_no', $student->contact_no)->exists()) {
+            return back()->withErrors([
+                'student_id' => 'The contact number on your student record is already used by another account. Please contact the registrar or admin office to resolve this.',
+            ])->withInput();
+        }
+
         // Create new account and link to student record
         // Enrolled users: all personal data pulled from the students table automatically
-        $user = User::create([
-            'name'       => "{$student->first_name} {$student->last_name}",
-            'last_name'  => $student->last_name,
-            'email'      => $validated['email'],
-            'password'   => $validated['password'],
-            'role_id'    => $this->studentRoleId(),
-            'birthdate'  => $student->birth_date,
-            'gender_id'  => $student->gender_id,
-            'contact_no' => $student->contact_no,
-            'address'    => $student->address,
-        ]);
+        try {
+            $user = User::create([
+                'name'       => "{$student->first_name} {$student->last_name}",
+                'last_name'  => $student->last_name,
+                'email'      => $validated['email'],
+                'password'   => $validated['password'],
+                'role_id'    => $this->studentRoleId(),
+                'birthdate'  => $student->birth_date,
+                'gender_id'  => $student->gender_id,
+                'contact_no' => $student->contact_no,
+                'address'    => $student->address,
+            ]);
+        } catch (QueryException $e) {
+            // 23000 = integrity constraint violation (duplicate key, e.g. a
+            // simultaneous sign-up that slipped past the checks above).
+            if ($e->getCode() === '23000') {
+                return back()->withErrors([
+                    'student_id' => 'The contact number or email is already used by another account.',
+                ])->withInput();
+            }
+            throw $e;
+        }
 
         // Also register the role in the roles relationship so the Users
         // resource (and hasRole checks) recognise this account as a student.
@@ -106,9 +127,11 @@ class RegisterController extends Controller
     private function registerUnenrolled(Request $request)
     {
         $validated = $request->validate([
-            'first_name'                       => ['required', 'string', 'max:255'],
-            'last_name'                        => ['required', 'string', 'max:255'],
-            'birthdate'                        => [
+            // Letters only (including accents like ñ), spaces, hyphens, apostrophes, periods.
+            // For strictly letters and spaces, use: "regex:/^[\pL\s]+$/u"
+            'first_name' => ['required', 'string', 'max:255', "regex:/^[\pL\s\.\-']+$/u"],
+            'last_name'  => ['required', 'string', 'max:255', "regex:/^[\pL\s\.\-']+$/u"],
+            'birthdate'  => [
                 'required',
                 'date',
                 'before_or_equal:' . $this->maxBirthdate(),
@@ -118,14 +141,16 @@ class RegisterController extends Controller
             'password_unenrolled'              => ['required', 'string', 'min:8'],
             'password_confirmation_unenrolled' => ['required', 'same:password_unenrolled'],
 
-            // ── NOW REQUIRED so admission form can always auto-fill ──
-            // Digits only, up to 11 digits.
-            'contact_no' => ['required', 'regex:/^[0-9]{1,11}$/'],
+            // Digits only, up to 11 digits, and must not belong to another user.
+            'contact_no' => ['required', 'regex:/^[0-9]{1,11}$/', 'unique:users,contact_no'],
             'gender_id'  => ['nullable', 'integer'],
             'address'    => ['required', 'string', 'max:255'],
         ], [
+            'first_name.regex'          => 'First name may only contain letters (no numbers or special characters).',
+            'last_name.regex'           => 'Last name may only contain letters (no numbers or special characters).',
             'email_unenrolled.unique'   => 'This email is already used by an existing account. Please use a different email or log in instead.',
             'contact_no.regex'          => 'Contact number must contain digits only (up to 11 digits).',
+            'contact_no.unique'         => 'This contact number is already used by another account.',
             'birthdate.before_or_equal' => 'Please enter a realistic birthdate. It cannot be in the current year or later.',
             'birthdate.after_or_equal'  => 'Please enter a realistic birthdate.',
         ]);

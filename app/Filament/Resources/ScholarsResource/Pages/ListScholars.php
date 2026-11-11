@@ -1100,14 +1100,36 @@ class ListScholars extends ListRecords
             ]),
     ])
     ->action(function (InstitutionalScholar $record, array $data): void {
-    $record->fill($data);
+    // Fields whose submitted value really differs from what is saved.
+    $changed = collect($data)->filter(function ($new, $key) use ($record) {
+        $old = $record->getOriginal($key);
+
+        // Dates: compare the day only.
+        if ($key === 'birthdate') {
+            $oldDay = $old ? \Carbon\Carbon::parse($old)->toDateString() : null;
+            $newDay = $new ? \Carbon\Carbon::parse($new)->toDateString() : null;
+
+            return $oldDay !== $newDay;
+        }
+
+        // Treat null and '' as the same.
+        $old = ($old === '' || $old === null) ? null : $old;
+        $new = ($new === '' || $new === null) ? null : $new;
+
+        // Numbers: 80, "80" and "80.00" are equal.
+        if (is_numeric($old) && is_numeric($new)) {
+            return (float) $old !== (float) $new;
+        }
+
+        return (string) $old !== (string) $new;
+    });
 
     // Nothing changed: no save, no notification.
-    if (! $record->isDirty()) {
+    if ($changed->isEmpty()) {
         return;
     }
 
-    $record->save();
+    $record->update($data);
 
     Notification::make()
         ->title('Scholar Updated')

@@ -669,14 +669,18 @@ class ScholarsResource extends Resource
                                 ->native(false),
                         ])
                         ->action(function (Scholars $record, array $data) {
-                            $record->update(['status' => $data['status']]);
+    if ($record->status === $data['status']) {
+        return;
+    }
 
-                            Notification::make()
-                                ->title('Status Updated')
-                                ->success()
-                                ->body('Scholar status updated to: ' . ucfirst($data['status']))
-                                ->send();
-                        })
+    $record->update(['status' => $data['status']]);
+
+    Notification::make()
+        ->title('Status Updated')
+        ->success()
+        ->body('Scholar status updated to: ' . ucfirst($data['status']))
+        ->send();
+})
                         ->visible(fn () => ! static::isRestrictedToOwnScholars()),
 
                     Tables\Actions\Action::make('revoke')

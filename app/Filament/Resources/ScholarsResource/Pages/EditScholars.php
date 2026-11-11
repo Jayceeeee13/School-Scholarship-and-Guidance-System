@@ -21,4 +21,24 @@ class EditScholars extends EditRecord
     {
         return $this->getResource()::getUrl('index');
     }
+
+    /**
+     * If nothing changed, skip the save (no "Saved" notification,
+     * no model events) and go back to the list.
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        $copy = $this->getRecord()->replicate();
+        $copy->setRawAttributes($this->getRecord()->getAttributes(), true);
+        $copy->exists = true;
+        $copy->fill($data);
+
+        if (! $copy->isDirty()) {
+            $this->redirect($this->getRedirectUrl());
+
+            $this->halt();
+        }
+
+        return $data;
+    }
 }

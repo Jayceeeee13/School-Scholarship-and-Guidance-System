@@ -1100,15 +1100,22 @@ class ListScholars extends ListRecords
             ]),
     ])
     ->action(function (InstitutionalScholar $record, array $data): void {
-        $record->update($data);
+    $record->fill($data);
 
-        Notification::make()
-            ->title('Scholar Updated')
-            ->success()
-            ->send();
+    // Nothing changed: no save, no notification.
+    if (! $record->isDirty()) {
+        return;
+    }
 
-        $this->resetTable();
-    }),
+    $record->save();
+
+    Notification::make()
+        ->title('Scholar Updated')
+        ->success()
+        ->send();
+
+    $this->resetTable();
+}),
 
                         // Tables\Actions\DeleteAction::make(),
                     ])
@@ -1748,28 +1755,42 @@ class ListScholars extends ListRecords
             ->rows(2),
     ])
     ->action(function (DailyTimeRecord $record, array $data): void {
-        $data['total_hours'] = DailyTimeRecord::calculateTotalHours(
-            $data['am_in'] ?? null,
-            $data['am_out'] ?? null,
-            $data['pm_in'] ?? null,
-            $data['pm_out'] ?? null,
-        );
+    $data['total_hours'] = DailyTimeRecord::calculateTotalHours(
+        $data['am_in'] ?? null,
+        $data['am_out'] ?? null,
+        $data['pm_in'] ?? null,
+        $data['pm_out'] ?? null,
+    );
 
-        $record->update($data);
+    $record->fill($data);
 
-        $this->logCustomActivity(
-            $record,
-            'dtr',
-            'updated',
-            "Updated DTR entry for {$record->date?->format('M d, Y')} ({$record->office_assigned})"
-        );
+    // total_hours is recalculated, so "1.5" vs "1.50" must not count as a change.
+    if (
+        $record->isDirty('total_hours')
+        && abs((float) $record->getOriginal('total_hours') - (float) $record->total_hours) < 0.005
+    ) {
+        $record->syncOriginalAttribute('total_hours');
+    }
 
-        Notification::make()
-            ->title('DTR entry updated')
-            ->success()
-            ->send();
-    }),
+    // Nothing changed: no save, no activity log, no notification.
+    if (! $record->isDirty()) {
+        return;
+    }
 
+    $record->save();
+
+    $this->logCustomActivity(
+        $record,
+        'dtr',
+        'updated',
+        "Updated DTR entry for {$record->date?->format('M d, Y')} ({$record->office_assigned})"
+    );
+
+    Notification::make()
+        ->title('DTR entry updated')
+        ->success()
+        ->send();
+}),
                                                     Tables\Actions\Action::make('setAttendance')
                             ->label(fn (DailyTimeRecord $record): string => $record->attendance_status
                                 ? 'Edit Attendance Remarks'

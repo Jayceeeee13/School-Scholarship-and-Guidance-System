@@ -42,21 +42,23 @@ class StudentsResource extends Resource
      * or by last name + birthdate.
      */
     protected static function matchingUserSubquery(): \Closure
-    {
-        $students = (new Students)->getTable();
+{
+    $students = (new Students)->getTable();
 
-        return function ($sub) use ($students) {
-            $sub->selectRaw('1')
-                ->from('users')
-                ->where(function ($match) use ($students) {
-                    $match->whereRaw("LOWER(TRIM(users.email)) = LOWER(TRIM({$students}.email))")
-                        ->orWhere(function ($n) use ($students) {
-                            $n->whereRaw("LOWER(TRIM(users.last_name)) = LOWER(TRIM({$students}.last_name))")
-                                ->whereColumn('users.birthdate', "{$students}.birth_date");
-                        });
+    return function ($sub) use ($students) {
+        $sub->selectRaw('1')
+            ->from('users')
+            ->where(function ($match) use ($students) {
+                $match->whereRaw(
+                    "LOWER(TRIM(users.email)) COLLATE utf8mb4_unicode_ci = LOWER(TRIM({$students}.email)) COLLATE utf8mb4_unicode_ci"
+                )->orWhere(function ($n) use ($students) {
+                    $n->whereRaw(
+                        "LOWER(TRIM(users.last_name)) COLLATE utf8mb4_unicode_ci = LOWER(TRIM({$students}.last_name)) COLLATE utf8mb4_unicode_ci"
+                    )->whereColumn('users.birthdate', "{$students}.birth_date");
                 });
-        };
-    }
+            });
+    };
+}
 
     protected static function withAccountQuery(Builder $query): Builder
     {

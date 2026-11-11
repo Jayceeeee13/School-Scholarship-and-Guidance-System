@@ -316,16 +316,18 @@
                     </div>
 
                     {{-- 1. File identifier --}}
-                    <div>
-                        <div class="form-section-header"><span>1</span><h3>File identifier</h3></div>
-                        <label class="field-label" for="file_name">File name prefix <span style="color:var(--danger)">*</span></label>
-                        <input type="text" id="file_name" name="file_name"
-                               value="{{ old('file_name', 'GVC_' . strtoupper(substr($applicant->last_name, 0, 6)) . '_' . date('Y')) }}"
-                               placeholder="e.g. GVC_DELACRUZ_2025"
-                               class="field-input {{ $errors->has('file_name') ? 'is-invalid' : '' }}">
-                        <p class="field-hint">This prefix will be added to all your uploaded file names.</p>
-                        @error('file_name')<p class="field-error">{{ $message }}</p>@enderror
-                    </div>
+<div>
+    <div class="form-section-header"><span>1</span><h3>File identifier</h3></div>
+    <label class="field-label" for="file_name">File name prefix</label>
+    <input type="text" id="file_name" name="file_name"
+           value="{{ 'GVC_' . strtoupper(substr($applicant->last_name, 0, 6)) . '_' . date('Y') }}"
+           readonly
+           tabindex="-1"
+           aria-readonly="true"
+           style="background:#f1f5f9;color:#64748b;cursor:not-allowed;"
+           class="field-input">
+    <p class="field-hint">This prefix is set automatically and will be added to all your uploaded file names.</p>
+</div>
 
                     {{-- 2. Required documents --}}
                     <div>

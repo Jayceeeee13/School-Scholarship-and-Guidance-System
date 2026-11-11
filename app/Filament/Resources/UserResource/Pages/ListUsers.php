@@ -516,33 +516,53 @@ class ListUsers extends ListRecords
                             ])
                             ->form(fn (Personnels $record): array => $this->personnelFormSchema($record))
                             ->action(function (Personnels $record, array $data): void {
-                                $data['age'] = \Carbon\Carbon::parse($data['birthdate'])->age;
+    $data['age'] = \Carbon\Carbon::parse($data['birthdate'])->age;
 
-                                $synced = false;
+    // Compare submitted values against what is currently saved.
+    $hasChanges = collect($data)->contains(function ($value, $key) use ($record) {
+        $old = $record->getOriginal($key);
 
-                                DB::transaction(function () use ($record, $data, &$synced) {
-                                    $record->update($data);
-                                    $record->refresh();
+        // Dates: compare the day only, so "2002-03-23" and
+        // "2002-03-23 00:00:00" don't count as a change.
+        if ($key === 'birthdate') {
+            return \Carbon\Carbon::parse($old)->toDateString()
+                !== \Carbon\Carbon::parse($value)->toDateString();
+        }
 
-                                    // Reflect the changes on the linked user account.
-                                    $synced = $this->syncPersonnelToUser($record);
-                                });
+        // Cast to string so null vs '' and 22 vs "22" don't count as changes.
+        return (string) $old !== (string) $value;
+    });
 
-                                $this->logCustomActivity(
-                                    $record,
-                                    'personnels',
-                                    'updated',
-                                    "Updated personnel {$record->first_name} {$record->last_name}"
-                                );
+    // Nothing changed: no update, no sync, no log, no notification.
+    if (! $hasChanges) {
+        return;
+    }
 
-                                Notification::make()
-                                    ->title('Personnel updated')
-                                    ->body($synced
-                                        ? 'The linked user account was updated too.'
-                                        : 'No linked user account to update.')
-                                    ->success()
-                                    ->send();
-                            }),
+    $synced = false;
+
+    DB::transaction(function () use ($record, $data, &$synced) {
+        $record->update($data);
+        $record->refresh();
+
+        // Reflect the changes on the linked user account.
+        $synced = $this->syncPersonnelToUser($record);
+    });
+
+    $this->logCustomActivity(
+        $record,
+        'personnels',
+        'updated',
+        "Updated personnel {$record->first_name} {$record->last_name}"
+    );
+
+    Notification::make()
+        ->title('Personnel updated')
+        ->body($synced
+            ? 'The linked user account was updated too.'
+            : 'No linked user account to update.')
+        ->success()
+        ->send();
+}),
 
                         // Goes to the read-only View User page
                         Tables\Actions\Action::make('viewUserAccount')

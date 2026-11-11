@@ -41,6 +41,32 @@ class RegisterController extends Controller
         return now()->subYears(100)->toDateString();
     }
 
+    /**
+     * Shared password rules for both registration forms:
+     * at least 11 characters, with an uppercase letter, a number and a special character.
+     */
+    private function passwordRules(): array
+    {
+        return [
+            'required',
+            'string',
+            function ($attribute, $value, $fail) {
+                if (mb_strlen($value) < 11) {
+                    $fail('Password must be at least 11 characters long.');
+                }
+                if (! preg_match('/\p{Lu}/u', $value)) {
+                    $fail('Password must contain at least one capital letter.');
+                }
+                if (! preg_match('/\d/', $value)) {
+                    $fail('Password must contain at least one number.');
+                }
+                if (! preg_match('/[^\p{L}\d\s]/u', $value)) {
+                    $fail('Password must contain at least one special character (e.g. ! @ # $ % ^ & *).');
+                }
+            },
+        ];
+    }
+
     private function registerEnrolled(Request $request)
     {
         $validated = $request->validate([
@@ -54,7 +80,7 @@ class RegisterController extends Controller
             ],
             // The email must not already belong to any existing user account.
             'email'              => ['required', 'email', 'unique:users,email'],
-            'password'           => ['required', 'string', 'min:8', 'confirmed'],
+            'password'           => [...$this->passwordRules(), 'confirmed'],
         ], [
             'email.unique'                       => 'This email is already used by an existing account. Please use a different email or log in instead.',
             'birthdate_enrolled.before_or_equal' => 'Please enter a realistic birthdate. It cannot be in the current year or later.',
@@ -136,7 +162,7 @@ class RegisterController extends Controller
                 'after_or_equal:' . $this->minBirthdate(),
             ],
             'email_unenrolled'                 => ['required', 'email', 'unique:users,email'],
-            'password_unenrolled'              => ['required', 'string', 'min:8'],
+            'password_unenrolled'              => $this->passwordRules(),
             'password_confirmation_unenrolled' => ['required', 'same:password_unenrolled'],
 
             // Digits only, up to 11 digits, and must not belong to another user.

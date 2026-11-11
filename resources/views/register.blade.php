@@ -158,6 +158,9 @@
     $maxBirthdate = now()->subYear()->endOfYear()->format('Y-m-d');
     $minBirthdate = now()->subYears(100)->format('Y-m-d');
 
+    // Password rule text, shown under the field and in the browser tooltip.
+    $passwordHint = 'At least 11 characters, with a capital letter, a number, and a special character.';
+
     // Heroicons (outline) path data
     $icons = [
         'student' => 'M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 3.741-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5',
@@ -191,6 +194,7 @@
     // required => false removes the red asterisk.
     // digits => true limits the input to numbers only (max 11).
     // letters => true limits the input to letters and spaces only.
+    // hint => text shown under the field (on password fields it also turns on the strong-password check).
     $sections = [
         'enrolled' => [
             ['name' => 'student_id',          'label' => 'Student ID', 'type' => 'text', 'placeholder' => 'e.g. 2024-00001'],
@@ -198,7 +202,7 @@
             ['name' => 'birthdate_enrolled',  'label' => 'Birthdate',  'type' => 'date'],
             ['type' => 'divider', 'label' => 'Account credentials'],
             ['name' => 'email',                 'label' => 'Email',            'type' => 'email'],
-            ['name' => 'password',              'label' => 'Password',         'type' => 'password', 'id' => 'password_enrolled'],
+            ['name' => 'password',              'label' => 'Password',         'type' => 'password', 'id' => 'password_enrolled', 'hint' => $passwordHint],
             ['name' => 'password_confirmation', 'label' => 'Confirm Password', 'type' => 'password', 'id' => 'password_confirm_enrolled'],
         ],
         'unenrolled' => [
@@ -211,7 +215,7 @@
             ['name' => 'address',    'label' => 'Address',        'type' => 'text', 'placeholder' => 'House no., street, barangay, city'],
             ['type' => 'divider', 'label' => 'Account credentials'],
             ['name' => 'email_unenrolled',                 'label' => 'Email',            'type' => 'email'],
-            ['name' => 'password_unenrolled',              'label' => 'Password',         'type' => 'password', 'id' => 'password_unenrolled'],
+            ['name' => 'password_unenrolled',              'label' => 'Password',         'type' => 'password', 'id' => 'password_unenrolled', 'hint' => $passwordHint],
             ['name' => 'password_confirmation_unenrolled', 'label' => 'Confirm Password', 'type' => 'password', 'id' => 'password_confirm_unenrolled'],
         ],
     ];
@@ -370,6 +374,11 @@
                                 @elseif ($f['type'] === 'password')
                                     <div class="relative">
                                         <input type="password" name="{{ $f['name'] }}" id="{{ $id }}"
+                                               @if (!empty($f['hint']))
+                                                   minlength="11"
+                                                   pattern="(?=.*\p{Lu})(?=.*\d)(?=.*[^\p{L}\d\s]).{11,}"
+                                                   title="{{ $f['hint'] }}"
+                                               @endif
                                                class="{{ $inputClass($f['name'], 'pr-10') }}">
                                         <button type="button" onclick="togglePassword('{{ $id }}', this)"
                                                 aria-label="Show or hide password"
@@ -382,6 +391,9 @@
                                             </svg>
                                         </button>
                                     </div>
+                                    @if (!empty($f['hint']))
+                                        <p class="text-xs text-slate-500">{{ $f['hint'] }}</p>
+                                    @endif
 
                                 @else
                                     <input type="{{ $f['type'] }}" name="{{ $f['name'] }}" id="{{ $id }}"

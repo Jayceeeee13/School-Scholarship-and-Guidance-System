@@ -27,16 +27,29 @@ class EditUser extends EditRecord
      * saving, because getRedirectUrl() sends you to the View page.)
      */
     protected function getSaveFormAction(): Actions\Action
-    {
-        $isPristine = 'JSON.stringify($wire.data) === original';
-
-        return parent::getSaveFormAction()
-            ->extraAttributes([
-                'x-data'          => '{ original: JSON.stringify($wire.data) }',
-                'x-bind:disabled' => $isPristine,
-                'x-bind:class'    => "{ 'opacity-50 cursor-not-allowed pointer-events-none': {$isPristine} }",
-            ]);
-    }
+{
+    return parent::getSaveFormAction()
+        ->extraAttributes([
+            'x-data' => <<<'JS'
+                {
+                    original: null,
+                    init() {
+                        // Wait for Filament fields to finish hydrating/normalizing,
+                        // then remember the form state as the baseline.
+                        setTimeout(() => {
+                            this.original = JSON.stringify(this.$wire.data)
+                        }, 600)
+                    },
+                    get pristine() {
+                        return this.original === null
+                            || JSON.stringify(this.$wire.data) === this.original
+                    },
+                }
+                JS,
+            'x-bind:disabled' => 'pristine',
+            'x-bind:class'    => "{ 'opacity-50 cursor-not-allowed pointer-events-none': pristine }",
+        ]);
+}
 
     protected function getRedirectUrl(): string
     {

@@ -29,6 +29,65 @@ class StudentsResource extends Resource
 
     protected static ?string $navigationGroup = 'Generals';
 
+    // ── Account detection helpers ──────────────────────────────────────────
+    // A student counts as having an account when:
+    //   1. students.user_id is set (formally linked), OR
+    //   2. a user exists with the same email, OR
+    //   3. a user exists with the same last name AND birthdate.
+    // Cases 2 and 3 cover accounts created through the Visitor form or by an
+    // admin, which never set students.user_id.
+
+    /**
+     * Sub-query that looks for a user matching the student by email,
+     * or by last name + birthdate.
+     */
+    protected static function matchingUserSubquery(): \Closure
+    {
+        $students = (new Students)->getTable();
+
+        return function ($sub) use ($students) {
+            $sub->selectRaw('1')
+                ->from('users')
+                ->where(function ($match) use ($students) {
+                    $match->whereRaw("LOWER(TRIM(users.email)) = LOWER(TRIM({$students}.email))")
+                        ->orWhere(function ($n) use ($students) {
+                            $n->whereRaw("LOWER(TRIM(users.last_name)) = LOWER(TRIM({$students}.last_name))")
+                                ->whereColumn('users.birthdate', "{$students}.birth_date");
+                        });
+                });
+        };
+    }
+
+    protected static function withAccountQuery(Builder $query): Builder
+    {
+        $students = (new Students)->getTable();
+
+        return $query->where(function (Builder $q) use ($students) {
+            $q->whereNotNull("{$students}.user_id")
+                ->orWhereExists(static::matchingUserSubquery());
+        });
+    }
+
+    protected static function withoutAccountQuery(Builder $query): Builder
+    {
+        $students = (new Students)->getTable();
+
+        return $query
+            ->whereNull("{$students}.user_id")
+            ->whereNotExists(static::matchingUserSubquery());
+    }
+
+    protected static function recordHasAccount(Students $record): bool
+    {
+        if (filled($record->user_id)) {
+            return true;
+        }
+
+        return static::withAccountQuery(Students::query())
+            ->whereKey($record->getKey())
+            ->exists();
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -259,8 +318,7 @@ TextInput::make('mothers_middlename')
     ->dehydrateStateUsing(fn ($state) => $state ? ucwords(strtolower($state)) : $state),
 
 TextInput::make('mothers_lastname')
-    ->label('Mothers 
-    Last Name')
+    ->label('Mothers Last Name')
     ->required()
     ->maxLength(100)
     ->rule('regex:/^[a-zA-Z\s\-\.]+$/')
@@ -332,7 +390,7 @@ TextInput::make('mothers_lastname')
                     ->searchable(),
                 Tables\Columns\IconColumn::make('has_account')
                 ->label('Account')
-                ->getStateUsing(fn (Students $record): bool => filled($record->user_id))
+                ->getStateUsing(fn (Students $record): bool => static::recordHasAccount($record))
                 ->boolean()
                 ->trueIcon('heroicon-o-check-circle')
                 ->falseIcon('heroicon-o-x-circle')
@@ -340,7 +398,9 @@ TextInput::make('mothers_lastname')
                 ->falseColor('danger')
                 ->tooltip(fn (Students $record): string => filled($record->user_id)
                     ? 'Has a user account'
-                    : 'No user account yet')
+                    : (static::recordHasAccount($record)
+                        ? 'A matching user account exists but is not linked to this student record yet'
+                        : 'No user account yet'))
                 ->alignCenter(),
                 Tables\Columns\TextColumn::make('fathers_firstname')
                     ->searchable()
@@ -557,8 +617,8 @@ TextInput::make('mothers_lastname')
     ->trueLabel('With account')
     ->falseLabel('Without account')
     ->queries(
-        true:  fn (Builder $query) => $query->whereNotNull('user_id'),
-        false: fn (Builder $query) => $query->whereNull('user_id'),
+        true:  fn (Builder $query) => static::withAccountQuery($query),
+        false: fn (Builder $query) => static::withoutAccountQuery($query),
         blank: fn (Builder $query) => $query,
     ),
             ])

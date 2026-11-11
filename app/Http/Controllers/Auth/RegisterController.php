@@ -127,10 +127,9 @@ class RegisterController extends Controller
     private function registerUnenrolled(Request $request)
     {
         $validated = $request->validate([
-            // Letters only (including accents like ñ), spaces, hyphens, apostrophes, periods.
-            // For strictly letters and spaces, use: "regex:/^[\pL\s]+$/u"
-            'first_name' => ['required', 'string', 'max:255', "regex:/^[\pL\s\.\-']+$/u"],
-            'last_name'  => ['required', 'string', 'max:255', "regex:/^[\pL\s\.\-']+$/u"],
+            // Letters only (including accents like ñ) and spaces. No numbers or special characters.
+            'first_name' => ['required', 'string', 'max:255', 'regex:/^[\pL\s]+$/u'],
+            'last_name'  => ['required', 'string', 'max:255', 'regex:/^[\pL\s]+$/u'],
             'birthdate'  => [
                 'required',
                 'date',
@@ -146,8 +145,8 @@ class RegisterController extends Controller
             'gender_id'  => ['nullable', 'integer'],
             'address'    => ['required', 'string', 'max:255'],
         ], [
-            'first_name.regex'          => 'First name may only contain letters (no numbers or special characters).',
-            'last_name.regex'           => 'Last name may only contain letters (no numbers or special characters).',
+            'first_name.regex'          => 'First name may only contain letters and spaces (no numbers or special characters).',
+            'last_name.regex'           => 'Last name may only contain letters and spaces (no numbers or special characters).',
             'email_unenrolled.unique'   => 'This email is already used by an existing account. Please use a different email or log in instead.',
             'contact_no.regex'          => 'Contact number must contain digits only (up to 11 digits).',
             'contact_no.unique'         => 'This contact number is already used by another account.',

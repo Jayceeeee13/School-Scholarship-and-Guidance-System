@@ -190,7 +190,7 @@
     // half => true places the field in a half-width column.
     // required => false removes the red asterisk.
     // digits => true limits the input to numbers only (max 11).
-    // letters => true limits the input to letters (plus space . - ').
+    // letters => true limits the input to letters and spaces only.
     $sections = [
         'enrolled' => [
             ['name' => 'student_id',          'label' => 'Student ID', 'type' => 'text', 'placeholder' => 'e.g. 2024-00001'],
@@ -388,7 +388,7 @@
                                            value="{{ old($f['name']) }}"
                                            @if (!empty($f['placeholder'])) placeholder="{{ $f['placeholder'] }}" @endif
                                            @if (!empty($f['digits'])) inputmode="numeric" maxlength="11" pattern="[0-9]{1,11}" data-digits @endif
-                                           @if (!empty($f['letters'])) pattern="[\p{L}\s.\-']+" title="Letters only (no numbers or special characters)" data-letters @endif
+                                           @if (!empty($f['letters'])) pattern="[\p{L}\s]+" title="Letters and spaces only" autocomplete="off" data-letters @endif
                                            @if ($f['type'] === 'date') min="{{ $minBirthdate }}" max="{{ $maxBirthdate }}" @endif
                                            class="{{ $inputClass($f['name']) }}">
                                 @endif
@@ -461,12 +461,10 @@
         });
     });
 
-    // Names: letters only (plus space . - '), also covers pasted text.
-    // For strictly letters and spaces, use /[^\p{L}\s]/gu here and
-    // pattern="[\p{L}\s]+" on the input.
+    // Names: letters and spaces only, also covers pasted text.
     document.querySelectorAll('[data-letters]').forEach(el => {
         el.addEventListener('input', () => {
-            el.value = el.value.replace(/[^\p{L}\s.\-']/gu, '');
+            el.value = el.value.replace(/[^\p{L}\s]/gu, '');
         });
     });
 

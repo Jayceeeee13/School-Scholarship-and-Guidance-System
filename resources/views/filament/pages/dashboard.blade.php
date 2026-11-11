@@ -64,22 +64,24 @@
     |--------------------------------------------------------------------------
     */
 
-    $totalScholars = \App\Models\Scholars::query()
-        ->when($dateRange, fn ($q) => $q->whereBetween('created_at', $dateRange))
-        ->count();
+        /*
+    |--------------------------------------------------------------------------
+    | Scholars statistics: read from institutional_scholars,
+    | filtered by the selected term(s) instead of created_at.
+    |--------------------------------------------------------------------------
+    */
+    $institutionalBase = fn () => \App\Models\InstitutionalScholar::query()
+        ->when(! empty($selectedTermIds), fn ($q) => $q->whereIn('term_id', $selectedTermIds));
 
-    $activeScholars = \App\Models\Scholars::query()
-        ->when($dateRange, fn ($q) => $q->whereBetween('created_at', $dateRange))
-        ->where('status', 'active')
-        ->count();
+    $totalScholars = $institutionalBase()->count();
 
-    $inactiveScholars = \App\Models\Scholars::query()
-        ->when($dateRange, fn ($q) => $q->whereBetween('created_at', $dateRange))
-        ->where('status', 'inactive')
-        ->count();
+    $activeScholars = $institutionalBase()->where('status', 'active')->count();
 
-    $scholarTypes = \App\Models\Scholars::query()
-        ->when($dateRange, fn ($q) => $q->whereBetween('created_at', $dateRange))
+    $inactiveScholars = $institutionalBase()->where('status', 'inactive')->count();
+
+    $scholarTypes = $institutionalBase()
+        ->where('status', '!=', 'revoked')
+        ->whereNotNull('type_of_scholarship')
         ->selectRaw('type_of_scholarship, count(*) as count')
         ->groupBy('type_of_scholarship')
         ->orderByDesc('count')
@@ -89,7 +91,7 @@
 
     $scholarChartData = json_encode([
         'labels' => $scholarTypes->pluck('type_of_scholarship')->values()->toArray(),
-        'counts' => $scholarTypes->pluck('count')->values()->toArray(),
+        'counts' => $scholarTypes->pluck('count')->map(fn ($c) => (int) $c)->values()->toArray(),
         'colors' => $scholarTypes->values()->map(fn ($t, $i) => $chartColors[$i % count($chartColors)])->toArray(),
     ]);
 
@@ -1033,9 +1035,14 @@
                     13 chars (full name shown in the tooltip on hover). Count + % are drawn
                     above each bar by the afterDatasetsDraw plugin.
                 --}}
-                <div class="db-card gd-chart"
-                    wire:key="scholar-chart-{{ $schoolYear }}-{{ $semester }}"
+                                <div class="db-card gd-chart"
+                    wire:key="scholar-chart-{{ $schoolYear }}-{{ $semester }}-{{ md5($scholarChartData) }}"
                     x-data="{
+                        destroy() {
+                            if (this.$refs.scholarBar && this.$refs.scholarBar._chart) {
+                                this.$refs.scholarBar._chart.destroy();
+                            }
+                        },
                         init() {
                             const draw = () => {
                                 const canvas = this.$refs.scholarBar;
@@ -1044,6 +1051,7 @@
 
                                 const data = {{ $scholarChartData }};
                                 const total = data.counts.reduce((a, b) => a + b, 0);
+                                if (!data.counts.length) return;
 
                                 const truncate = (str, max) => str.length > max ? str.slice(0, max - 1) + '…' : str;
                                 const shortLabels = data.labels.map(l => truncate(l, 13));

@@ -36,7 +36,7 @@
         /* ── Activities table ── */
         .acts th, .acts td { border: 1px solid #111; padding: 6px 8px; vertical-align: top; }
         .acts th { font-size: 11px; text-align: center; padding: 10px 7px 7px; }
-        .acts tbody td { font-size: 16px; line-height: 1.3; height: 44px; }
+        .acts tbody td { font-size: 13pt; line-height: 1.3; height: 44px; }
         .acts .seq { text-align: left; }
     </style>
 </head>
@@ -107,11 +107,11 @@
             @for ($i = 0; $i < $rowCount; $i++)
                 @php $a = $activities->get($i); @endphp
                 <tr>
-                    {{-- Inline font-size is a safeguard in case DomPDF ignores the CSS rule --}}
-                    <td class="seq" style="font-size: 16px;">{{ $i + 1 }}</td>
-                    <td style="font-size: 16px;">{{ $a?->activity_date?->format('M d, Y') }}</td>
-                    <td style="font-size: 16px;">{{ $a?->venue }}</td>
-                    <td style="font-size: 16px;">{{ $a?->activity }}</td>
+                    {{-- Inline pt sizes: DomPDF works natively in points, so this is the most reliable --}}
+                    <td class="seq" style="font-size: 13pt;">{{ $i + 1 }}</td>
+                    <td style="font-size: 13pt;">{{ $a?->activity_date?->format('M d, Y') }}</td>
+                    <td style="font-size: 13pt;">{{ $a?->venue }}</td>
+                    <td style="font-size: 13pt;">{{ $a?->activity }}</td>
                 </tr>
             @endfor
         </tbody>

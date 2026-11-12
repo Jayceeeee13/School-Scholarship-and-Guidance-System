@@ -13,6 +13,7 @@ use Filament\Forms\Set;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\ImageEntry;
@@ -177,7 +178,7 @@ class UserResource extends Resource
     /** Clears every field that is auto-filled from a personnel / student record. */
     protected static function clearAutofill(Set $set): void
     {
-        foreach (['name', 'email', 'contact_no', 'birthdate', 'address', 'avatar'] as $field) {
+        foreach (['name', 'last_name', 'email', 'contact_no', 'birthdate', 'address', 'avatar'] as $field) {
             $set($field, null);
         }
     }
@@ -210,6 +211,7 @@ class UserResource extends Resource
         };
 
         $set('name', trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? '')));
+        $set('last_name', $a['last_name'] ?? null);
         $set('email', $pick(['email', 'email_address']));
         $set('contact_no', $pick(['contact_no']));
         $set('birthdate', $pick(['birth_date', 'birthdate']));
@@ -355,6 +357,7 @@ class UserResource extends Resource
                         }
 
                         $set('name', "{$personnel->first_name} {$personnel->last_name}");
+                        $set('last_name', $personnel->last_name);
                         $set('email', $personnel->email);
                         $set('contact_no', $personnel->contact_no);
                         $set('birthdate', $personnel->birthdate);
@@ -421,10 +424,17 @@ class UserResource extends Resource
                         }
                     }),
 
+                // readOnly (not disabled) so the value is always submitted and saved.
+                // It is filled automatically for staff and students; only Department
+                // Heads type it in.
                 TextInput::make('name')
                     ->required()
                     ->dehydrated()
-                    ->disabled(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles'))),
+                    ->readOnly(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles'))),
+
+                // Filled from the personnel / student record (used to match student accounts).
+                Hidden::make('last_name')
+                    ->dehydrated(),
 
                 TextInput::make('email')
                     ->email()

@@ -168,6 +168,35 @@
             cursor: default;
         }
 
+        /* Locked (auto-filled from the student record) fields */
+        .field-input.is-locked {
+            background: #f1f5f2;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+        .field-input.is-locked:focus {
+            border-color: var(--slate-border);
+            box-shadow: none;
+        }
+        select.field-input.is-locked,
+        input[type="date"].field-input.is-locked {
+            pointer-events: none;
+        }
+        .lock-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            margin-left: 6px;
+            padding: 1px 8px;
+            border-radius: 100px;
+            background: var(--green-soft);
+            color: var(--green-mid);
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 0;
+            text-transform: none;
+        }
+
         /* Info note under the scholarship type (exam takers) */
         .lock-note {
             display: flex;
@@ -362,6 +391,9 @@
     // Values taken from the student's record (empty array if none was found).
     $prefill = $prefill ?? [];
     $hasPrefill = count(array_filter($prefill, fn ($v) => $v !== '' && $v !== null)) > 0;
+
+    // Names of the fields that are locked (read-only) because they were auto-filled.
+    $locked = $locked ?? [];
 @endphp
 
 {{-- ── NAVBAR ──────────────────────────────────────────────────────── --}}
@@ -488,8 +520,8 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/>
                         </svg>
                         <span>
-                            Some fields were filled in automatically from your student record.
-                            Please review them and correct anything that is outdated before submitting.
+                            Some fields were filled in automatically from your student record and are locked.
+                            If any of them are wrong, please contact the scholarship office to have your record corrected.
                         </span>
                     </div>
                 @endif
@@ -1014,6 +1046,34 @@
         const form = document.getElementById('applicationForm');
         if (!form) return;
 
+        // ── Lock fields that were auto-filled from the student record ──
+        const LOCKED = @json($locked);
+
+        LOCKED.forEach(function (name) {
+            const el = form.elements[name];
+            if (!el || el instanceof RadioNodeList) return;
+
+            el.classList.add('is-locked');
+            el.setAttribute('aria-readonly', 'true');
+            el.title = 'Filled from your student record. Contact the office to change it.';
+
+            if (el.tagName === 'SELECT') {
+                // <select> has no readonly, so block mouse, keyboard and changes.
+                const keep = el.value;
+                el.dataset.locked = '1';
+                el.setAttribute('tabindex', '-1');
+                el.addEventListener('mousedown', function (e) { e.preventDefault(); });
+                el.addEventListener('keydown', function (e) { if (e.key !== 'Tab') e.preventDefault(); });
+                el.addEventListener('change', function () { el.value = keep; });
+            } else {
+                el.readOnly = true;
+            }
+
+            const wrap  = el.closest('div');
+            const label = wrap && wrap.querySelector('.field-label');
+            if (label) label.insertAdjacentHTML('beforeend', '<span class="lock-badge">🔒 Locked</span>');
+        });
+
         // Age is computed from the birth date — also covers a pre-filled birth date.
         const birth = document.getElementById('birthdate');
         if (birth) {
@@ -1035,6 +1095,9 @@
         });
 
         function applyYearRule() {
+            // Year level already locked from the student record: leave it alone.
+            if (yearSel.dataset.locked === '1') return;
+
             const typeOpt = appType.options ? appType.options[appType.selectedIndex] : null;
             const schOpt  = schType.options[schType.selectedIndex];
             const locked  = !!(typeOpt && typeOpt.dataset.new === '1'

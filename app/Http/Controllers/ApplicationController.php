@@ -215,6 +215,45 @@ class ApplicationController extends Controller
         return $prefill;
     }
 
+    /**
+     * Which prefilled fields should be locked (read-only)?
+     * A field is locked only if it has a value AND that value would pass
+     * the form's own validation, so nobody gets stuck with unfixable data.
+     *
+     * To keep a field editable, delete its line from $checks below.
+     */
+    private function lockedFields(array $prefill): array
+    {
+        $isName  = fn ($v) => (bool) preg_match(self::NAME_REGEX, (string) $v) && mb_strlen((string) $v) <= 100;
+        $isPhone = fn ($v) => (bool) preg_match(self::PHONE_REGEX, (string) $v);
+
+        $checks = [
+            'first_name'     => $isName,
+            'middle_name'    => $isName,
+            'last_name'      => $isName,
+            'extension_name' => fn ($v) => (bool) preg_match("/^[A-Za-z\.\s]+$/", (string) $v) && strlen((string) $v) <= 20,
+            'contact_no'     => $isPhone,
+            'birthdate'      => fn ($v) => $v > '1930-01-01' && $v < now()->toDateString(),
+            'year_level'     => fn ($v) => in_array($v, self::YEAR_LEVELS, true),
+            'program_id'     => fn ($v) => $v !== '' && $v !== null,
+            'gender_id'      => fn ($v) => $v !== '' && $v !== null,
+            'fathers_name'   => $isName,
+            'mothers_name'   => $isName,
+        ];
+
+        $locked = [];
+
+        foreach ($checks as $field => $isValid) {
+            $value = $prefill[$field] ?? '';
+
+            if ($value !== '' && $value !== null && $isValid($value)) {
+                $locked[] = $field;
+            }
+        }
+
+        return $locked;
+    }
+
     public function create()
     {
         $ctx = $this->applicationContext();
@@ -248,6 +287,9 @@ class ApplicationController extends Controller
             $prefill = [];
         }
 
+        // Fields filled from the student record are shown read-only.
+        $locked = $this->lockedFields($prefill);
+
         return view('application_new', compact(
             'scholarshipTypes',
             'applicantTypes',
@@ -255,6 +297,7 @@ class ApplicationController extends Controller
             'programs',
             'academicId',
             'prefill',
+            'locked',
             'renewalTypeId',
             'isRenewal'
         ));
@@ -271,6 +314,22 @@ class ApplicationController extends Controller
         // Returning scholars are always Renewal (ignores whatever was posted).
         if ($ctx['renewalTypeId']) {
             $request->merge(['type_of_application_id' => $ctx['renewalTypeId']]);
+        }
+
+        // ── Locked fields: always use the student-record values ────────────
+        // (the form shows these as read-only; this stops tampering)
+        try {
+            $prefill = $this->buildPrefill(
+                Program::where('is_active', 1)->get(),
+                Gender::where('is_active', 1)->get()
+            );
+        } catch (\Throwable $e) {
+            Log::error('Application form: could not re-check locked fields - ' . $e->getMessage());
+            $prefill = [];
+        }
+
+        foreach ($this->lockedFields($prefill) as $field) {
+            $request->merge([$field => $prefill[$field]]);
         }
 
         // ── Normalize input before validating ──────────────────────────────

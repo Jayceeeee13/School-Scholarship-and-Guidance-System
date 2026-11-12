@@ -7,41 +7,37 @@
         @page { margin: 36px 40px; }
 
         body {
-            font-family: 'DejaVu Sans', sans-serif;
-            font-size: 11px;
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 10.5px;
             color: #1a1a1a;
             margin: 0;
         }
 
         table { border-collapse: collapse; width: 100%; }
 
-        /* ── Form header (matches the official form) ── */
-        .hdr td { border: 1px solid #9a9a9a; vertical-align: middle; color: #6b6b6b; }
-        .hdr .logo-cell { width: 17%; text-align: center; padding: 8px 4px 4px; }
-        .hdr .logo-cell img { width: 80px; height: 80px; }
-        .hdr .iso { font-size: 9px; font-weight: bold; margin-top: 8px; }
-        .hdr .org-cell { text-align: center; padding: 6px 8px; }
-        .hdr .org { font-size: 13px; font-weight: bold; letter-spacing: .2px; }
-        .hdr .addr { font-size: 8.5px; margin-top: 2px; }
-        .hdr .title-cell { text-align: center; padding: 10px 12px; }
-        .hdr .title { font-size: 14px; font-weight: bold; line-height: 1.35; }
-        .hdr .term { font-size: 13px; margin-top: 18px; }
-        .hdr .meta { width: 29%; padding: 5px 8px; font-size: 10px; }
-        .hdr .meta b { color: #333; }
-        .pagenum:before { content: counter(page); }
+        /* ── Form header (same layout as the Guidance log form) ── */
+        .hdr td { border: 1px solid #bdbdbd; color: #555; }
+        .hdr .logo-cell { width: 13%; text-align: center; vertical-align: middle; padding: 8px; }
+        .hdr .logo-cell img { width: 62px; height: 62px; }
+        .hdr .org-cell { text-align: center; padding: 6px 8px 5px; }
+        .hdr .org { font-size: 13px; font-weight: bold; letter-spacing: .3px; }
+        .hdr .addr { font-size: 7.5px; margin-top: 1px; }
+        .hdr .title-cell { text-align: center; padding: 7px 8px 8px; }
+        .hdr .title { font-size: 11px; font-weight: bold; }
+        .hdr .term { font-size: 10px; margin-top: 4px; }
 
         /* ── Scholar info lines ── */
-        .info { margin: 16px 0 14px 34px; width: 80%; }
-        .info td { padding: 2px 0; font-size: 12px; vertical-align: bottom; }
-        .info .label { width: 105px; white-space: nowrap; }
+        .info { margin: 16px 0 14px 28px; width: 82%; }
+        .info td { padding: 2px 0; font-size: 11px; vertical-align: bottom; }
+        .info .label { width: 92px; white-space: nowrap; }
         .info .colon { width: 10px; }
         .info .value { border-bottom: 1px solid #111; padding-left: 4px; }
 
         /* ── Activities table ── */
-        .acts th, .acts td { border: 1px solid #111; padding: 6px 8px; vertical-align: top; }
-        .acts th { font-size: 13px; text-align: center; padding: 14px 8px 8px; }
-        .acts td { font-size: 11px; height: 38px; }
-        .acts .seq { text-align: left; width: 8%; }
+        .acts th, .acts td { border: 1px solid #111; padding: 5px 7px; vertical-align: top; }
+        .acts th { font-size: 11px; text-align: center; padding: 10px 7px 7px; }
+        .acts td { font-size: 10.5px; height: 34px; }
+        .acts .seq { text-align: left; }
     </style>
 </head>
 
@@ -60,30 +56,21 @@
     {{-- ── Header block ── --}}
     <table class="hdr">
         <tr>
-            <td class="logo-cell" rowspan="4">
+            <td class="logo-cell" rowspan="2">
                 @if ($logoSrc)
                     <img src="{{ $logoSrc }}" alt="GVC">
                 @endif
-                <div class="iso">ISO 21001:2018</div>
             </td>
             <td class="org-cell">
                 <div class="org">GREEN VALLEY COLLEGE FOUNDATION, INC.</div>
                 <div class="addr">Km. 2, Bo.2, Gensan Dr., Koronadal City, South Cotabato</div>
             </td>
-            <td class="meta">Document Code: <b>FM-GUI-027</b></td>
         </tr>
         <tr>
-            <td class="title-cell" rowspan="3">
+            <td class="title-cell">
                 <div class="title">ACCOMPLISHMENT REPORT OF INSTITUTIONAL SCHOLARS</div>
                 <div class="term">{{ $term?->semester }} A.Y. {{ $term?->school_year }}</div>
             </td>
-            <td class="meta">Revision No.01</td>
-        </tr>
-        <tr>
-            <td class="meta">Effectivity Date: July 10, 2023</td>
-        </tr>
-        <tr>
-            <td class="meta">Page No. <span class="pagenum"></span></td>
         </tr>
     </table>
 

@@ -33,19 +33,14 @@ class EditReferrals extends EditRecord
         ]);
     }
 
-    /**
-     * Runs once the form has been filled and hydrated (all tabs, the
-     * logforms repeater, anecdotals, endorsement and invitation).
-     */
     protected function afterFill(): void
     {
         $this->originalStateHash = $this->hashState($this->data);
     }
 
     /**
-     * Runs before validation and before mutateFormDataBeforeSave(), so when
-     * nothing changed there are no validation errors, no endorsement or
-     * invitation delete, no "Saved" notification and no update at all.
+     * If nothing changed: no validation, no delete of endorsement/invitation,
+     * no "Saved" toast, no afterSave notification.
      */
     protected function beforeValidate(): void
     {
@@ -62,10 +57,6 @@ class EditReferrals extends EditRecord
         $this->halt();
     }
 
-    /**
-     * Normalizes the state so harmless differences (null vs '', 3 vs "3",
-     * true vs 1) never count as a change, then hashes it.
-     */
     protected function hashState(array $state): string
     {
         return md5(json_encode($this->normalizeState($state)));
@@ -113,6 +104,36 @@ class EditReferrals extends EditRecord
         }
 
         return $data;
+    }
+
+    protected function afterSave(): void
+    {
+        $r = $this->record;
+
+        $userId = \DB::table('students')->where('id', $r->student_id)->value('user_id');
+        if (! $userId) return;
+
+        $message = null;
+        if ($r->wasChanged('follow_up_required') && $r->follow_up_required) {
+            $message = 'A follow-up is required for your referral.';
+        } elseif ($r->wasChanged('status')) {
+            $message = 'Your referral status is now ' . $r->status . '.';
+        }
+        if (! $message) return;
+
+        \DB::table('notifications')->insert([
+            'id'              => (string) \Illuminate\Support\Str::uuid(),
+            'type'            => 'App\\Notifications\\ReferralNotification',
+            'notifiable_type' => 'App\\Models\\User',
+            'notifiable_id'   => $userId,
+            'data'            => json_encode([
+                'title'       => 'Referral Update',
+                'message'     => $message,
+                'referral_id' => $r->id,
+            ]),
+            'created_at'      => now(),
+            'updated_at'      => now(),
+        ]);
     }
 
     protected function mutateFormDataBeforeFill(array $data): array

@@ -226,12 +226,67 @@
                     </a>
                 @endif
 
-                @if (isset($exam) && $exam)
-                    <a href="{{ route('exam.admission', $exam->id) }}" class="{{ $btnGlass }}">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                        Admission Exam
-                    </a>
-                @endif
+                {{-- ADMISSION EXAM (asks for the access code first when the exam has one) --}}
+@if (isset($exam) && $exam)
+    @if ($exam->access_code)
+        <div x-data="{ open: {{ $errors->has('exam_code') ? 'true' : 'false' }} }"
+             x-effect="document.body.classList.toggle('overflow-hidden', open); if (open) setTimeout(() => document.getElementById('exam_code')?.focus(), 80)"
+             @keydown.escape.window="open = false"
+             class="contents">
+
+            <button type="button" @click="open = true" class="{{ $btnGlass }}">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                Admission Exam
+            </button>
+
+            {{-- Teleported to <body> so the hero's scroll-reveal transforms can't affect it --}}
+            <template x-teleport="body">
+                <div x-show="open" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Enter exam code">
+                    <div x-show="open" x-transition.opacity class="absolute inset-0 bg-green-950/70 backdrop-blur-sm" @click="open = false"></div>
+
+                    <div x-show="open" x-transition.scale.origin.center.90
+                         class="relative w-full max-w-md overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+
+                        <div class="relative bg-hero-gradient px-7 py-6 text-white">
+                            <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
+                            <button type="button" @click="open = false" aria-label="Close"
+                                    class="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/25 transition hover:bg-white/25">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                            <h3 class="relative font-display text-2xl font-bold">Enter exam code</h3>
+                            <p class="relative mt-1 text-sm text-emerald-50/80">Ask the Scholarship and Guidance office for the code.</p>
+                        </div>
+
+                        <form method="POST" action="{{ route('exam.verify-code', $exam->id) }}" class="px-7 py-6">
+                            @csrf
+
+                            <label for="exam_code" class="text-sm font-semibold text-slate-700">Exam code</label>
+                            <input id="exam_code" name="exam_code" type="text" autocomplete="off" maxlength="12" required
+                                   value="{{ old('exam_code') }}"
+                                   class="mt-2 w-full rounded-2xl border px-4 py-3 text-center font-display text-2xl font-bold uppercase tracking-[0.3em] text-slate-900 outline-none transition focus:ring-2 focus:ring-green-600
+                                          {{ $errors->has('exam_code') ? 'border-red-400' : 'border-green-200' }}"
+                                   placeholder="••••••">
+
+                            @error('exam_code')
+                                <p class="mt-2 text-sm font-medium text-red-600">{{ $message }}</p>
+                            @enderror
+
+                            <button type="submit"
+                                    class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-green-800 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
+                                Continue to exam
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </template>
+        </div>
+    @else
+        <a href="{{ route('exam.admission', $exam->id) }}" class="{{ $btnGlass }}">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+            Admission Exam
+        </a>
+    @endif
+@endif
             </div>
 
             @unless (auth()->user()->isEnrolled())

@@ -6,6 +6,7 @@ use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Personnels;
+use App\Models\Students;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
@@ -23,6 +24,7 @@ use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class UserResource extends Resource
@@ -34,6 +36,8 @@ class UserResource extends Resource
     protected static ?int $navigationSort = 0;
 
     protected static ?string $navigationGroup = 'Generals';
+
+    protected const DEFAULT_PASSWORD = 'GVCFI@2026';
 
     /**
      * True if ANY of the selected role IDs is "Department Head".
@@ -49,10 +53,24 @@ class UserResource extends Resource
             ->exists();
     }
 
+    /**
+     * True if ANY of the selected role IDs is "Student".
+     */
+    protected static function hasStudentRole(?array $roleIds): bool
+    {
+        if (empty($roleIds)) {
+            return false;
+        }
+
+        return Role::whereIn('id', $roleIds)
+            ->where('name', 'Student')
+            ->exists();
+    }
+
     protected static function departmentHeadRoleId(): ?int
-{
-    return Role::where('name', 'Department Head')->value('id');
-}
+    {
+        return Role::where('name', 'Department Head')->value('id');
+    }
 
     /**
      * Gender options, shared by the user and personnel forms.
@@ -63,6 +81,90 @@ class UserResource extends Resource
     {
         return DB::table('genders')->orderBy('name')->pluck('name', 'id')->all();
     }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Student helpers
+    // ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Students who do not have a user account yet.
+     * (Uses students.user_id when that column exists.)
+     */
+    protected static function availableStudents()
+    {
+        $query = Students::query();
+
+        if (Schema::hasColumn((new Students)->getTable(), 'user_id')) {
+            $query->whereNull('user_id');
+        }
+
+        return $query->orderBy('last_name')->orderBy('first_name');
+    }
+
+    /** "Juan Dela Cruz (2024-0001)" */
+    protected static function studentLabel(Students $student): string
+    {
+        $a     = $student->getAttributes();
+        $label = trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? ''));
+
+        if (! empty($a['student_id'])) {
+            $label .= " ({$a['student_id']})";
+        }
+
+        return $label;
+    }
+
+    /** Clears every field that is auto-filled from a personnel / student record. */
+    protected static function clearAutofill(Set $set): void
+    {
+        foreach (['name', 'email', 'contact_no', 'birthdate', 'address', 'avatar'] as $field) {
+            $set($field, null);
+        }
+    }
+
+    /** Fills the user form from the chosen student record. */
+    protected static function fillFromStudent(Set $set, $studentId): void
+    {
+        if (! $studentId) {
+            self::clearAutofill($set);
+
+            return;
+        }
+
+        $student = Students::find($studentId);
+
+        if (! $student) {
+            return;
+        }
+
+        $a = $student->getAttributes();
+
+        $pick = function (array $keys) use ($a): ?string {
+            foreach ($keys as $key) {
+                if (isset($a[$key]) && trim((string) $a[$key]) !== '') {
+                    return trim((string) $a[$key]);
+                }
+            }
+
+            return null;
+        };
+
+        $set('name', trim(($a['first_name'] ?? '') . ' ' . ($a['last_name'] ?? '')));
+        $set('email', $pick(['email', 'email_address']));
+        $set('contact_no', $pick(['contact_no']));
+        $set('birthdate', $pick(['birth_date', 'birthdate']));
+        $set('address', $pick(['address']));
+
+        // FileUpload state is an array of uuid => file path.
+        $profile = $pick(['profile', 'avatar']);
+        $set('avatar', $profile ? [(string) Str::uuid() => $profile] : null);
+
+        $set('password', self::DEFAULT_PASSWORD);
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  Form
+    // ─────────────────────────────────────────────────────────────────
 
     public static function form(Form $form): Form
     {
@@ -82,69 +184,81 @@ class UserResource extends Resource
                     ->nullable(),
 
                 CheckboxList::make('roles')
-    ->label('Roles')
-    ->relationship(
-        'roles',
-        'name',
-        fn ($query, string $operation) => $operation === 'create'
-            ? $query->where('name', '!=', 'Student')
-            : $query
-    )
-    ->columns(2)
-    ->required()
-    ->live()
-    ->disableOptionWhen(function (string $value, Get $get, string $operation): bool {
-        if ($operation !== 'create') {
-            return false;
-        }
+                    ->label('Roles')
+                    ->relationship('roles', 'name')
+                    ->columns(2)
+                    ->required()
+                    ->live()
+                    ->disableOptionWhen(function (string $value, Get $get, string $operation): bool {
+                        if ($operation !== 'create') {
+                            return false;
+                        }
 
-        $selectedIds = collect($get('roles') ?? [])->map(fn ($id) => (int) $id)->all();
-        $valueId     = (int) $value;
+                        $selectedIds = collect($get('roles') ?? [])->map(fn ($id) => (int) $id)->all();
+                        $valueId     = (int) $value;
 
-        // A ticked role stays clickable so it can be unticked.
-        if (empty($selectedIds) || in_array($valueId, $selectedIds, true)) {
-            return false;
-        }
+                        // A ticked role stays clickable so it can be unticked.
+                        if (empty($selectedIds) || in_array($valueId, $selectedIds, true)) {
+                            return false;
+                        }
 
-        $exclusive = ['admin', 'department head'];
+                        $exclusive = ['admin', 'department head', 'student'];
 
-        $nameOf = fn (int $id): string => strtolower((string) Role::whereKey($id)->value('name'));
+                        $nameOf = fn (int $id): string => strtolower((string) Role::whereKey($id)->value('name'));
 
-        // An exclusive role is already ticked: lock everything else.
-        foreach ($selectedIds as $id) {
-            if (in_array($nameOf($id), $exclusive, true)) {
-                return true;
-            }
-        }
+                        // An exclusive role is already ticked: lock everything else.
+                        foreach ($selectedIds as $id) {
+                            if (in_array($nameOf($id), $exclusive, true)) {
+                                return true;
+                            }
+                        }
 
-        // Only combinable roles are ticked: lock the exclusive ones.
-        return in_array($nameOf($valueId), $exclusive, true);
-    })
-    ->rule(function (string $operation) {
-        return function (string $attribute, $value, $fail) use ($operation) {
-            if ($operation !== 'create') {
-                return;
-            }
+                        // Only combinable roles are ticked: lock the exclusive ones.
+                        return in_array($nameOf($valueId), $exclusive, true);
+                    })
+                    ->rule(function (string $operation) {
+                        return function (string $attribute, $value, $fail) use ($operation) {
+                            if ($operation !== 'create') {
+                                return;
+                            }
 
-            $ids = array_map('intval', (array) $value);
+                            $ids = array_map('intval', (array) $value);
 
-            if (count($ids) <= 1) {
-                return;
-            }
+                            if (count($ids) <= 1) {
+                                return;
+                            }
 
-            $names = Role::whereIn('id', $ids)->pluck('name')
-                ->map(fn ($n) => strtolower($n));
+                            $names = Role::whereIn('id', $ids)->pluck('name')
+                                ->map(fn ($n) => strtolower($n));
 
-            if (! $names->every(fn ($n) => in_array($n, ['guidance', 'scholarship'], true))) {
-                $fail('Admin and Department Head cannot be combined with other roles. Only Guidance and Scholarship can be combined.');
-            }
-        };
-    })
-    ->afterStateUpdated(function (Set $set, $state) {
-        if (self::hasDepartmentHeadRole($state)) {
-            $set('password', 'GVCFI@2026');
-        }
-    }),
+                            if (! $names->every(fn ($n) => in_array($n, ['guidance', 'scholarship'], true))) {
+                                $fail('Admin, Department Head and Student cannot be combined with other roles. Only Guidance and Scholarship can be combined.');
+                            }
+                        };
+                    })
+                    ->afterStateUpdated(function (Set $set, Get $get, $state) {
+                        if (self::hasStudentRole($state)) {
+                            // Switching to Student: drop any personnel that was picked.
+                            if ($get('personnel_id')) {
+                                $set('personnel_id', null);
+                                self::clearAutofill($set);
+                            }
+
+                            $set('password', self::DEFAULT_PASSWORD);
+
+                            return;
+                        }
+
+                        // Switching away from Student: drop any student that was picked.
+                        if ($get('student_record_id')) {
+                            $set('student_record_id', null);
+                            self::clearAutofill($set);
+                        }
+
+                        if (self::hasDepartmentHeadRole($state)) {
+                            $set('password', self::DEFAULT_PASSWORD);
+                        }
+                    }),
 
                 Select::make('department_id')
                     ->label('Department')
@@ -155,6 +269,7 @@ class UserResource extends Resource
                     ->required(fn (Get $get) => self::hasDepartmentHeadRole($get('roles')))
                     ->visible(fn (Get $get) => self::hasDepartmentHeadRole($get('roles'))),
 
+                // ── Personnel dropdown (staff roles) ──
                 Select::make('personnel_id')
                     ->label('Select Personnel')
                     ->hiddenOn('edit')
@@ -166,8 +281,8 @@ class UserResource extends Resource
                             ])
                     )
                     ->searchable()
-                    ->required(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles')))
-                    ->visible(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles')))
+                    ->required(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles')) && ! self::hasStudentRole($get('roles')))
+                    ->visible(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles')) && ! self::hasStudentRole($get('roles')))
                     ->reactive()
                     ->afterStateUpdated(function (Set $set, $state) {
                         if (! $state) {
@@ -194,7 +309,68 @@ class UserResource extends Resource
                         }
 
                         // Pre-fill password, still editable
-                        $set('password', 'GVCFI@2026');
+                        $set('password', self::DEFAULT_PASSWORD);
+                    }),
+
+                // ── Student dropdown (shown instead of Personnel when "Student" is ticked) ──
+                Select::make('student_record_id')
+                    ->label('Select Student')
+                    ->hiddenOn('edit')
+                    ->searchable()
+                    ->getSearchResultsUsing(function (string $search): array {
+                        $table = (new Students)->getTable();
+
+                        return self::availableStudents()
+                            ->where(function ($q) use ($search, $table) {
+                                $q->where('first_name', 'like', "%{$search}%")
+                                    ->orWhere('last_name', 'like', "%{$search}%");
+
+                                if (Schema::hasColumn($table, 'student_id')) {
+                                    $q->orWhere('student_id', 'like', "%{$search}%");
+                                }
+                            })
+                            ->limit(50)
+                            ->get()
+                            ->mapWithKeys(fn (Students $s) => [$s->id => self::studentLabel($s)])
+                            ->all();
+                    })
+                    ->getOptionLabelUsing(function ($value): ?string {
+                        $student = Students::find($value);
+
+                        return $student ? self::studentLabel($student) : null;
+                    })
+                    ->required(fn (Get $get) => self::hasStudentRole($get('roles')))
+                    ->visible(fn (Get $get) => self::hasStudentRole($get('roles')))
+                    // Not a real column on users: only used to pick the student.
+                    ->dehydrated(false)
+                    ->reactive()
+                    ->afterStateUpdated(function (Set $set, $state) {
+                        self::fillFromStudent($set, $state);
+                    })
+                    // After the user is created, link the student record to the new account.
+                    ->saveRelationshipsUsing(function (User $record, $state) {
+                        if (! $state) {
+                            return;
+                        }
+
+                        $student = Students::find($state);
+
+                        if (! $student) {
+                            return;
+                        }
+
+                        $studentTable = $student->getTable();
+
+                        if (Schema::hasColumn($studentTable, 'user_id')) {
+                            $student->forceFill(['user_id' => $record->id])->save();
+                        }
+
+                        $studentNumber = $student->getAttributes()['student_id'] ?? null;
+
+                        if ($studentNumber
+                            && Schema::hasColumn($record->getTable(), 'student_id')) {
+                            $record->forceFill(['student_id' => $studentNumber])->save();
+                        }
                     }),
 
                 TextInput::make('name')
@@ -203,33 +379,36 @@ class UserResource extends Resource
                     ->disabled(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles'))),
 
                 TextInput::make('email')
-    ->email()
-    ->required()
-    ->maxLength(100)
-    ->dehydrated()
-    ->disabled(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles')))
-    // Unique among ALL users, including archived ones, so a new user can
-    // never take an email that already belongs to an existing account.
-    ->unique('users', 'email', ignoreRecord: true)
-    ->validationMessages([
-        'unique' => 'This email is already taken by another user account.',
-    ])
-    // The email is synced to the personnel record, so it must not belong to
-    // a DIFFERENT personnel. The personnel being linked is excluded.
-    ->rule(function (Get $get, ?User $record) {
-        return function (string $attribute, $value, $fail) use ($get, $record) {
-            $ownPersonnelId = $record?->personnel_id ?? $get('personnel_id');
+                    ->email()
+                    ->required()
+                    ->maxLength(100)
+                    ->dehydrated()
+                    // Editable for Department Head and Student accounts (a student record
+                    // may not have an email on file); disabled for other roles.
+                    ->disabled(fn (Get $get) => ! self::hasDepartmentHeadRole($get('roles'))
+                        && ! self::hasStudentRole($get('roles')))
+                    // Unique among ALL users, including archived ones, so a new user can
+                    // never take an email that already belongs to an existing account.
+                    ->unique('users', 'email', ignoreRecord: true)
+                    ->validationMessages([
+                        'unique' => 'This email is already taken by another user account.',
+                    ])
+                    // The email is synced to the personnel record, so it must not belong to
+                    // a DIFFERENT personnel. The personnel being linked is excluded.
+                    ->rule(function (Get $get, ?User $record) {
+                        return function (string $attribute, $value, $fail) use ($get, $record) {
+                            $ownPersonnelId = $record?->personnel_id ?? $get('personnel_id');
 
-            $exists = Personnels::where('email', $value)
-                ->when($ownPersonnelId, fn ($q) => $q->where('id', '!=', $ownPersonnelId))
-                ->exists();
+                            $exists = Personnels::where('email', $value)
+                                ->when($ownPersonnelId, fn ($q) => $q->where('id', '!=', $ownPersonnelId))
+                                ->exists();
 
-            if ($exists) {
-                $fail('This email is already used by another personnel record.');
-            }
-        };
-    })
-    ->dehydrateStateUsing(fn ($state) => $state ? strtolower(trim($state)) : $state),
+                            if ($exists) {
+                                $fail('This email is already used by another personnel record.');
+                            }
+                        };
+                    })
+                    ->dehydrateStateUsing(fn ($state) => $state ? strtolower(trim($state)) : $state),
 
                 TextInput::make('contact_no')
                     ->label('Contact Number')
@@ -249,13 +428,16 @@ class UserResource extends Resource
                     ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
 
                 DatePicker::make('birthdate')
-    ->label('Date of Birth')
-    ->native(false)
-    ->displayFormat('M d, Y')
-    ->maxDate(now()->subYears(18))
-    ->validationMessages([
-        'before_or_equal' => 'Must be at least 18 years old.',
-    ]),
+                    ->label('Date of Birth')
+                    ->native(false)
+                    ->displayFormat('M d, Y')
+                    // Staff must be 18+, students may be younger.
+                    ->maxDate(fn (Get $get) => self::hasStudentRole($get('roles'))
+                        ? now()
+                        : now()->subYears(18))
+                    ->validationMessages([
+                        'before_or_equal' => 'Must be at least 18 years old.',
+                    ]),
 
                 TextInput::make('address')
                     ->maxLength(100),
@@ -267,7 +449,7 @@ class UserResource extends Resource
                     ->disabled()
                     ->required()
                     ->hiddenOn('edit')
-                    ->default('GVCFI@2026')
+                    ->default(self::DEFAULT_PASSWORD)
                     ->dehydrateStateUsing(fn ($state) => bcrypt($state)),
             ]);
     }
@@ -360,11 +542,11 @@ class UserResource extends Resource
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('role_id')
-    ->label('Role')
-    ->relationship('role', 'name')
-    ->multiple()
-    ->preload()
-    ->placeholder('All Roles'),
+                    ->label('Role')
+                    ->relationship('role', 'name')
+                    ->multiple()
+                    ->preload()
+                    ->placeholder('All Roles'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

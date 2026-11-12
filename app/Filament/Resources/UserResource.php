@@ -88,17 +88,46 @@ class UserResource extends Resource
 
     /**
      * Students who do not have a user account yet.
-     * (Uses students.user_id when that column exists.)
+     * (Uses students.user_id when that column exists; NULL or 0 means "no account".)
      */
     protected static function availableStudents()
     {
         $query = Students::query();
 
         if (Schema::hasColumn((new Students)->getTable(), 'user_id')) {
-            $query->whereNull('user_id');
+            $query->where(function ($q) {
+                $q->whereNull('user_id')->orWhere('user_id', 0);
+            });
         }
 
         return $query->orderBy('last_name')->orderBy('first_name');
+    }
+
+    /**
+     * Options for the "Select Student" dropdown.
+     * Only students WITHOUT a user account are returned.
+     * With no $search it returns the first 50 (so the list shows when the dropdown opens);
+     * with a $search it filters by first name, last name or student ID.
+     */
+    protected static function studentOptions(?string $search = null): array
+    {
+        $table = (new Students)->getTable();
+
+        return self::availableStudents()
+            ->when($search, function ($query) use ($search, $table) {
+                $query->where(function ($q) use ($search, $table) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%");
+
+                    if (Schema::hasColumn($table, 'student_id')) {
+                        $q->orWhere('student_id', 'like', "%{$search}%");
+                    }
+                });
+            })
+            ->limit(50)
+            ->get()
+            ->mapWithKeys(fn (Students $s) => [$s->id => self::studentLabel($s)])
+            ->all();
     }
 
     /** "Juan Dela Cruz (2024-0001)" */
@@ -317,28 +346,16 @@ class UserResource extends Resource
                     ->label('Select Student')
                     ->hiddenOn('edit')
                     ->searchable()
-                    ->getSearchResultsUsing(function (string $search): array {
-                        $table = (new Students)->getTable();
-
-                        return self::availableStudents()
-                            ->where(function ($q) use ($search, $table) {
-                                $q->where('first_name', 'like', "%{$search}%")
-                                    ->orWhere('last_name', 'like', "%{$search}%");
-
-                                if (Schema::hasColumn($table, 'student_id')) {
-                                    $q->orWhere('student_id', 'like', "%{$search}%");
-                                }
-                            })
-                            ->limit(50)
-                            ->get()
-                            ->mapWithKeys(fn (Students $s) => [$s->id => self::studentLabel($s)])
-                            ->all();
-                    })
+                    // Shown as soon as the dropdown opens (students without an account only).
+                    ->options(fn () => self::studentOptions())
+                    // Typing in the search box queries the database.
+                    ->getSearchResultsUsing(fn (string $search): array => self::studentOptions($search))
                     ->getOptionLabelUsing(function ($value): ?string {
                         $student = Students::find($value);
 
                         return $student ? self::studentLabel($student) : null;
                     })
+                    ->noSearchResultsMessage('No students without an account found.')
                     ->required(fn (Get $get) => self::hasStudentRole($get('roles')))
                     ->visible(fn (Get $get) => self::hasStudentRole($get('roles')))
                     // Not a real column on users: only used to pick the student.

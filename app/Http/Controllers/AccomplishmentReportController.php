@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AccomplishmentReport;
 use App\Models\AccomplishmentReportActivity;
 use App\Models\InstitutionalScholar;
 use App\Models\Scholars;
 use App\Models\Term;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AccomplishmentReportController extends Controller
 {
@@ -103,5 +106,40 @@ class AccomplishmentReportController extends Controller
         return redirect()
             ->route('accomplishment_reports.get')
             ->with('success', 'Accomplishment report submitted successfully.');
+    }
+
+    /**
+     * Download an APPROVED accomplishment report as a PDF (official form FM-GUI-027).
+     * Only the scholar who owns the report may download it.
+     */
+    public function download(AccomplishmentReport $report)
+    {
+        $scholar = $this->resolveScholar(Auth::user());
+
+        abort_unless($scholar, 403);
+
+        // The report is polymorphic (scholar_type + scholar_id), so check both.
+        abort_unless(
+            $report->scholar_type === $scholar->getMorphClass()
+                && (int) $report->scholar_id === (int) $scholar->getKey(),
+            403
+        );
+
+        abort_unless($report->status === 'approved', 403, 'Only approved reports can be downloaded.');
+
+        $report->load(['term', 'activities']);
+
+        $pdf = Pdf::loadView('pdf.accomplishment-report', [
+            'report'  => $report,
+            'scholar' => $scholar,
+            'term'    => $report->term,
+        ])->setPaper('a4', 'portrait');
+
+        $filename = 'accomplishment-report-'
+            . Str::slug($scholar->full_name) . '-'
+            . Str::slug(($report->term?->semester ?? '') . ' ' . ($report->term?->school_year ?? ''))
+            . '.pdf';
+
+        return $pdf->download($filename);
     }
 }

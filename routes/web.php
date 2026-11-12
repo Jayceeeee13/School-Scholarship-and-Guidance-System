@@ -19,12 +19,12 @@ use App\Http\Controllers\GuestController;
 use App\Http\Controllers\CounselingLogformsPrintController;
 use App\Http\Controllers\ReportsPrintController;
 use App\Http\Controllers\ExamController;
-use App\Http\Controllers\ExamCodeController;               // ← NEW
+use App\Http\Controllers\ExamCodeController;
 use App\Http\Controllers\ExamResultSlipController;
 use App\Http\Controllers\ExamAttemptListPrintController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AccomplishmentReportController;
-use App\Http\Middleware\EnsureExamCodeVerified;            // ← NEW
+use App\Http\Middleware\EnsureExamCodeVerified;
 
 // ─────────────────────────────────────────────────────────────
 // Public Routes
@@ -175,6 +175,10 @@ Route::middleware(['auth', 'portal'])->group(function () {
     Route::post('/accomplishment-reports', [AccomplishmentReportController::class, 'store'])
         ->name('accomplishment_reports.store');
 
+    // Download an APPROVED report as PDF (ownership + status checked in the controller).
+    Route::get('/accomplishment-reports/{report}/pdf', [AccomplishmentReportController::class, 'download'])
+        ->name('accomplishment_reports.pdf');
+
     // ── Exam Routes ──────────────────────────────────────────
     // Students enter the exam access code (if the exam has one) from the
     // landing page. This route checks the code and stores it in the session.
@@ -301,8 +305,6 @@ Route::get('/debug-inst', function () {
         'types' => \App\Models\TypeOfScholarship::select('id', 'name', 'is_active')->get(),
     ];
 })->middleware('auth');
-
-
 
 Route::get('/test-calendar-direct', function () {
     return app(\App\Filament\Resources\CalendarResource\Pages\CalendarAppointments::class)->__invoke(request());

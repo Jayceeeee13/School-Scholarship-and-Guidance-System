@@ -36,7 +36,7 @@
 
 {{-- ── NAVBAR ── --}}
 <header class="bg-green-800 border-b border-white sticky top-0 z-40 shadow-sm shadow-green-900/5">
-    <div class="max-w-8xl mx-auto px-6 py-3 flex flex-wrap justify-between items-center gap-4">
+    <div class="max-w-7xl mx-auto px-6 py-3 flex flex-wrap justify-between items-center gap-4">
         <a href="{{ url('/') }}" class="flex items-center gap-2 flex-shrink-0">
             <img src="{{ asset('images/logo.png') }}" alt="Green Valley College Foundation" class="w-10 h-10 rounded-lg object-contain flex-shrink-0">
             <span class="font-display text-base md:text-lg font-bold text-white tracking-tight whitespace-nowrap">
@@ -208,9 +208,24 @@
                         Add Activity
                     </button>
 
+                    {{-- Download (only when this term's report has been approved) --}}
+                    @if($existingReport && $existingReport->status === 'approved')
+                        <div class="mt-6">
+                            <a href="{{ route('accomplishment_reports.pdf', $existingReport->id) }}"
+                               class="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                </svg>
+                                Download approved report (PDF)
+                            </a>
+                        </div>
+                    @endif
+
                     <div class="mt-6 flex items-center justify-between flex-wrap gap-3">
                         <p class="text-xs text-slate-400">
-                            @if($existingReport)
+                            @if($existingReport && $existingReport->status === 'approved')
+                                This term's report is approved. Submitting again will replace it and send it back for review.
+                            @elseif($existingReport)
                                 You already submitted a report for this term. Submitting again will replace it.
                             @else
                                 This report covers {{ strtoupper($activeTerm->semester) }}, A.Y. {{ $activeTerm->school_year }}.
@@ -243,9 +258,23 @@
                                     <h3 class="font-semibold text-slate-800">
                                         {{ $report->term?->semester }} — A.Y. {{ $report->term?->school_year }}
                                     </h3>
-                                    <span class="inline-flex items-center rounded-full {{ $s['bg'] }} {{ $s['tx'] }} px-3 py-1 text-xs font-bold whitespace-nowrap">
-                                        {{ $s['label'] }}
-                                    </span>
+
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        {{-- Download PDF: approved reports only --}}
+                                        @if($report->status === 'approved')
+                                            <a href="{{ route('accomplishment_reports.pdf', $report->id) }}"
+                                               class="inline-flex items-center gap-1.5 rounded-full bg-green-900 px-3.5 py-1 text-xs font-semibold text-white transition hover:bg-green-800">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                                </svg>
+                                                Download PDF
+                                            </a>
+                                        @endif
+
+                                        <span class="inline-flex items-center rounded-full {{ $s['bg'] }} {{ $s['tx'] }} px-3 py-1 text-xs font-bold whitespace-nowrap">
+                                            {{ $s['label'] }}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div class="space-y-2">

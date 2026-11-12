@@ -168,33 +168,12 @@
             cursor: default;
         }
 
-        /* Locked (auto-filled from the student record) fields */
-        .field-input.is-locked {
+        /* Disabled (auto-filled from the student record) fields */
+        .field-input:disabled {
             background: #f1f5f2;
             color: #64748b;
             cursor: not-allowed;
-        }
-        .field-input.is-locked:focus {
-            border-color: var(--slate-border);
-            box-shadow: none;
-        }
-        select.field-input.is-locked,
-        input[type="date"].field-input.is-locked {
-            pointer-events: none;
-        }
-        .lock-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-            margin-left: 6px;
-            padding: 1px 8px;
-            border-radius: 100px;
-            background: var(--green-soft);
-            color: var(--green-mid);
-            font-size: 0.62rem;
-            font-weight: 700;
-            letter-spacing: 0;
-            text-transform: none;
+            opacity: 1;
         }
 
         /* Info note under the scholarship type (exam takers) */
@@ -1046,32 +1025,17 @@
         const form = document.getElementById('applicationForm');
         if (!form) return;
 
-        // ── Lock fields that were auto-filled from the student record ──
+        // ── Disable fields that were auto-filled from the student record ──
+        // (the server re-applies these values on submit, so disabled is safe)
         const LOCKED = @json($locked);
 
         LOCKED.forEach(function (name) {
             const el = form.elements[name];
             if (!el || el instanceof RadioNodeList) return;
 
-            el.classList.add('is-locked');
-            el.setAttribute('aria-readonly', 'true');
+            el.disabled = true;
+            el.dataset.locked = '1';
             el.title = 'Filled from your student record. Contact the office to change it.';
-
-            if (el.tagName === 'SELECT') {
-                // <select> has no readonly, so block mouse, keyboard and changes.
-                const keep = el.value;
-                el.dataset.locked = '1';
-                el.setAttribute('tabindex', '-1');
-                el.addEventListener('mousedown', function (e) { e.preventDefault(); });
-                el.addEventListener('keydown', function (e) { if (e.key !== 'Tab') e.preventDefault(); });
-                el.addEventListener('change', function () { el.value = keep; });
-            } else {
-                el.readOnly = true;
-            }
-
-            const wrap  = el.closest('div');
-            const label = wrap && wrap.querySelector('.field-label');
-            if (label) label.insertAdjacentHTML('beforeend', '<span class="lock-badge">🔒 Locked</span>');
         });
 
         // Age is computed from the birth date — also covers a pre-filled birth date.

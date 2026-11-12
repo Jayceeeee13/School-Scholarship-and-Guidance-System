@@ -36,7 +36,7 @@
         /* ── Activities table ── */
         .acts th, .acts td { border: 1px solid #111; padding: 5px 7px; vertical-align: top; }
         .acts th { font-size: 11px; text-align: center; padding: 10px 7px 7px; }
-        .acts td { font-size: 10.5px; height: 34px; }
+        .acts td { font-size: 13.5px; height: 40px; }
         .acts .seq { text-align: left; }
     </style>
 </head>

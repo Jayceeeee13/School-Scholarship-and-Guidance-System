@@ -895,77 +895,45 @@ class ListUsers extends ListRecords
                         }),
 
                     // Archive with an optional cascade (checkbox)
-                    Tables\Actions\Action::make('archiveUser')
-                        ->label('Archive')
-                        ->icon('heroicon-o-archive-box')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->modalHeading('Archive User')
-                        ->modalDescription('Are you sure you want to archive this user? They will immediately lose access.')
-                        ->modalSubmitActionLabel('Yes, Archive')
-                        ->visible(fn (User $record): bool => $record->id !== auth()->id())
-                        ->form([
-                            Forms\Components\Checkbox::make('archive_records')
-                                ->label('Also archive all related records')
-                                ->helperText('Includes their linked Personnel profile (if any), scholar records, DTR entries, counseling appointments, referrals, and accomplishment reports tied to their student profile.')
-                                ->default(false),
+                    // Archive user
+Tables\Actions\Action::make('archiveUser')
+    ->label('Archive')
+    ->icon('heroicon-o-archive-box')
+    ->color('danger')
+    ->requiresConfirmation()
+    ->modalHeading('Archive User')
+    ->modalDescription('Are you sure you want to archive this user? They will immediately lose access.')
+    ->modalSubmitActionLabel('Yes, Archive')
+    ->visible(fn (User $record): bool => $record->id !== auth()->id())
+    ->form([
+        Forms\Components\TextInput::make('confirm_password')
+            ->label('Confirm your password to continue')
+            ->password()
+            ->revealable()
+            ->required()
+            ->rule(function () {
+                return function (string $attribute, $value, $fail) {
+                    if (! Hash::check($value, auth()->user()->password)) {
+                        $fail('The password is incorrect.');
+                    }
+                };
+            }),
+    ])
+    ->action(function (User $record): void {
+        $record->update(['archived_at' => now()]);
 
-                            Forms\Components\TextInput::make('confirm_password')
-                                ->label('Confirm your password to continue')
-                                ->password()
-                                ->revealable()
-                                ->required()
-                                ->rule(function () {
-                                    return function (string $attribute, $value, $fail) {
-                                        if (! Hash::check($value, auth()->user()->password)) {
-                                            $fail('The password is incorrect.');
-                                        }
-                                    };
-                                }),
-                        ])
-                        ->action(function (User $record, array $data): void {
-                            $summary = null;
+        $this->logCustomActivity(
+            $record,
+            'user',
+            'archived',
+            "Archived user {$record->name}"
+        );
 
-                            // All-or-nothing: if any step fails, nothing is archived.
-                            DB::transaction(function () use ($record, $data, &$summary) {
-                                $record->update(['archived_at' => now()]);
-
-                                if ($data['archive_records'] ?? false) {
-                                    $summary = $this->cascadeArchiveUserRecords($record);
-                                }
-                            });
-
-                            if ($summary !== null) {
-                                $details = $this->formatArchiveSummary($summary);
-
-                                $this->logCustomActivity(
-                                    $record,
-                                    'user',
-                                    'archived',
-                                    "Archived user {$record->name} (cascaded: {$details})"
-                                );
-
-                                Notification::make()
-                                    ->title('User archived')
-                                    ->body("Also archived: {$details}.")
-                                    ->success()
-                                    ->send();
-
-                                return;
-                            }
-
-                            $this->logCustomActivity(
-                                $record,
-                                'user',
-                                'archived',
-                                "Archived user {$record->name}"
-                            );
-
-                            Notification::make()
-                                ->title('User archived')
-                                ->success()
-                                ->send();
-                        }),
+        Notification::make()
+            ->title('User archived')
+            ->success()
+            ->send();
+    }),
                 ])
                 ->label('Actions')
                 ->icon('heroicon-m-ellipsis-vertical')

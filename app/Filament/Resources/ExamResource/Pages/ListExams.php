@@ -393,6 +393,14 @@ class ListExams extends ListRecords
                     ->suffix('%')
                     ->sortable(),
 
+                TextColumn::make('access_code')
+                    ->label('Access Code')
+                    ->badge()
+                    ->color('info')
+                    ->copyable()
+                    ->copyMessage('Code copied')
+                    ->placeholder('No code'),
+
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Status')
                     ->boolean()
@@ -420,6 +428,21 @@ class ListExams extends ListRecords
                         ->icon('heroicon-o-document-text')
                         ->color('info')
                         ->url(fn (Exam $record) => url("/admin/exams/{$record->id}/questions")),
+
+                    Tables\Actions\Action::make('generate_code')
+                        ->label('Generate New Code')
+                        ->icon('heroicon-o-key')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalDescription('Students who already entered the old code will have to enter the new one.')
+                        ->action(function (Exam $record): void {
+                            $record->update(['access_code' => Exam::generateAccessCode()]);
+
+                            Notification::make()
+                                ->title('New code: ' . $record->access_code)
+                                ->success()
+                                ->send();
+                        }),
 
                     Tables\Actions\EditAction::make(),
                     // Tables\Actions\DeleteAction::make(),

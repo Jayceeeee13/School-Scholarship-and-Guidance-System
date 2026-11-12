@@ -23,8 +23,7 @@ class EditExam extends EditRecord
     }
 
     /**
-     * Runs after validation, right before the record is saved.
-     * If nothing changed, skip the save (so no "Saved" notification)
+     * If nothing changed, skip the save (no "Saved" notification)
      * and go back to the list.
      */
     protected function mutateFormDataBeforeSave(array $data): array

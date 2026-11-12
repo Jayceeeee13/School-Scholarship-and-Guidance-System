@@ -3,15 +3,14 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ExamResource\Pages;
-use App\Filament\Resources\ExamResource\RelationManagers;
 use App\Models\Exam;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ExamResource extends Resource
 {
@@ -59,8 +58,21 @@ class ExamResource extends Resource
                                     ->default(true)
                                     ->helperText('Only active exams can be taken by applicants'),
                             ]),
-                    ]),
 
+                        Forms\Components\TextInput::make('access_code')
+                            ->label('Exam Access Code')
+                            ->helperText('Students must enter this code before they can open the exam. Leave empty for no code.')
+                            ->maxLength(12)
+                            ->unique(ignoreRecord: true)
+                            ->extraInputAttributes(['style' => 'text-transform: uppercase; letter-spacing: .15em;'])
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? strtoupper(trim($state)) : null)
+                            ->suffixAction(
+                                Forms\Components\Actions\Action::make('generateCode')
+                                    ->icon('heroicon-m-arrow-path')
+                                    ->tooltip('Generate a new code')
+                                    ->action(fn (Set $set) => $set('access_code', Exam::generateAccessCode()))
+                            ),
+                    ]),
             ]);
     }
 
@@ -92,6 +104,14 @@ class ExamResource extends Resource
                     ->suffix('%')
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('access_code')
+                    ->label('Access Code')
+                    ->badge()
+                    ->color('info')
+                    ->copyable()
+                    ->copyMessage('Code copied')
+                    ->placeholder('No code'),
+
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Status')
                     ->boolean()
@@ -104,7 +124,6 @@ class ExamResource extends Resource
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('is_active')
@@ -119,6 +138,21 @@ class ExamResource extends Resource
                     ->icon('heroicon-o-document-text')
                     ->color('info')
                     ->url(fn (Exam $record) => url("/admin/exams/{$record->id}/questions")),
+
+                Tables\Actions\Action::make('generate_code')
+                    ->label('Generate New Code')
+                    ->icon('heroicon-o-key')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalDescription('Students who already entered the old code will have to enter the new one.')
+                    ->action(function (Exam $record): void {
+                        $record->update(['access_code' => Exam::generateAccessCode()]);
+
+                        Notification::make()
+                            ->title('New code: ' . $record->access_code)
+                            ->success()
+                            ->send();
+                    }),
 
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),

@@ -6,7 +6,7 @@ use App\Models\Exam;
 use App\Models\Program;
 use App\Models\Personnels;
 use App\Models\Announcement;
-use App\Models\Activity; // ← NEW
+use App\Models\Activity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -19,10 +19,12 @@ use App\Http\Controllers\GuestController;
 use App\Http\Controllers\CounselingLogformsPrintController;
 use App\Http\Controllers\ReportsPrintController;
 use App\Http\Controllers\ExamController;
+use App\Http\Controllers\ExamCodeController;               // ← NEW
 use App\Http\Controllers\ExamResultSlipController;
 use App\Http\Controllers\ExamAttemptListPrintController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AccomplishmentReportController;
+use App\Http\Middleware\EnsureExamCodeVerified;            // ← NEW
 
 // ─────────────────────────────────────────────────────────────
 // Public Routes
@@ -33,7 +35,7 @@ $landing = function () {
     return view('welcome', [
         'exam'          => Exam::first(),
         'announcements' => Announcement::latest()->take(6)->get(),
-        'activities'    => Activity::orderByDesc('activity_date')   // ← NEW
+        'activities'    => Activity::orderByDesc('activity_date')
             ->latest()
             ->take(6)
             ->get(),
@@ -173,11 +175,23 @@ Route::middleware(['auth', 'portal'])->group(function () {
     Route::post('/accomplishment-reports', [AccomplishmentReportController::class, 'store'])
         ->name('accomplishment_reports.store');
 
-    // Exam Routes
-    Route::get('/exam/{exam}/admission',  [ExamController::class, 'admissionForm'])->name('exam.admission');
-    Route::post('/exam/{exam}/admission', [ExamController::class, 'admissionStore'])->name('exam.admission.store');
-    Route::get('/exam/{exam}/scope',      [ExamController::class, 'scope'])->name('exam.scope');
-    Route::get('/exam/{exam}',            [ExamController::class, 'show'])->name('exam.show');
+    // ── Exam Routes ──────────────────────────────────────────
+    // Students enter the exam access code (if the exam has one) from the
+    // landing page. This route checks the code and stores it in the session.
+    Route::post('/exam/{exam}/verify-code', [ExamCodeController::class, 'verify'])
+        ->name('exam.verify-code');
+
+    // These pages require the code to be verified first. Exams without a
+    // code pass straight through.
+    Route::middleware(EnsureExamCodeVerified::class)->group(function () {
+        Route::get('/exam/{exam}/admission',  [ExamController::class, 'admissionForm'])->name('exam.admission');
+        Route::post('/exam/{exam}/admission', [ExamController::class, 'admissionStore'])->name('exam.admission.store');
+        Route::get('/exam/{exam}/scope',      [ExamController::class, 'scope'])->name('exam.scope');
+        Route::get('/exam/{exam}',            [ExamController::class, 'show'])->name('exam.show');
+    });
+
+    // Left outside the code check on purpose: a student who is mid-exam must
+    // still be able to submit even if the code is regenerated.
     Route::post('/exam/{exam}/submit',    [ExamController::class, 'submit'])->name('exam.submit');
     Route::post('/exam/{exam}/violation', [ExamController::class, 'recordViolation'])->name('exam.violation');
     Route::get('/exam/result/{result}',   [ExamController::class, 'result'])->name('exam.result');

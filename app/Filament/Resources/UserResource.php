@@ -88,16 +88,47 @@ class UserResource extends Resource
 
     /**
      * Students who do not have a user account yet.
-     * (Uses students.user_id when that column exists; NULL or 0 means "no account".)
+     *
+     * The students table can hold the same person more than once (for example one
+     * row per term), so this also:
+     *  - hides a student number as soon as ANY of its rows is linked to an account, and
+     *  - keeps only the latest row for each student number (no duplicate names).
+     * (NULL or 0 in students.user_id means "no account".)
      */
     protected static function availableStudents()
     {
+        $table = (new Students)->getTable();
+
         $query = Students::query();
 
-        if (Schema::hasColumn((new Students)->getTable(), 'user_id')) {
-            $query->where(function ($q) {
-                $q->whereNull('user_id')->orWhere('user_id', 0);
-            });
+        if (Schema::hasColumn($table, 'user_id')) {
+            $unlinked = fn ($q) => $q->whereNull('user_id')->orWhere('user_id', 0);
+
+            $query->where($unlinked);
+
+            if (Schema::hasColumn($table, 'student_id')) {
+                // Student numbers that already have an account on any row.
+                $query->whereNotIn('student_id', function ($sub) use ($table) {
+                    $sub->select('student_id')
+                        ->from($table)
+                        ->whereNotNull('student_id')
+                        ->whereNotNull('user_id')
+                        ->where('user_id', '!=', 0);
+                });
+
+                // One row per student number (the latest one). Rows without a
+                // student number are kept as they are.
+                $query->where(function ($q) use ($table, $unlinked) {
+                    $q->whereNull('student_id')
+                        ->orWhereIn('id', function ($sub) use ($table, $unlinked) {
+                            $sub->selectRaw('MAX(id)')
+                                ->from($table)
+                                ->whereNotNull('student_id')
+                                ->where($unlinked)
+                                ->groupBy('student_id');
+                        });
+                });
+            }
         }
 
         return $query->orderBy('last_name')->orderBy('first_name');

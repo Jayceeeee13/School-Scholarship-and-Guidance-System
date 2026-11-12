@@ -723,9 +723,27 @@ class ListUsers extends ListRecords
                 ->filtersFormColumns(2)
                 ->columns([
                     TextColumn::make('created_at')
-                        ->label('When')
-                        ->dateTime('M d, Y h:i A')
-                        ->sortable(),
+    ->label('When')
+    ->dateTime('M d, Y h:i A')
+    ->sortable()
+    ->searchable(query: function (Builder $query, string $search): Builder {
+        $search = trim($search);
+
+        return $query->where(function (Builder $q) use ($search) {
+            // Matches the text exactly as shown in the column,
+            // e.g. "nov 11, 2026", "nov", "2026", "05:01 pm"
+            $q->whereRaw("DATE_FORMAT(created_at, '%b %d, %Y %h:%i %p') LIKE ?", ["%{$search}%"])
+              // Matches raw database format, e.g. "2026-11-11"
+              ->orWhere('created_at', 'like', "%{$search}%");
+
+            // Matches other date styles, e.g. "nov 9, 2026" or "11/11/2026"
+            try {
+                $q->orWhereDate('created_at', \Carbon\Carbon::parse($search)->toDateString());
+            } catch (\Throwable $e) {
+                // Not a parseable date, so ignore this part
+            }
+        });
+    }),
 
                     TextColumn::make('log_name')
                         ->label('Log')

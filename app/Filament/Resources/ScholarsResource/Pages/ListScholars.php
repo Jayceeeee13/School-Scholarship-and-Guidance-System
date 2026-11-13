@@ -1129,7 +1129,29 @@ class ListScholars extends ListRecords
         return;
     }
 
+        $old = $record->getRawOriginal();
+
     $record->update($data);
+
+    try {
+        $sync = \App\Services\ScholarApplicantSync::fromScholarRecord($record, $old);
+
+        \App\Services\ScholarApplicantSync::notify($sync);
+
+        if ($sync && ! empty($sync['updated'])) {
+            $this->logCustomActivity(
+                $record,
+                'institutional_scholars',
+                'updated',
+                \App\Services\ScholarApplicantSync::describe($sync)
+            );
+        }
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::error('Institutional scholar -> applicant sync failed', [
+            'institutional_scholar_id' => $record->id,
+            'error'                    => $e->getMessage(),
+        ]);
+    }
 
     Notification::make()
         ->title('Scholar Updated')

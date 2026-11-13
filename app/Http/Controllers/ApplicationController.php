@@ -54,6 +54,19 @@ class ApplicationController extends Controller
     }
 
     /**
+     * ID of the active "New Applicant" application type (name contains the
+     * word "new"; "Renewal" does not match). Null if there isn't one.
+     */
+    private function newApplicantTypeId(): ?int
+    {
+        $type = TypeOfApplication::where('is_active', 1)
+            ->get()
+            ->first(fn ($t) => (bool) preg_match('/\bnew\b/i', $t->name));
+
+        return $type ? (int) $type->id : null;
+    }
+
+    /**
      * Find the logged-in user's student record.
      * 1) students.user_id = logged-in user (set when the student registers / is imported)
      * 2) fallback: students.student_id = users.student_id, if that column exists
@@ -265,9 +278,14 @@ class ApplicationController extends Controller
                 ->with('already_applied', true);
         }
 
-        // Set only when a returning scholar must be locked to "Renewal".
+        // Set only when a returning scholar starts as "Renewal".
         $renewalTypeId = $ctx['renewalTypeId'];
         $isRenewal     = $ctx['isRenewal'];
+
+        // Renewal students: the scholarship type they had before. If they pick a
+        // different one, the applicant type switches to New Applicant (see the form + store()).
+        $previousScholarshipTypeId = $ctx['previousScholarshipTypeId'] ?? null;
+        $newTypeId                 = $this->newApplicantTypeId();
 
         $scholarshipTypes = TypeOfScholarship::where('is_active', 1)->get();
         $applicantTypes   = TypeOfApplication::where('is_active', 1)->get();
@@ -299,7 +317,9 @@ class ApplicationController extends Controller
             'prefill',
             'locked',
             'renewalTypeId',
-            'isRenewal'
+            'isRenewal',
+            'previousScholarshipTypeId',
+            'newTypeId'
         ));
     }
 
@@ -311,9 +331,29 @@ class ApplicationController extends Controller
             return redirect()->route('gvc')->with('already_applied', true);
         }
 
-        // Returning scholars are always Renewal (ignores whatever was posted).
+        // ── Returning scholars: Renewal, unless they change their scholarship type ──
+        // Same scholarship type as before  -> Renewal
+        // A different scholarship type     -> New Applicant
+        // (decided here from the submitted scholarship, whatever the form posted)
+        $switchedRenewal = false;
+
         if ($ctx['renewalTypeId']) {
-            $request->merge(['type_of_application_id' => $ctx['renewalTypeId']]);
+            $previousId  = $ctx['previousScholarshipTypeId'] ?? null;
+            $submittedId = (int) $request->input('type_of_scholarship_id');
+            $newTypeId   = $this->newApplicantTypeId();
+
+            $changed = $previousId && $submittedId && $submittedId !== (int) $previousId;
+
+            if ($changed && $newTypeId) {
+                $switchedRenewal = true;
+                $request->merge(['type_of_application_id' => $newTypeId]);
+            } else {
+                if ($changed && ! $newTypeId) {
+                    Log::warning('Renewal: scholarship type changed but no active "New Applicant" type exists.');
+                }
+
+                $request->merge(['type_of_application_id' => $ctx['renewalTypeId']]);
+            }
         }
 
         // ── Locked fields: always use the student-record values ────────────
@@ -449,10 +489,13 @@ class ApplicationController extends Controller
 
         // ── New Applicant + Academic Scholarship must start at 1st Year ────
         // (server-side guard, in case the form is bypassed)
+        // Does not apply to returning scholars who switched scholarship type:
+        // they keep their current year level.
         $applicantType   = TypeOfApplication::find($validated['type_of_application_id']);
         $scholarshipType = TypeOfScholarship::find($validated['type_of_scholarship_id']);
 
-        if ($applicantType && $scholarshipType
+        if (! $ctx['renewalTypeId']
+            && $applicantType && $scholarshipType
             && preg_match('/\bnew\b/i', $applicantType->name)
             && stripos($scholarshipType->name, 'academic') !== false) {
             $validated['year_level'] = '1st Year';
@@ -511,8 +554,11 @@ class ApplicationController extends Controller
             'benefit'                => $benefit,
         ]);
 
+        // A renewal that switched scholarship type is submitted as a new application.
+        $isRenewalSubmission = $ctx['isRenewal'] && ! $switchedRenewal;
+
         return redirect()->route('scholarship')
-            ->with('success', $ctx['isRenewal']
+            ->with('success', $isRenewalSubmission
                 ? 'Renewal application submitted successfully.'
                 : 'Application submitted successfully.');
     }

@@ -176,7 +176,7 @@
             opacity: 1;
         }
 
-        /* Info note under the scholarship type (exam takers) */
+        /* Info note under the scholarship type / applicant type */
         .lock-note {
             display: flex;
             align-items: flex-start;
@@ -373,6 +373,10 @@
 
     // Names of the fields that are locked (read-only) because they were auto-filled.
     $locked = $locked ?? [];
+
+    // Renewal students: the scholarship type they had before, and the "New Applicant" type.
+    $previousScholarshipTypeId = $previousScholarshipTypeId ?? null;
+    $newTypeId                 = $newTypeId ?? null;
 @endphp
 
 {{-- ── NAVBAR ──────────────────────────────────────────────────────── --}}
@@ -514,15 +518,19 @@
                             <label class="field-label">Applicant Type <span class="req">*</span></label>
 
                             @if(!empty($renewalTypeId))
-                                <select class="field-input" disabled>
+                                {{-- Renewal student: the type is set automatically.
+                                     Renewal while the scholarship type is unchanged,
+                                     New Applicant when a different scholarship type is chosen.
+                                     (the script keeps this display and the hidden value in sync) --}}
+                                <select id="applicantTypeDisplay" class="field-input" disabled>
                                     @foreach($applicantTypes as $type)
-                                        @if($type->id == $renewalTypeId)
-                                            <option selected>{{ $type->name }}</option>
-                                        @endif
+                                        <option value="{{ $type->id }}" {{ (int) $type->id === (int) $renewalTypeId ? 'selected' : '' }}>
+                                            {{ $type->name }}
+                                        </option>
                                     @endforeach
                                 </select>
-                                <input type="hidden" name="type_of_application_id" value="{{ $renewalTypeId }}">
-                                <p class="lock-note">Set automatically to Renewal because you are a scholar from a previous term.</p>
+                                <input type="hidden" name="type_of_application_id" id="applicantTypeHidden" value="{{ $renewalTypeId }}">
+                                <p class="lock-note" id="applicantLockNote">Set automatically to Renewal because you are a scholar from a previous term.</p>
                             @else
                                 <select name="type_of_application_id"
                                         class="field-input {{ $errors->has('type_of_application_id') ? 'has-error' : '' }}"
@@ -546,8 +554,15 @@
                             <label class="field-label">Scholarship Type <span class="req">*</span></label>
 
                             @php
-                                // Exam takers start on Academic, but can pick another type.
-                                $selectedScholarship = old('type_of_scholarship_id', $academicId ?? '');
+                                // Renewal students start on the scholarship they had before
+                                // (if it is still available); exam takers start on Academic.
+                                // Both can be changed by the student.
+                                $previousType   = $scholarshipTypes->firstWhere('id', $previousScholarshipTypeId);
+                                $renewalDefault = (!empty($renewalTypeId) && $previousType && $previousType->slots > 0)
+                                    ? $previousType->id
+                                    : null;
+
+                                $selectedScholarship = old('type_of_scholarship_id', $renewalDefault ?? ($academicId ?? ''));
                             @endphp
 
                             <select name="type_of_scholarship_id"
@@ -566,7 +581,15 @@
                                 @endforeach
                             </select>
 
-                            @if(!empty($academicId))
+                            @if(!empty($renewalDefault))
+                                <p class="lock-note">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0;margin-top:1px;">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/>
+                                    </svg>
+                                    Your previous scholarship is selected. If you choose a different type, your application type will change to New Applicant.
+                                </p>
+                            @elseif(!empty($academicId))
                                 <p class="lock-note">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0;margin-top:1px;">
                                         <circle cx="12" cy="12" r="10"/>
@@ -857,6 +880,20 @@
 
 <script>
     /* ═══════════════════════════════════════════════════════════════
+    Renewal settings (set by the controller)
+    - active                : the student is a returning scholar
+    - renewalTypeId         : the "Renewal" applicant type
+    - newTypeId             : the "New Applicant" applicant type
+    - previousScholarshipId : the scholarship type the student had before
+    ═══════════════════════════════════════════════════════════════ */
+    const RENEWAL = @json([
+        'active'                => ! empty($renewalTypeId),
+        'renewalTypeId'         => $renewalTypeId ?? null,
+        'newTypeId'             => $newTypeId,
+        'previousScholarshipId' => $previousScholarshipTypeId,
+    ]);
+
+    /* ═══════════════════════════════════════════════════════════════
     Age auto-compute
     ═══════════════════════════════════════════════════════════════ */
     function computeAge() {
@@ -1059,6 +1096,10 @@
         });
 
         function applyYearRule() {
+            // Returning scholars keep their current year level, even after
+            // switching to New Applicant (the server follows the same rule).
+            if (RENEWAL.active) return;
+
             // Year level already locked from the student record: leave it alone.
             if (yearSel.dataset.locked === '1') return;
 
@@ -1088,9 +1129,39 @@
             wasLocked = locked;
         }
 
+        // ── Renewal students: choosing a different scholarship type than the
+        //    previous one switches the applicant type to "New Applicant" ──
+        function syncRenewalApplicantType() {
+            if (!RENEWAL.active) return;
+
+            const hidden  = document.getElementById('applicantTypeHidden');
+            const display = document.getElementById('applicantTypeDisplay');
+            const note    = document.getElementById('applicantLockNote');
+            if (!hidden) return;
+
+            const chosen   = schType.value;
+            const switched = !!(RENEWAL.previousScholarshipId && RENEWAL.newTypeId && chosen
+                              && String(chosen) !== String(RENEWAL.previousScholarshipId));
+
+            const typeId = switched ? RENEWAL.newTypeId : RENEWAL.renewalTypeId;
+
+            hidden.value = typeId;
+            if (display) display.value = typeId;
+
+            if (note) {
+                note.textContent = switched
+                    ? 'Changed to New Applicant because you chose a different scholarship type than your previous one.'
+                    : 'Set automatically to Renewal because you are a scholar from a previous term.';
+            }
+
+            setError(hidden, '');
+        }
+
         appType.addEventListener('change', applyYearRule);
         schType.addEventListener('change', applyYearRule);
-        applyYearRule(); // also covers a preselected Academic scholarship
+        schType.addEventListener('change', syncRenewalApplicantType);
+        applyYearRule();               // also covers a preselected Academic scholarship
+        syncRenewalApplicantType();    // also covers a re-opened form after a validation error
 
         // ── Block invalid characters while typing ──────────────────
         form.addEventListener('input', function (e) {

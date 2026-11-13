@@ -17,12 +17,14 @@ use Illuminate\Support\Facades\Log;
 trait ResolvesApplicationContext
 {
     /**
-     *  - term            : the active term (or null)
-     *  - scholarThisTerm : scholarship already granted for the active term
-     *  - returning       : was a scholar / approved in an earlier term
-     *  - isRenewal       : returning AND a "Renewal" application type exists
-     *  - renewalTypeId   : set only when the Applicant Type must be locked to Renewal
-     *  - applicant       : this TERM's application (null = nothing submitted yet this term)
+     *  - term                      : the active term (or null)
+     *  - scholarThisTerm           : scholarship already granted for the active term
+     *  - returning                 : was a scholar / approved in an earlier term
+     *  - isRenewal                 : returning AND a "Renewal" application type exists
+     *  - renewalTypeId             : set only when the Applicant Type must be locked to Renewal
+     *  - previousScholarshipTypeId : the scholarship type the returning student had before
+     *                                (null when unknown or not returning)
+     *  - applicant                 : this TERM's application (null = nothing submitted yet this term)
      */
     protected function applicationContext(): array
     {
@@ -73,6 +75,44 @@ trait ResolvesApplicationContext
 
         $isRenewal = (bool) $renewalTypeId;
 
-        return compact('term', 'scholarThisTerm', 'returning', 'isRenewal', 'renewalTypeId', 'applicant');
+        // ── Scholarship type the student had before (used for renewals) ────
+        $previousScholarshipTypeId = null;
+
+        if ($returning) {
+            // 1) the latest scholar record, if it stores the scholarship type
+            $lastScholar = $scholars->sortByDesc('id')->first();
+
+            if ($lastScholar) {
+                $attrs = $lastScholar->getAttributes();
+
+                foreach (['type_of_scholarship_id', 'scholarship_type_id'] as $column) {
+                    if (! empty($attrs[$column])) {
+                        $previousScholarshipTypeId = (int) $attrs[$column];
+                        break;
+                    }
+                }
+            }
+
+            // 2) otherwise the latest approved application
+            if (! $previousScholarshipTypeId) {
+                $fromApplication = (clone $applications)
+                    ->where('status', 'approved')
+                    ->whereNotNull('type_of_scholarship_id')
+                    ->latest('id')
+                    ->value('type_of_scholarship_id');
+
+                $previousScholarshipTypeId = $fromApplication ? (int) $fromApplication : null;
+            }
+        }
+
+        return compact(
+            'term',
+            'scholarThisTerm',
+            'returning',
+            'isRenewal',
+            'renewalTypeId',
+            'previousScholarshipTypeId',
+            'applicant'
+        );
     }
 }

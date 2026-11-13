@@ -377,6 +377,14 @@
     // Renewal students: the scholarship type they had before, and the "New Applicant" type.
     $previousScholarshipTypeId = $previousScholarshipTypeId ?? null;
     $newTypeId                 = $newTypeId ?? null;
+
+    // Settings passed to the script below.
+    $renewalConfig = [
+        'active'                => ! empty($renewalTypeId),
+        'renewalTypeId'         => $renewalTypeId ?? null,
+        'newTypeId'             => $newTypeId,
+        'previousScholarshipId' => $previousScholarshipTypeId,
+    ];
 @endphp
 
 {{-- ── NAVBAR ──────────────────────────────────────────────────────── --}}
@@ -886,12 +894,7 @@
     - newTypeId             : the "New Applicant" applicant type
     - previousScholarshipId : the scholarship type the student had before
     ═══════════════════════════════════════════════════════════════ */
-    const RENEWAL = @json([
-        'active'                => ! empty($renewalTypeId),
-        'renewalTypeId'         => $renewalTypeId ?? null,
-        'newTypeId'             => $newTypeId,
-        'previousScholarshipId' => $previousScholarshipTypeId,
-    ]);
+    const RENEWAL = @json($renewalConfig);
 
     /* ═══════════════════════════════════════════════════════════════
     Age auto-compute

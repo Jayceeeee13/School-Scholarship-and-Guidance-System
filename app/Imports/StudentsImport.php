@@ -111,6 +111,27 @@ class StudentsImport implements ToModel, WithStartRow, WithValidation, SkipsOnEr
             }
         }
 
+        // ── Carry over the user account from an earlier term ───────────
+        // Every term gets its own students row, so a student who already has an
+        // account would otherwise show up unlinked in the new term. Reuse the
+        // user_id from their most recent linked row: matched by Student ID, or,
+        // when the sheet has no Student ID, by name + birthdate.
+        $existingUserId = null;
+
+        if ($studentId) {
+            $existingUserId = Students::where('student_id', $studentId)
+                ->whereNotNull('user_id')
+                ->latest('id')
+                ->value('user_id');
+        } elseif ($lastName && $firstName && $birthdate) {
+            $existingUserId = Students::whereRaw('LOWER(TRIM(last_name)) = ?', [strtolower($lastName)])
+                ->whereRaw('LOWER(TRIM(first_name)) = ?', [strtolower($firstName)])
+                ->whereDate('birth_date', $birthdate)
+                ->whereNotNull('user_id')
+                ->latest('id')
+                ->value('user_id');
+        }
+
         // ── Resolve gender_id ──────────────────────────────────────────
         $sexRaw = trim((string) ($row[6] ?? ''));
         $sexKey = strtolower($sexRaw);
@@ -175,6 +196,7 @@ class StudentsImport implements ToModel, WithStartRow, WithValidation, SkipsOnEr
 
         return new Students([
             'student_id'          => $studentId,
+            'user_id'             => $existingUserId,
             'last_name'           => $lastName,
             'first_name'          => $firstName,
             'extension_name'      => $str($row[4]),

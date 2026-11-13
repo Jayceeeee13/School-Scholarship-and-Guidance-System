@@ -634,18 +634,21 @@ class ReferralsResource extends Resource
                                                     ->columnSpanFull(),
 
                                                 Forms\Components\Select::make('personnel_id')
-                                                    ->label('Counselor')
-                                                    ->relationship('personnel', 'last_name',
-                                                        fn ($query) => $query->selectRaw("*, CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) as full_name")
-                                                    )
-                                                    ->getOptionLabelFromRecordUsing(
-                                                        fn ($record) => trim("{$record->first_name} {$record->middle_name} {$record->last_name}")
-                                                    )
-                                                    ->searchable(['first_name', 'middle_name', 'last_name'])
-                                                    ->preload()
-                                                    ->placeholder('Select counselor')
-                                                    ->native(false)
-                                                    ->columnSpanFull(),
+    ->label('Counselor')
+    ->relationship(
+        'personnel',
+        'last_name',
+        // Only active staff whose position contains "guidance"
+        fn ($query) => $query->active()->where('position', 'like', '%guidance%')
+    )
+    ->getOptionLabelFromRecordUsing(
+        fn ($record) => trim("{$record->first_name} {$record->middle_name} {$record->last_name}")
+    )
+    ->searchable(['first_name', 'middle_name', 'last_name'])
+    ->preload()
+    ->placeholder('Select counselor')
+    ->native(false)
+    ->columnSpanFull(),
 
                                                 Forms\Components\Select::make('status')
                                                     ->label('Invitation Status')

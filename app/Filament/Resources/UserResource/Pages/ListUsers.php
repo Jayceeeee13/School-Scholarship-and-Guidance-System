@@ -33,6 +33,19 @@ class ListUsers extends ListRecords
 
     protected const DEFAULT_PASSWORD = 'GVCFI@2026';
 
+    /**
+     * Positions offered in the New / Edit Personnel form
+     * (same titles as the office organizational chart).
+     */
+    protected const POSITIONS = [
+        'Vice President for Academic Affairs',
+        'Dean for Student Services and Development',
+        'Guidance Advocate/TES Focal Person',
+        'Scholarship Officer',
+        'Guidance Staff',
+        'Scholarship Staff',
+    ];
+
     protected static string $resource = UserResource::class;
 
     /**
@@ -150,13 +163,25 @@ class ListUsers extends ListRecords
                 ->extraInputAttributes($nameAttributes)
                 ->dehydrateStateUsing($capitalize),
 
-            Forms\Components\TextInput::make('position')
+            Forms\Components\Select::make('position')
                 ->label('Position')
                 ->required()
-                ->maxLength(100)
-                ->extraInputAttributes([
-                    'style' => 'text-transform: capitalize;',
-                ]),
+                ->options(function () use ($record): array {
+                    $options = array_combine(self::POSITIONS, self::POSITIONS);
+
+                    // Keep a position that was typed in before this dropdown existed,
+                    // so editing that personnel does not blank it out.
+                    $current = $record?->position;
+
+                    if (filled($current) && ! isset($options[$current])) {
+                        $options[$current] = $current;
+                    }
+
+                    return $options;
+                })
+                ->searchable()
+                ->native(false)
+                ->placeholder('Select a position'),
 
             Forms\Components\DatePicker::make('birthdate')
                 ->label('Date of Birth')

@@ -337,9 +337,14 @@ class CounselingAppointmentsResource extends Resource
                                                 Forms\Components\RichEditor::make('concern')->label('Observation')->placeholder('Describe observation...')->columnSpanFull()->toolbarButtons(['bold', 'italic', 'bulletList', 'orderedList'])->disableToolbarButtons(['attachFiles']),
                                                 Forms\Components\RichEditor::make('intervention')->label('Intervention')->placeholder('Action taken...')->columnSpanFull()->toolbarButtons(['bold', 'italic', 'bulletList', 'orderedList'])->disableToolbarButtons(['attachFiles']),
                                                 Forms\Components\Select::make('personnel_id')->label('Interviewed By')
-                                                    ->relationship('personnel', 'last_name', fn ($query) => $query->selectRaw("*, CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) as full_name"))
-                                                    ->getOptionLabelFromRecordUsing(fn ($record) => trim("{$record->first_name} {$record->middle_name} {$record->last_name}"))
-                                                    ->searchable(['first_name', 'middle_name', 'last_name'])->preload()->required()->placeholder('Select counselor/interviewer')->columnSpanFull()->native(false),
+    ->relationship(
+        'personnel',
+        'last_name',
+        // Only active staff whose position contains "guidance"
+        fn ($query) => $query->active()->where('position', 'like', '%guidance%')
+    )
+    ->getOptionLabelFromRecordUsing(fn ($record) => trim("{$record->first_name} {$record->middle_name} {$record->last_name}"))
+    ->searchable(['first_name', 'middle_name', 'last_name'])->preload()->required()->placeholder('Select counselor/interviewer')->columnSpanFull()->native(false),
                                             ])
                                             ->collapsed()->itemLabel(fn (array $state): ?string => $state['display_name'] ?? 'New Record')
                                             ->addActionLabel('+ Anecdotal')->defaultItems(0)->columnSpanFull()->cloneable()->collapsible()

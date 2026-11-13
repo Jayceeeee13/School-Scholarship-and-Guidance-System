@@ -154,6 +154,12 @@
             border-color: #e53e3e;
             box-shadow: 0 0 0 3px rgba(229,62,62,0.12);
         }
+        /* Auto-filled, locked field (Referred By) */
+        .field-input[readonly] {
+            background: #f1f5f9;
+            color: #475569;
+            cursor: not-allowed;
+        }
 
         .field-error {
             font-size: 0.75rem;
@@ -479,12 +485,13 @@
                             @enderror
                         </div>
 
-                        {{-- Referred By --}}
+                        {{-- Referred By (auto-filled with the logged-in user's name) --}}
                         <div style="grid-column: span 2;">
                             <label class="field-label">Referred By</label>
                             <input type="text" name="referred_by"
-                                   value="{{ old('referred_by') }}"
+                                   value="{{ old('referred_by', auth()->check() ? auth()->user()->name : '') }}"
                                    placeholder="Name of referrer"
+                                   @auth readonly @endauth
                                    class="field-input {{ $errors->has('referred_by') ? 'is-invalid' : '' }}">
                             @error('referred_by')
                                 <p class="field-error">{{ $message }}</p>

@@ -179,6 +179,12 @@ class ReferralController extends Controller
         }
         // ── End verification ──────────────────────────────────────────────
 
+        // Always use the logged-in user's name for "Referred By",
+        // even if the form field was edited in the browser.
+        if (Auth::check()) {
+            $validated['referred_by'] = Auth::user()->name;
+        }
+
         $referral = Referrals::create($validated);
 
         \App\Notifications\ReferralStatusNotification::send($referral, 'new_referral');

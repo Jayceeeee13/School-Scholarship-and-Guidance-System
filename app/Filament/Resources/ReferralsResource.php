@@ -362,18 +362,19 @@ class ReferralsResource extends Resource
                                                     ->disableToolbarButtons(['attachFiles']),
 
                                                 Forms\Components\Select::make('personnel_id')
-                                                    ->label('Interviewed By')
-                                                    ->relationship(
-                                                        'personnel',
-                                                        'last_name',
-                                                        fn ($query) => $query->selectRaw("*, CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) as full_name")
-                                                    )
-                                                    ->getOptionLabelFromRecordUsing(fn ($record) => trim("{$record->first_name} {$record->middle_name} {$record->last_name}"))
-                                                    ->searchable(['first_name', 'middle_name', 'last_name'])
-                                                    ->preload()
-                                                    ->placeholder('Select counselor/interviewer')
-                                                    ->columnSpanFull()
-                                                    ->native(false),
+    ->label('Interviewed By')
+    ->relationship(
+        'personnel',
+        'last_name',
+        // Only active staff whose position contains "guidance"
+        fn ($query) => $query->active()->where('position', 'like', '%guidance%')
+    )
+    ->getOptionLabelFromRecordUsing(fn ($record) => trim("{$record->first_name} {$record->middle_name} {$record->last_name}"))
+    ->searchable(['first_name', 'middle_name', 'last_name'])
+    ->preload()
+    ->placeholder('Select counselor/interviewer')
+    ->columnSpanFull()
+    ->native(false),
                                             ])
                                             ->collapsed()
                                             ->itemLabel(fn (array $state): ?string => $state['name'] ?? 'New Record')
@@ -482,17 +483,19 @@ class ReferralsResource extends Resource
                                                 Forms\Components\Grid::make(2)
                                                     ->schema([
                                                         Forms\Components\Select::make('personnel_id')
-                                                            ->label('Endorse By')
-                                                            ->relationship('personnel', 'last_name',
-                                                                fn ($query) => $query->selectRaw("*, CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) as full_name")
-                                                            )
-                                                            ->getOptionLabelFromRecordUsing(
-                                                                fn ($record) => trim("{$record->first_name} {$record->middle_name} {$record->last_name}")
-                                                            )
-                                                            ->searchable(['first_name', 'middle_name', 'last_name'])
-                                                            ->preload()
-                                                            ->placeholder('Select counselor/interviewer')
-                                                            ->native(false),
+    ->label('Interviewed By')
+    ->relationship(
+        'personnel',
+        'last_name',
+        // Only active staff whose position contains "guidance"
+        fn ($query) => $query->active()->where('position', 'like', '%guidance%')
+    )
+    ->getOptionLabelFromRecordUsing(fn ($record) => trim("{$record->first_name} {$record->middle_name} {$record->last_name}"))
+    ->searchable(['first_name', 'middle_name', 'last_name'])
+    ->preload()
+    ->placeholder('Select counselor/interviewer')
+    ->columnSpanFull()
+    ->native(false),
 
                                                         Forms\Components\TextInput::make('received_by')
                                                             ->label('Received by')

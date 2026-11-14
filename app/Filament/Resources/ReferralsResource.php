@@ -332,6 +332,7 @@ class ReferralsResource extends Resource
         'oninput'    => 'this.value = this.value.replace(/\D/g, "").slice(0, 11)',
     ])
     ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
+                                                    ]),
 
                                                 Forms\Components\Grid::make(2)
                                                     ->schema([

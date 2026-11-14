@@ -5,6 +5,7 @@ namespace App\Models;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use App\Models\Students;
+use App\Services\StudentEnrollment;
 use App\Traits\LogsAllActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -182,9 +183,13 @@ class User extends Authenticatable implements FilamentUser
         return $this->roles->pluck('name')->implode(', ');
     }
 
+    /**
+     * True when the student is on the enrolled list (students import) of the
+     * ACTIVE term. Visitors and students from earlier terms are not enrolled.
+     */
     public function isEnrolled(): bool
     {
-        return $this->student()->exists();
+        return StudentEnrollment::isEnrolledInActiveTerm($this);
     }
 
     public function hasApplied(): bool

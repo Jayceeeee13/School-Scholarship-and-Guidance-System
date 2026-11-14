@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\Students;
+use App\Models\Term;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -87,15 +88,19 @@ class RegisterController extends Controller
             'birthdate_enrolled.after_or_equal'  => 'Please enter a realistic birthdate.',
         ]);
 
-        // Verify against students table
+        // Verify against the students table. The imported list is the list of
+        // enrolled students, so only rows from the active term count.
+        $activeTerm = Term::where('is_active', true)->first();
+
         $student = Students::whereRaw('TRIM(student_id) = ?', [trim($validated['student_id'])])
             ->whereRaw('LOWER(TRIM(last_name)) = ?', [strtolower(trim($validated['last_name_enrolled']))])
             ->whereDate('birth_date', $validated['birthdate_enrolled'])
+            ->when($activeTerm, fn ($q) => $q->where('term_id', $activeTerm->id))
             ->first();
 
         if (! $student) {
             return back()->withErrors([
-                'student_id' => 'No matching enrolled student found. Please check your Student ID, Last Name, and Birthdate.',
+                'student_id' => 'No matching enrolled student found for the current term. Please check your Student ID, Last Name, and Birthdate.',
             ])->withInput();
         }
 

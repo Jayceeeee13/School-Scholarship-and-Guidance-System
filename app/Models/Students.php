@@ -50,6 +50,15 @@ class Students extends Model
 
     protected static function booted(): void
     {
+        // A student created without a term (for example from the admin
+        // "New Student" form) is recorded on the active term. Imports and
+        // anything else that passes a term_id keep the term they chose.
+        static::creating(function (Students $student) {
+            if (empty($student->term_id)) {
+                $student->term_id = Term::where('is_active', true)->value('id');
+            }
+        });
+
         static::created(function (Students $student) {
             $user = User::where('last_name', $student->last_name)
                 ->whereDate('birthdate', $student->birth_date)
@@ -62,10 +71,9 @@ class Students extends Model
         });
     }
 
-
-// Student belongs to a user account
-public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
-{
-    return $this->belongsTo(User::class, 'user_id');
-}
+    // Student belongs to a user account
+    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }

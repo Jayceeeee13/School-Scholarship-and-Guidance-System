@@ -442,6 +442,7 @@ class ReferralsResource extends Resource
                                                     ->schema([
                                                         Forms\Components\TextInput::make('to_where')
                                                             ->label('To')
+                                                            ->required()
                                                             ->placeholder('Recipient name / office')
                                                             ->maxLength(200),
 

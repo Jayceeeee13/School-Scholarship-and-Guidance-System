@@ -474,114 +474,6 @@ class ArchivedRecords extends Page implements HasTable
                 ]);
         }
 
-        if ($this->activeTab === 'dtr') {
-            return $table
-                ->query(DailyTimeRecord::query()->whereNotNull('archived_at')->with('scholar'))
-                ->columns([
-                    Tables\Columns\TextColumn::make('scholar.full_name')
-                        ->label('Scholar')
-                        ->getStateUsing(fn (DailyTimeRecord $record) => $record->scholar
-                            ? trim("{$record->scholar->first_name} {$record->scholar->last_name}")
-                            : '—')
-                        ->searchable(),
-
-                    Tables\Columns\TextColumn::make('office_assigned')
-                        ->label('Office Assigned')
-                        ->searchable(),
-
-                    Tables\Columns\TextColumn::make('date')
-                        ->label('Date')
-                        ->date('M d, Y')
-                        ->sortable(),
-
-                    Tables\Columns\TextColumn::make('status')
-                        ->badge()
-                        ->formatStateUsing(fn (string $state): string => ucfirst($state)),
-
-                    Tables\Columns\TextColumn::make('archived_at')
-                        ->label('Archived On')
-                        ->dateTime('M d, Y h:i A')
-                        ->sortable(),
-                ])
-                ->actions([
-                    Tables\Actions\Action::make('restore')
-                        ->label('Restore')
-                        ->icon('heroicon-o-arrow-uturn-left')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->modalHeading('Restore DTR Entry')
-                        ->modalDescription('This DTR entry will reappear in the main DTR list.')
-                        ->form([
-                            $this->passwordConfirmationField(),
-                        ])
-                        ->action(function (DailyTimeRecord $record): void {
-                            $record->update(['archived_at' => null]);
-
-                            Notification::make()
-                                ->title('DTR entry restored')
-                                ->success()
-                                ->send();
-                        }),
-                ]);
-        }
-
-        if ($this->activeTab === 'accomplishment_reports') {
-            return $table
-                ->query(AccomplishmentReport::query()->whereNotNull('archived_at')->with(['scholar', 'term']))
-                ->columns([
-                    Tables\Columns\TextColumn::make('scholar.full_name')
-                        ->label('Scholar')
-                        ->getStateUsing(fn (AccomplishmentReport $record) => $record->scholar
-                            ? trim("{$record->scholar->first_name} {$record->scholar->last_name}")
-                            : '—'),
-
-                    Tables\Columns\TextColumn::make('term.school_year')
-                        ->label('Term')
-                        ->formatStateUsing(fn ($state, $record) => $record->term
-                            ? "{$record->term->school_year} — {$record->term->semester}"
-                            : '—'),
-
-                    Tables\Columns\TextColumn::make('status')
-                        ->badge()
-                        ->color(fn (string $state): string => match ($state) {
-                            'approved' => 'success',
-                            'rejected' => 'danger',
-                            default    => 'warning',
-                        })
-                        ->formatStateUsing(fn (string $state): string => ucfirst($state)),
-
-                    Tables\Columns\TextColumn::make('submitted_at')
-                        ->label('Submitted')
-                        ->dateTime('M d, Y h:i A')
-                        ->sortable(),
-
-                    Tables\Columns\TextColumn::make('archived_at')
-                        ->label('Archived On')
-                        ->dateTime('M d, Y h:i A')
-                        ->sortable(),
-                ])
-                ->actions([
-                    Tables\Actions\Action::make('restore')
-                        ->label('Restore')
-                        ->icon('heroicon-o-arrow-uturn-left')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->modalHeading('Restore Accomplishment Report')
-                        ->modalDescription('This report will reappear in the main Accomplishment Reports list.')
-                        ->form([
-                            $this->passwordConfirmationField(),
-                        ])
-                        ->action(function (AccomplishmentReport $record): void {
-                            $record->update(['archived_at' => null]);
-
-                            Notification::make()
-                                ->title('Accomplishment report restored')
-                                ->success()
-                                ->send();
-                        }),
-                ]);
-        }
-
         return $table
             ->query(User::query()->whereNotNull('archived_at')->with(['personnel', 'role', 'student']))
             ->columns([
@@ -607,24 +499,24 @@ class ArchivedRecords extends Page implements HasTable
             ])
             ->actions([
                 Tables\Actions\Action::make('restore')
-    ->label('Restore')
-    ->icon('heroicon-o-arrow-uturn-left')
-    ->color('success')
-    ->requiresConfirmation()
-    ->modalHeading('Restore User')
-    ->modalDescription('This user will regain panel access and reappear in the main Users list.')
-    ->modalSubmitActionLabel('Yes, Restore')
-    ->form([
-        $this->passwordConfirmationField(),
-    ])
-    ->action(function (User $record): void {
-        $record->update(['archived_at' => null]);
+                    ->label('Restore')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Restore User')
+                    ->modalDescription('This user will regain panel access and reappear in the main Users list.')
+                    ->modalSubmitActionLabel('Yes, Restore')
+                    ->form([
+                        $this->passwordConfirmationField(),
+                    ])
+                    ->action(function (User $record): void {
+                        $record->update(['archived_at' => null]);
 
-        Notification::make()
-            ->title('User restored')
-            ->success()
-            ->send();
-    }),
+                        Notification::make()
+                            ->title('User restored')
+                            ->success()
+                            ->send();
+                    }),
             ]);
     }
 }

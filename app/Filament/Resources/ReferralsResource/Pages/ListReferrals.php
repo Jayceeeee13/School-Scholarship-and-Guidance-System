@@ -634,49 +634,49 @@ class ListReferrals extends ListRecords
                             }
                         ),
 
-                    Tables\Actions\Action::make('reject')
-                        ->label('Reject')
-                        ->icon('heroicon-o-x-circle')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->modalHeading('Reject Referral')
-                        ->modalDescription(
-                            'Are you sure you want to reject this referral?'
-                        )
-                        ->modalSubmitActionLabel('Yes, Reject')
-                        ->visible(
-                            fn (Referrals $record): bool =>
-                                $record->status !== 'rejected' &&
-                                $record->status !== 'completed'
-                        )
-                        ->action(
-                            function (Referrals $record): void {
-                                $record->update([
-                                    'status' => 'rejected',
-                                ]);
+                    // Tables\Actions\Action::make('reject')
+                    //     ->label('Reject')
+                    //     ->icon('heroicon-o-x-circle')
+                    //     ->color('danger')
+                    //     ->requiresConfirmation()
+                    //     ->modalHeading('Reject Referral')
+                    //     ->modalDescription(
+                    //         'Are you sure you want to reject this referral?'
+                    //     )
+                    //     ->modalSubmitActionLabel('Yes, Reject')
+                    //     ->visible(
+                    //         fn (Referrals $record): bool =>
+                    //             $record->status !== 'rejected' &&
+                    //             $record->status !== 'completed'
+                    //     )
+                    //     ->action(
+                    //         function (Referrals $record): void {
+                    //             $record->update([
+                    //                 'status' => 'rejected',
+                    //             ]);
 
-                                $this->logCustomActivity(
-                                    $record,
-                                    'referrals',
-                                    'rejected',
-                                    "Rejected referral for {$record->name}"
-                                );
+                    //             $this->logCustomActivity(
+                    //                 $record,
+                    //                 'referrals',
+                    //                 'rejected',
+                    //                 "Rejected referral for {$record->name}"
+                    //             );
 
-                                AppointmentNotification::notifyReferralStatus(
-                                    $record,
-                                    'rejected',
-                                    'Your referral has been rejected.'
-                                );
+                    //             AppointmentNotification::notifyReferralStatus(
+                    //                 $record,
+                    //                 'rejected',
+                    //                 'Your referral has been rejected.'
+                    //             );
 
-                                Notification::make()
-                                    ->title('Referral Rejected')
-                                    ->body(
-                                        "The referral for {$record->name} has been rejected."
-                                    )
-                                    ->danger()
-                                    ->send();
-                            }
-                        ),
+                    //             Notification::make()
+                    //                 ->title('Referral Rejected')
+                    //                 ->body(
+                    //                     "The referral for {$record->name} has been rejected."
+                    //                 )
+                    //                 ->danger()
+                    //                 ->send();
+                    //         }
+                    //     ),
 
                     Tables\Actions\Action::make('archive')
                         ->label('Archive')

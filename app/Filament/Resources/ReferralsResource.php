@@ -243,9 +243,24 @@ class ReferralsResource extends Resource
                                                     }),
 
                                                 Forms\Components\TextInput::make('contact_no')
-                                                    ->label('Contact')
-                                                    ->tel()
-                                                    ->maxLength(20),
+    ->label('Contact')
+    ->tel()
+    ->maxLength(11)
+    ->minLength(11)
+    ->rule('regex:/^[0-9]+$/')
+    ->validationMessages([
+        'regex' => 'Contact number can only contain digits.',
+        'min'   => 'Contact number must be exactly 11 digits.',
+        'max'   => 'Contact number must be exactly 11 digits.',
+    ])
+    ->extraInputAttributes([
+        'maxlength'  => '11',
+        'inputmode'  => 'numeric',
+        'onkeypress' => 'return /^[0-9]$/.test(event.key)',
+        // also cleans pasted text
+        'oninput'    => 'this.value = this.value.replace(/\D/g, "").slice(0, 11)',
+    ])
+    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
 
                                                 Forms\Components\Textarea::make('address')
                                                     ->label('Address')
@@ -299,10 +314,24 @@ class ReferralsResource extends Resource
                                                             }),
 
                                                         Forms\Components\TextInput::make('contact_no')
-                                                            ->label('Contact')
-                                                            ->tel()
-                                                            ->maxLength(20),
-                                                    ]),
+    ->label('Contact')
+    ->tel()
+    ->maxLength(11)
+    ->minLength(11)
+    ->rule('regex:/^[0-9]+$/')
+    ->validationMessages([
+        'regex' => 'Contact number can only contain digits.',
+        'min'   => 'Contact number must be exactly 11 digits.',
+        'max'   => 'Contact number must be exactly 11 digits.',
+    ])
+    ->extraInputAttributes([
+        'maxlength'  => '11',
+        'inputmode'  => 'numeric',
+        'onkeypress' => 'return /^[0-9]$/.test(event.key)',
+        // also cleans pasted text
+        'oninput'    => 'this.value = this.value.replace(/\D/g, "").slice(0, 11)',
+    ])
+    ->dehydrateStateUsing(fn ($state) => $state ? preg_replace('/\D/', '', $state) : $state),
 
                                                 Forms\Components\Grid::make(2)
                                                     ->schema([

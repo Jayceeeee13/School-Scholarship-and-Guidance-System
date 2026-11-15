@@ -570,6 +570,7 @@ class ListCounselingAppointments extends ListRecords
 
                             \Filament\Forms\Components\Textarea::make('concern')
                                 ->label('Follow-up Concern/Notes')
+                                ->required()
                                 ->placeholder('What should be addressed in this follow-up session?')
                                 ->rows(3),
                         ])

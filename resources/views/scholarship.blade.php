@@ -66,6 +66,7 @@
     $icons = [
         'check-circle' => 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
         'x-circle'     => 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z',
+        'x'            => 'M6 18L18 6M6 6l12 12',
         'clock'        => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
         'check'        => 'M5 13l4 4L19 7',
         'lock'         => 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z',
@@ -117,12 +118,30 @@
         ];
         $cfg = $statusConfig[$status] ?? $statusConfig['pending'];
 
+        // ── Scholarship flow ──────────────────────────────────────────────
+        // Admission Exam → Application → Requirements → Scholarship Decision
+        $examTaken = ! $exam
+            || \App\Models\ExamAttempt::hasAttempted(auth()->id(), $exam->id);
+
+        try {
+            $requirementsDone = \App\Filament\Resources\ApplicantResource::hasCompleteRequirements($applicant);
+        } catch (\Throwable $e) {
+            $requirementsDone = false;
+        }
+
         $steps = [
-            ['label' => 'Submitted',    'done' => true],
-            ['label' => 'Under Review', 'done' => in_array($status, ['pending', 'approved', 'rejected'])],
-            ['label' => 'Decision',     'done' => in_array($status, ['approved', 'rejected'])],
-            ['label' => 'Granted',      'done' => $status === 'approved'],
+            ['label' => 'Admission Exam',       'done' => $examTaken],
+            ['label' => 'Application',          'done' => true],
+            ['label' => 'Requirements',         'done' => $requirementsDone],
+            [
+                'label' => 'Scholarship Decision',
+                'done'  => in_array($status, ['approved', 'rejected']),
+                'tone'  => $status === 'rejected' ? 'red' : 'green',
+            ],
         ];
+
+        // The first unfinished step is the "current" one (pulsing dot).
+        $currentIdx = collect($steps)->search(fn ($s) => ! $s['done']);
 
         $details = [
             'Application Type' => $applicant->typeOfApplication->name ?? 'N/A',
@@ -408,22 +427,33 @@
                 <div class="space-y-8 p-6 md:p-8">
                     <p class="max-w-2xl text-sm leading-relaxed text-slate-600">{{ $cfg['desc'] }}</p>
 
-                    {{-- Progress stepper --}}
+                    {{-- Progress stepper: Exam → Application → Requirements → Scholarship Decision --}}
                     <ol class="grid grid-cols-4" aria-label="Progress">
                         @foreach ($steps as $i => $step)
+                            @php
+                                $isCurrent = $currentIdx === $i;
+                                $isRed     = $step['done'] && ($step['tone'] ?? '') === 'red';
+                            @endphp
                             <li class="relative flex flex-col items-center text-center">
                                 @if ($i > 0)
-                                    <span class="absolute left-[-50%] top-3 h-0.5 w-full {{ $step['done'] ? 'bg-emerald-400' : 'bg-slate-200' }}" aria-hidden="true"></span>
+                                    <span class="absolute left-[-50%] top-3 h-0.5 w-full {{ $step['done'] ? ($isRed ? 'bg-red-400' : 'bg-emerald-400') : 'bg-slate-200' }}" aria-hidden="true"></span>
                                 @endif
+
                                 <span class="relative z-10 flex h-6 w-6 items-center justify-center rounded-full
-                                    {{ $step['done'] ? 'bg-emerald-500 text-white' : 'border-2 border-slate-300 bg-white' }}">
+                                    {{ $step['done']
+                                        ? ($isRed ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white')
+                                        : ($isCurrent ? 'pulse-dot border-2 border-emerald-500 bg-white text-emerald-500' : 'border-2 border-slate-300 bg-white') }}">
                                     @if ($step['done'])
                                         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons['check'] }}"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="{{ $isRed ? $icons['x'] : $icons['check'] }}"/>
                                         </svg>
                                     @endif
                                 </span>
-                                <span class="mt-2 text-xs font-semibold {{ $step['done'] ? 'text-emerald-700' : 'text-slate-400' }}">{{ $step['label'] }}</span>
+
+                                <span class="mt-2 px-1 text-xs font-semibold leading-tight
+                                    {{ $step['done'] ? ($isRed ? 'text-red-600' : 'text-emerald-700') : ($isCurrent ? 'text-emerald-700' : 'text-slate-400') }}">
+                                    {{ $step['label'] }}
+                                </span>
                             </li>
                         @endforeach
                     </ol>

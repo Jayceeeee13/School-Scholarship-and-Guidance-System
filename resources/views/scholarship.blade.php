@@ -85,12 +85,15 @@
 
     /*
     |--------------------------------------------------------------------------
-    | Application status card
+    | Progress card + pipeline (always shown)
     |--------------------------------------------------------------------------
+    | Before applying, the pipeline still appears so students can see what
+    | comes next. Only the details grid needs an actual application.
     */
-    if ($alreadyApplied && $applicant) {
-        $status = $applicant->status ?? 'pending';
+    $hasApplication = $alreadyApplied && $applicant;
+    $status         = $hasApplication ? ($applicant->status ?? 'pending') : null;
 
+    if ($hasApplication) {
         $statusConfig = [
             'pending' => [
                 'label' => 'Under Review', 'icon' => 'clock', 'pulse' => true,
@@ -123,31 +126,6 @@
         ];
         $cfg = $statusConfig[$status] ?? $statusConfig['pending'];
 
-        // ── Scholarship flow ──────────────────────────────────────────────
-        // Admission Exam → Application → Requirements → Scholarship Decision
-        $examTaken = ! $exam
-            || \App\Models\ExamAttempt::hasAttempted(auth()->id(), $exam->id);
-
-        try {
-            $requirementsDone = \App\Filament\Resources\ApplicantResource::hasCompleteRequirements($applicant);
-        } catch (\Throwable $e) {
-            $requirementsDone = false;
-        }
-
-        $steps = [
-            ['label' => 'Admission Exam',       'done' => $examTaken],
-            ['label' => 'Application',          'done' => true],
-            ['label' => 'Requirements',         'done' => $requirementsDone],
-            [
-                'label' => 'Scholarship Decision',
-                'done'  => in_array($status, ['approved', 'rejected']),
-                'tone'  => $status === 'rejected' ? 'red' : 'green',
-            ],
-        ];
-
-        // The first unfinished step is the "current" one (pulsing dot).
-        $currentIdx = collect($steps)->search(fn ($s) => ! $s['done']);
-
         $details = [
             'Application Type' => $applicant->typeOfApplication->name ?? 'N/A',
             'Scholarship Type' => $applicant->typeOfScholarship->name ?? 'N/A',
@@ -158,7 +136,58 @@
         if ($applicant->benefit) {
             $details['Benefit'] = $applicant->benefit;
         }
+    } else {
+        // No application yet: neutral card that tells the student what to do next.
+        if (! $isEnrolled) {
+            $progressDesc = 'Complete your enrollment first. Only enrolled students can apply for a scholarship.';
+        } elseif ($needsExam) {
+            $progressDesc = $examAttempt
+                ? 'Your exam score did not reach the passing mark yet. Please contact the Scholarship and Guidance office.'
+                : 'Take and pass the admission exam first to unlock your scholarship application.';
+        } else {
+            $progressDesc = $isRenewal
+                ? 'You have not submitted your renewal for this term yet. Use the Renew Scholarship card below to continue.'
+                : 'You have not submitted an application yet. Use the Apply Scholarship card below to get started.';
+        }
+
+        $cfg = [
+            'label' => 'Not Yet Applied', 'icon' => 'clipboard', 'pulse' => false,
+            'desc'  => $progressDesc,
+            'head'  => 'bg-slate-50 border-slate-200',
+            'iconbox' => 'bg-slate-100 text-slate-500',
+            'pill'  => 'bg-slate-100 text-slate-700 border-slate-300',
+            'dot'   => 'bg-slate-400 text-slate-400',
+        ];
+        $details = [];
     }
+
+    // ── Scholarship flow ──────────────────────────────────────────────────
+    // Admission Exam → Application → Requirements → Scholarship Decision
+    $examTaken = ! $exam
+        || \App\Models\ExamAttempt::hasAttempted(auth()->id(), $exam->id);
+
+    $requirementsDone = false;
+    if ($hasApplication) {
+        try {
+            $requirementsDone = \App\Filament\Resources\ApplicantResource::hasCompleteRequirements($applicant);
+        } catch (\Throwable $e) {
+            $requirementsDone = false;
+        }
+    }
+
+    $steps = [
+        ['label' => 'Admission Exam',       'done' => $examTaken],
+        ['label' => 'Application',          'done' => (bool) $hasApplication],
+        ['label' => 'Requirements',         'done' => $requirementsDone],
+        [
+            'label' => 'Scholarship Decision',
+            'done'  => $hasApplication && in_array($status, ['approved', 'rejected']),
+            'tone'  => $status === 'rejected' ? 'red' : 'green',
+        ],
+    ];
+
+    // The first unfinished step is the "current" one (pulsing dot).
+    $currentIdx = collect($steps)->search(fn ($s) => ! $s['done']);
 
     /*
     |--------------------------------------------------------------------------
@@ -252,37 +281,37 @@
     // Admission Exam (moved here from the landing page).
     // With an access code the card opens a popup asking for it; without one it goes straight to the exam.
     // Admission Exam. Locked once the student has finished it.
-if ($exam) {
-    $finishedAttempt = \App\Models\ExamAttempt::where('user_id', auth()->id())
-        ->where('exam_id', $exam->id)
-        ->whereNotNull('completed_at')
-        ->latest('completed_at')
-        ->first();
+    if ($exam) {
+        $finishedAttempt = \App\Models\ExamAttempt::where('user_id', auth()->id())
+            ->where('exam_id', $exam->id)
+            ->whereNotNull('completed_at')
+            ->latest('completed_at')
+            ->first();
 
-    if ($finishedAttempt) {
-        $examAction = [
-            'state' => 'locked', 'icon' => 'exam', 'title' => 'Admission Exam',
-            'desc'  => 'You have already taken the admission exam. Your score: '
-                . number_format($finishedAttempt->percentage, 1) . '%.',
-            'cta'   => 'Exam Already Taken',
-        ];
-    } elseif ($exam->access_code) {
-        $examAction = [
-            'state' => 'code', 'icon' => 'exam', 'title' => 'Admission Exam',
-            'desc'  => 'Take the scholarship admission exam. You will need the exam code from the Scholarship and Guidance office.',
-            'cta'   => 'Take the Exam',
-        ];
-    } else {
-        $examAction = [
-            'state' => 'link', 'icon' => 'exam', 'title' => 'Admission Exam',
-            'desc'  => 'Take the scholarship admission exam.',
-            'cta'   => 'Take the Exam', 'href' => route('exam.admission', $exam->id),
-        ];
+        if ($finishedAttempt) {
+            $examAction = [
+                'state' => 'locked', 'icon' => 'exam', 'title' => 'Admission Exam',
+                'desc'  => 'You have already taken the admission exam. Your score: '
+                    . number_format($finishedAttempt->percentage, 1) . '%.',
+                'cta'   => 'Exam Already Taken',
+            ];
+        } elseif ($exam->access_code) {
+            $examAction = [
+                'state' => 'code', 'icon' => 'exam', 'title' => 'Admission Exam',
+                'desc'  => 'Take the scholarship admission exam. You will need the exam code from the Scholarship and Guidance office.',
+                'cta'   => 'Take the Exam',
+            ];
+        } else {
+            $examAction = [
+                'state' => 'link', 'icon' => 'exam', 'title' => 'Admission Exam',
+                'desc'  => 'Take the scholarship admission exam.',
+                'cta'   => 'Take the Exam', 'href' => route('exam.admission', $exam->id),
+            ];
+        }
+
+        // The exam always comes first, before the scholarship application.
+        array_unshift($actions, $examAction);
     }
-
-    // The exam always comes first, before the scholarship application.
-    array_unshift($actions, $examAction);
-}
 
     // Four cards sit in one row on wide screens; fewer cards keep the narrower layout.
     $fourCards = count($actions) === 4;
@@ -437,67 +466,77 @@ if ($exam) {
             </div>
         @endif
 
-        {{-- APPLICATION STATUS (only when applied) --}}
-        @if ($alreadyApplied && $applicant)
-            <section class="fade-up mx-auto mb-10 max-w-5xl overflow-hidden rounded-3xl border border-green-200/60 bg-white shadow-sm" aria-label="Application status">
+        {{-- PROGRESS / APPLICATION STATUS (always shown, so the pipeline never goes missing) --}}
+        <section class="fade-up mx-auto mb-10 max-w-5xl overflow-hidden rounded-3xl border border-green-200/60 bg-white shadow-sm" aria-label="Application status">
 
-                {{-- Header --}}
-                <div class="flex flex-wrap items-center justify-between gap-4 border-b px-6 py-5 {{ $cfg['head'] }}">
-                    <div class="flex items-center gap-3">
-                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl {{ $cfg['iconbox'] }}">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons[$cfg['icon']] }}"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                {{ $isRenewal ? 'Renewal Application Status' : 'Application Status' }}
-                            </p>
-                            <p class="font-display text-base font-bold text-slate-900">{{ $applicant->first_name }} {{ $applicant->last_name }}</p>
-                        </div>
+            {{-- Header --}}
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b px-6 py-5 {{ $cfg['head'] }}">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl {{ $cfg['iconbox'] }}">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons[$cfg['icon']] }}"/>
+                        </svg>
                     </div>
-
-                    <span class="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold tracking-wide {{ $cfg['pill'] }}">
-                        <span class="inline-block h-2 w-2 rounded-full {{ $cfg['dot'] }} {{ $cfg['pulse'] ? 'pulse-dot' : '' }}"></span>
-                        {{ $cfg['label'] }}
-                    </span>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                            @if ($hasApplication)
+                                {{ $isRenewal ? 'Renewal Application Status' : 'Application Status' }}
+                            @else
+                                Scholarship Progress
+                            @endif
+                        </p>
+                        <p class="font-display text-base font-bold text-slate-900">
+                            @if ($hasApplication)
+                                {{ $applicant->first_name }} {{ $applicant->last_name }}
+                            @else
+                                {{ auth()->user()->name }}
+                            @endif
+                        </p>
+                    </div>
                 </div>
 
-                <div class="space-y-8 p-6 md:p-8">
-                    <p class="max-w-2xl text-sm leading-relaxed text-slate-600">{{ $cfg['desc'] }}</p>
+                <span class="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold tracking-wide {{ $cfg['pill'] }}">
+                    <span class="inline-block h-2 w-2 rounded-full {{ $cfg['dot'] }} {{ $cfg['pulse'] ? 'pulse-dot' : '' }}"></span>
+                    {{ $cfg['label'] }}
+                </span>
+            </div>
 
-                    {{-- Progress stepper: Exam → Application → Requirements → Scholarship Decision --}}
-                    <ol class="grid grid-cols-4" aria-label="Progress">
-                        @foreach ($steps as $i => $step)
-                            @php
-                                $isCurrent = $currentIdx === $i;
-                                $isRed     = $step['done'] && ($step['tone'] ?? '') === 'red';
-                            @endphp
-                            <li class="relative flex flex-col items-center text-center">
-                                @if ($i > 0)
-                                    <span class="absolute left-[-50%] top-3 h-0.5 w-full {{ $step['done'] ? ($isRed ? 'bg-red-400' : 'bg-emerald-400') : 'bg-slate-200' }}" aria-hidden="true"></span>
+            <div class="space-y-8 p-6 md:p-8">
+                <p class="max-w-2xl text-sm leading-relaxed text-slate-600">{{ $cfg['desc'] }}</p>
+
+                {{-- Progress stepper: Exam → Application → Requirements → Scholarship Decision --}}
+                <ol class="grid grid-cols-4" aria-label="Progress">
+                    @foreach ($steps as $i => $step)
+                        @php
+                            $isCurrent = $currentIdx === $i;
+                            $isRed     = $step['done'] && ($step['tone'] ?? '') === 'red';
+                        @endphp
+                        <li class="relative flex flex-col items-center text-center">
+                            @if ($i > 0)
+                                <span class="absolute left-[-50%] top-3 h-0.5 w-full {{ $step['done'] ? ($isRed ? 'bg-red-400' : 'bg-emerald-400') : 'bg-slate-200' }}" aria-hidden="true"></span>
+                            @endif
+
+                            <span class="relative z-10 flex h-6 w-6 items-center justify-center rounded-full
+                                {{ $step['done']
+                                    ? ($isRed ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white')
+                                    : ($isCurrent ? 'pulse-dot border-2 border-emerald-500 bg-white text-emerald-500' : 'border-2 border-slate-300 bg-white') }}">
+                                @if ($step['done'])
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="{{ $isRed ? $icons['x'] : $icons['check'] }}"/>
+                                    </svg>
                                 @endif
+                            </span>
 
-                                <span class="relative z-10 flex h-6 w-6 items-center justify-center rounded-full
-                                    {{ $step['done']
-                                        ? ($isRed ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white')
-                                        : ($isCurrent ? 'pulse-dot border-2 border-emerald-500 bg-white text-emerald-500' : 'border-2 border-slate-300 bg-white') }}">
-                                    @if ($step['done'])
-                                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" aria-hidden="true">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="{{ $isRed ? $icons['x'] : $icons['check'] }}"/>
-                                        </svg>
-                                    @endif
-                                </span>
+                            <span class="mt-2 px-1 text-xs font-semibold leading-tight
+                                {{ $step['done'] ? ($isRed ? 'text-red-600' : 'text-emerald-700') : ($isCurrent ? 'text-emerald-700' : 'text-slate-400') }}">
+                                {{ $step['label'] }}
+                            </span>
+                        </li>
+                    @endforeach
+                </ol>
 
-                                <span class="mt-2 px-1 text-xs font-semibold leading-tight
-                                    {{ $step['done'] ? ($isRed ? 'text-red-600' : 'text-emerald-700') : ($isCurrent ? 'text-emerald-700' : 'text-slate-400') }}">
-                                    {{ $step['label'] }}
-                                </span>
-                            </li>
-                        @endforeach
-                    </ol>
-
-                    {{-- Details --}}
+                {{-- Details (only once an application exists) --}}
+                @if ($hasApplication && ! empty($details))
                     <dl class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                         @foreach ($details as $label => $value)
                             <div class="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100">
@@ -506,9 +545,9 @@ if ($exam) {
                             </div>
                         @endforeach
                     </dl>
-                </div>
-            </section>
-        @endif
+                @endif
+            </div>
+        </section>
 
         {{-- ACTION CARDS --}}
         <div class="mx-auto grid gap-6 sm:grid-cols-2 {{ $gridCols }} {{ $fourCards ? 'max-w-7xl' : 'max-w-5xl' }}">

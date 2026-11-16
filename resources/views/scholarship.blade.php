@@ -232,12 +232,8 @@
                 'cta'   => 'Take the Exam', 'href' => route('exam.admission', $exam->id),
             ];
 
-        // Not-yet-enrolled users see the exam first; enrolled students see it last.
-        if ($isEnrolled) {
-            $actions[] = $examAction;
-        } else {
-            array_unshift($actions, $examAction);
-        }
+        // The exam always comes first, before the scholarship application.
+        array_unshift($actions, $examAction);
     }
 
     $gridCols = count($actions) === 4 ? 'lg:grid-cols-2' : 'lg:grid-cols-3';

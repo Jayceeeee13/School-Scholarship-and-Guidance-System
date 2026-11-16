@@ -44,18 +44,23 @@
     |--------------------------------------------------------------------------
     | Data
     |--------------------------------------------------------------------------
-    | $alreadyApplied, $applicant, $isAlreadyScholar, $scholarRecord and
-    | $isRenewal all come from ApplicationController::index().
+    | $alreadyApplied, $applicant, $isAlreadyScholar, $scholarRecord,
+    | $isRenewal and $exam all come from ApplicationController::index().
     |   - $isAlreadyScholar : holds a scholarship for the ACTIVE term
     |   - $isRenewal        : scholar from an earlier term, so they renew
+    |   - $exam             : the admission exam (null if none exists)
     */
     $appPeriod = \App\Models\Period::scholarshipApplication();
     $reqPeriod = \App\Models\Period::scholarshipRequirement();
     $isStudent = auth()->user()->role && strtolower(auth()->user()->role->name) === 'student';
 
+    // Not-yet-enrolled users can take the admission exam but cannot apply yet.
+    $isEnrolled = auth()->user()->isEnrolled();
+
     $isRenewal        = $isRenewal ?? false;
     $isAlreadyScholar = $isAlreadyScholar ?? false;
     $scholarRecord    = $scholarRecord ?? null;
+    $exam             = $exam ?? null;
 
     // Heroicons (outline, v1) path data
     $icons = [
@@ -67,6 +72,7 @@
         'clipboard'    => 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
         'document'     => 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
         'report'       => 'M9 17v-2a4 4 0 014-4h4m-4-4l4 4-4 4M3 21h18a2 2 0 002-2V7a2 2 0 00-2-2h-5.586a1 1 0 01-.707-.293l-1.414-1.414A1 1 0 0014.586 3H5a2 2 0 00-2 2v14a2 2 0 002 2z',
+        'exam'         => 'M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422A12.083 12.083 0 0121 12c0 5.523-4.477 10-10 10S2 17.523 2 12c0-.538.043-1.065.125-1.578L12 14z',
         'chevron-r'    => 'M9 5l7 7-7 7',
         'chevron-l'    => 'M15 19l-7-7 7-7',
     ];
@@ -133,7 +139,8 @@
     /*
     |--------------------------------------------------------------------------
     | Action cards
-    | state: link (clickable) | done (opens modal) | locked (period closed)
+    | state: link (clickable) | code (opens the exam-code popup)
+    |        | done (opens the "already applied" popup) | locked (not available)
     |--------------------------------------------------------------------------
     */
     $actions = [];
@@ -141,60 +148,99 @@
     // Apply / Renew
     $applyTitle = $isRenewal ? 'Renew Scholarship' : 'Apply Scholarship';
 
-    if ($alreadyApplied || $isAlreadyScholar) {
-        $actions[] = [
-            'state' => 'done', 'icon' => 'check-circle', 'title' => $applyTitle,
-            'desc'  => $alreadyApplied
-                ? ($isRenewal
-                    ? 'Your renewal for this term has been submitted. Contact the scholarship office for any changes.'
-                    : 'Your application has been submitted. Contact the scholarship office for any changes.')
-                : "You're already an active scholar this term. Contact the scholarship office if you need to make changes.",
-            'cta'   => $alreadyApplied
-                ? ($isRenewal ? 'Renewal Submitted' : 'Already Submitted')
-                : 'Already a Scholar',
-        ];
-    } elseif ($appPeriod->is_open) {
-        $actions[] = [
-            'state' => 'link', 'icon' => 'clipboard', 'title' => $applyTitle,
-            'desc'  => $isRenewal
-                ? "You're a scholar from a previous term. Submit your renewal application to continue your scholarship."
-                : 'Fill out and submit your scholarship application form to get started.',
-            'cta'   => $isRenewal ? 'Renew Now' : 'Apply Now',
-            'href'  => route('application_new.get'),
-        ];
-    } else {
+    if (! $isEnrolled) {
+        // Not enrolled yet: scholarship features stay locked until enrollment.
         $actions[] = [
             'state' => 'locked', 'icon' => 'lock', 'title' => $applyTitle,
-            'desc'  => 'The application period is currently closed.'
-                . ($appPeriod->open_date ? ' Opens on ' . $appPeriod->opensOnLabel() . '.' : ''),
-            'cta'   => 'Period Closed',
+            'desc'  => 'Only enrolled students can apply for a scholarship. Complete your enrollment first.',
+            'cta'   => 'Enrolled Only',
         ];
-    }
-
-    // Requirements
-    if ($reqPeriod->is_open) {
-        $actions[] = [
-            'state' => 'link', 'icon' => 'document', 'title' => 'Submit Requirements',
-            'desc'  => 'Upload and submit your scholarship requirements and letter of intent for processing.',
-            'cta'   => 'Submit Now', 'href' => route('requirements_submission.get'),
-        ];
-    } else {
         $actions[] = [
             'state' => 'locked', 'icon' => 'lock', 'title' => 'Submit Requirements',
-            'desc'  => 'The submission period is currently closed.'
-                . ($reqPeriod->open_date ? ' Opens on ' . $reqPeriod->opensOnLabel() . '.' : ''),
-            'cta'   => 'Period Closed',
+            'desc'  => 'Only enrolled students can submit scholarship requirements.',
+            'cta'   => 'Enrolled Only',
         ];
+    } else {
+        if ($alreadyApplied || $isAlreadyScholar) {
+            $actions[] = [
+                'state' => 'done', 'icon' => 'check-circle', 'title' => $applyTitle,
+                'desc'  => $alreadyApplied
+                    ? ($isRenewal
+                        ? 'Your renewal for this term has been submitted. Contact the scholarship office for any changes.'
+                        : 'Your application has been submitted. Contact the scholarship office for any changes.')
+                    : "You're already an active scholar this term. Contact the scholarship office if you need to make changes.",
+                'cta'   => $alreadyApplied
+                    ? ($isRenewal ? 'Renewal Submitted' : 'Already Submitted')
+                    : 'Already a Scholar',
+            ];
+        } elseif ($appPeriod->is_open) {
+            $actions[] = [
+                'state' => 'link', 'icon' => 'clipboard', 'title' => $applyTitle,
+                'desc'  => $isRenewal
+                    ? "You're a scholar from a previous term. Submit your renewal application to continue your scholarship."
+                    : 'Fill out and submit your scholarship application form to get started.',
+                'cta'   => $isRenewal ? 'Renew Now' : 'Apply Now',
+                'href'  => route('application_new.get'),
+            ];
+        } else {
+            $actions[] = [
+                'state' => 'locked', 'icon' => 'lock', 'title' => $applyTitle,
+                'desc'  => 'The application period is currently closed.'
+                    . ($appPeriod->open_date ? ' Opens on ' . $appPeriod->opensOnLabel() . '.' : ''),
+                'cta'   => 'Period Closed',
+            ];
+        }
+
+        // Requirements
+        if ($reqPeriod->is_open) {
+            $actions[] = [
+                'state' => 'link', 'icon' => 'document', 'title' => 'Submit Requirements',
+                'desc'  => 'Upload and submit your scholarship requirements and letter of intent for processing.',
+                'cta'   => 'Submit Now', 'href' => route('requirements_submission.get'),
+            ];
+        } else {
+            $actions[] = [
+                'state' => 'locked', 'icon' => 'lock', 'title' => 'Submit Requirements',
+                'desc'  => 'The submission period is currently closed.'
+                    . ($reqPeriod->open_date ? ' Opens on ' . $reqPeriod->opensOnLabel() . '.' : ''),
+                'cta'   => 'Period Closed',
+            ];
+        }
+
+        // Accomplishment reports (enrolled students only)
+        if ($isStudent) {
+            $actions[] = [
+                'state' => 'link', 'icon' => 'report', 'title' => 'Accomplishment Reports',
+                'desc'  => 'For Talents, SSG, and Sports scholars. Submit proof of accomplishments to maintain your scholarship.',
+                'cta'   => 'Go to Reports', 'href' => route('accomplishment_reports.get'),
+            ];
+        }
     }
 
-    // Accomplishment reports (students only)
-    if ($isStudent) {
-        $actions[] = [
-            'state' => 'link', 'icon' => 'report', 'title' => 'Accomplishment Reports',
-            'desc'  => 'For Talents, SSG, and Sports scholars. Submit proof of accomplishments to maintain your scholarship.',
-            'cta'   => 'Go to Reports', 'href' => route('accomplishment_reports.get'),
-        ];
+    // Admission Exam (moved here from the landing page).
+    // With an access code the card opens a popup asking for it; without one it goes straight to the exam.
+    if ($exam) {
+        $examAction = $exam->access_code
+            ? [
+                'state' => 'code', 'icon' => 'exam', 'title' => 'Admission Exam',
+                'desc'  => 'Take the scholarship admission exam. You will need the exam code from the Scholarship and Guidance office.',
+                'cta'   => 'Take the Exam',
+            ]
+            : [
+                'state' => 'link', 'icon' => 'exam', 'title' => 'Admission Exam',
+                'desc'  => 'Take the scholarship admission exam.',
+                'cta'   => 'Take the Exam', 'href' => route('exam.admission', $exam->id),
+            ];
+
+        // Not-yet-enrolled users see the exam first; enrolled students see it last.
+        if ($isEnrolled) {
+            $actions[] = $examAction;
+        } else {
+            array_unshift($actions, $examAction);
+        }
     }
+
+    $gridCols = count($actions) === 4 ? 'lg:grid-cols-2' : 'lg:grid-cols-3';
 
     $btnNav = 'inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-medium text-white transition hover:bg-white/20 sm:text-sm';
 @endphp
@@ -248,6 +294,47 @@
     </div>
 </div>
 
+{{-- ── EXAM CODE MODAL (only when the exam has an access code) ── --}}
+@if ($exam && $exam->access_code)
+<div id="exam-code-modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Enter exam code"
+     class="fixed inset-0 z-50 flex items-center justify-center p-4"
+     onclick="if (event.target === this || event.target.dataset.backdrop) closeExamModal()">
+    <div data-backdrop="1" class="absolute inset-0 bg-green-950/60 backdrop-blur-sm"></div>
+
+    <div class="modal-box relative z-10 w-full max-w-md overflow-hidden rounded-[2rem] bg-white shadow-2xl">
+        <div class="relative bg-hero-gradient px-7 py-6 text-white">
+            <div class="absolute inset-0 bg-hero-pattern bg-repeat"></div>
+            <button type="button" onclick="closeExamModal()" aria-label="Close"
+                    class="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/25 transition hover:bg-white/25">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <h3 class="relative font-display text-2xl font-bold">Enter exam code</h3>
+            <p class="relative mt-1 text-sm text-emerald-50/80">Ask the Scholarship and Guidance office for the code.</p>
+        </div>
+
+        <form method="POST" action="{{ route('exam.verify-code', $exam->id) }}" class="px-7 py-6">
+            @csrf
+
+            <label for="exam_code" class="text-sm font-semibold text-slate-700">Exam code</label>
+            <input id="exam_code" name="exam_code" type="text" autocomplete="off" maxlength="12" required
+                   value="{{ old('exam_code') }}"
+                   class="mt-2 w-full rounded-2xl border px-4 py-3 text-center font-display text-2xl font-bold uppercase tracking-[0.3em] text-slate-900 outline-none transition focus:ring-2 focus:ring-green-600
+                          {{ $errors->has('exam_code') ? 'border-red-400' : 'border-green-200' }}"
+                   placeholder="••••••">
+
+            @error('exam_code')
+                <p class="mt-2 text-sm font-medium text-red-600">{{ $message }}</p>
+            @enderror
+
+            <button type="submit"
+                    class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-green-800 px-6 py-3 text-sm font-semibold text-white transition hover:bg-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700">
+                Continue to exam
+            </button>
+        </form>
+    </div>
+</div>
+@endif
+
 {{-- ── NAVBAR (same as landing page) ── --}}
 <header class="sticky top-0 z-40 border-b border-white/10 bg-green-900/80 shadow-lg shadow-green-950/10 backdrop-blur-xl">
     <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3">
@@ -285,7 +372,7 @@
             <span class="bg-gradient-to-r from-gvc-pale via-gvc-mint to-emerald-300 bg-clip-text text-transparent">Services</span>
         </h1>
         <p class="mx-auto max-w-xl text-sm text-emerald-50/85 sm:text-base">
-            Submit your requirements and track your scholarship application status here.
+            Take the admission exam, submit your requirements, and track your scholarship application status here.
         </p>
     </div>
 </section>
@@ -357,16 +444,17 @@
         @endif
 
         {{-- ACTION CARDS --}}
-        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="grid gap-6 sm:grid-cols-2 {{ $gridCols }}">
             @foreach ($actions as $i => $a)
                 @php
-                    $tag    = $a['state'] === 'link' ? 'a' : ($a['state'] === 'done' ? 'button' : 'div');
+                    $tag    = $a['state'] === 'link' ? 'a' : (in_array($a['state'], ['done', 'code']) ? 'button' : 'div');
                     $locked = $a['state'] === 'locked';
                 @endphp
 
                 <{{ $tag }}
                     @if ($a['state'] === 'link') href="{{ $a['href'] }}" @endif
                     @if ($a['state'] === 'done') type="button" onclick="openModal()" @endif
+                    @if ($a['state'] === 'code') type="button" onclick="openExamModal()" @endif
                     class="group fade-up delay-{{ min($i + 1, 3) }} flex flex-col items-center rounded-3xl border p-8 text-center shadow-sm transition duration-300
                         {{ $locked
                             ? 'cursor-not-allowed border-slate-200 bg-white/70 opacity-70'
@@ -382,7 +470,7 @@
                     <h2 class="mb-2 font-display text-xl font-bold text-slate-900 transition-colors {{ $locked ? '' : 'group-hover:text-emerald-800' }}">{{ $a['title'] }}</h2>
                     <p class="mb-6 flex-1 text-sm leading-relaxed text-slate-500">{{ $a['desc'] }}</p>
 
-                    @if ($a['state'] === 'link')
+                    @if (in_array($a['state'], ['link', 'code']))
                         <span class="inline-flex items-center gap-2 rounded-full bg-green-900 px-5 py-2.5 text-sm font-semibold text-white transition group-hover:bg-green-800">
                             {{ $a['cta'] }}
                             <svg class="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
@@ -434,8 +522,31 @@
         document.getElementById('already-applied-modal').style.display = 'none';
         document.body.style.overflow = '';
     }
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    // Exam code popup (only exists when the exam has an access code)
+    function openExamModal() {
+        const m = document.getElementById('exam-code-modal');
+        if (!m) return;
+        m.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => { const i = document.getElementById('exam_code'); if (i) i.focus(); }, 80);
+    }
+    function closeExamModal() {
+        const m = document.getElementById('exam-code-modal');
+        if (!m) return;
+        m.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeModal(); closeExamModal(); }
+    });
 </script>
+
+@if ($exam && $exam->access_code && $errors->has('exam_code'))
+    {{-- Wrong code: reopen the popup so the error message is visible --}}
+    <script>document.addEventListener('DOMContentLoaded', openExamModal);</script>
+@endif
 
 </body>
 </html>

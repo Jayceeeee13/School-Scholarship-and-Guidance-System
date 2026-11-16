@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Applicant;
+use App\Models\Exam;
 use App\Models\ExamAttempt;
 use App\Models\Gender;
 use App\Models\Program;
@@ -573,12 +574,16 @@ class ApplicationController extends Controller
         $scholarRecord    = $ctx['scholarThisTerm'];
         $isRenewal        = $ctx['isRenewal'];
 
+        // The Admission Exam card is shown on the Scholarship page.
+        $exam = Exam::first();
+
         return view('scholarship', compact(
             'alreadyApplied',
             'applicant',
             'isAlreadyScholar',
             'scholarRecord',
-            'isRenewal'
+            'isRenewal',
+            'exam'
         ));
     }
 }

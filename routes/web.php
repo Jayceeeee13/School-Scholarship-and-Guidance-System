@@ -1,9 +1,5 @@
 <?php
 
-use App\Models\Role;
-use App\Models\User;
-use App\Models\Exam;
-use App\Models\Program;
 use App\Models\Personnels;
 use App\Models\Announcement;
 use App\Models\Activity;
@@ -31,9 +27,10 @@ use App\Http\Middleware\EnsureExamCodeVerified;
 // ─────────────────────────────────────────────────────────────
 
 // Shared by "/" and "/gvc" so the landing page data lives in one place.
+// (The Admission Exam now lives on the Scholarship page, so it is no
+// longer loaded here.)
 $landing = function () {
     return view('welcome', [
-        'exam'          => Exam::first(),
         'announcements' => Announcement::latest()->take(6)->get(),
         'activities'    => Activity::orderByDesc('activity_date')
             ->latest()
@@ -163,7 +160,9 @@ Route::middleware(['auth', 'portal'])->group(function () {
     Route::post('/guidance/referrals', [ReferralController::class, 'store'])->name('guidance_referrals.post');
     Route::get('/guidance/referrals', [ReferralController::class, 'index'])->name('guidance_referrals.index');
 
-    // Scholarship portal
+    // Scholarship portal. Open to every logged-in student: not-yet-enrolled
+    // students can take the Admission Exam from this page, while the
+    // application / requirements cards stay locked until they are enrolled.
     Route::get('/scholarship', [ApplicationController::class, 'index'])->name('scholarship');
 
     // ── Accomplishment Reports — scholars under Talents, SSG, or Sports only ──
@@ -181,7 +180,7 @@ Route::middleware(['auth', 'portal'])->group(function () {
 
     // ── Exam Routes ──────────────────────────────────────────
     // Students enter the exam access code (if the exam has one) from the
-    // landing page. This route checks the code and stores it in the session.
+    // Scholarship page. This route checks the code and stores it in the session.
     Route::post('/exam/{exam}/verify-code', [ExamCodeController::class, 'verify'])
         ->name('exam.verify-code');
 
@@ -258,58 +257,42 @@ Route::middleware(['auth'])->group(function () {
             'school_year' => $schoolYear,
         ]));
     })->name('reports.print.institutional');
+
+    // Endorsement slips. These contain student details, so they now require
+    // a login like the other print links (they used to be open to anyone
+    // who guessed an ID).
+    Route::get('/endorsement/{id}/print', function ($id) {
+        $record = \App\Models\CounselingAppointments::with(['endorsement.personnel'])->findOrFail($id);
+        return view('print.endorsement', compact('record'));
+    })->name('endorsement.print');
+
+    Route::get('/referral/{id}/endorsement/print', function ($id) {
+        $record = \App\Models\Referrals::with(['endorsement.personnel'])->findOrFail($id);
+        return view('print.endorsement', compact('record'));
+    })->name('referral.endorsement.print');
 });
 
 // ─────────────────────────────────────────────────────────────
 // Scholarship Routes — enrolled students only
 // ─────────────────────────────────────────────────────────────
 Route::middleware(['auth', 'enrolled', 'portal'])->group(function () {
+    // One form for both new applications and renewals: the applicant type is
+    // worked out by ApplicationController (Renewal, or New Applicant when a
+    // returning scholar picks a different scholarship type).
     Route::get('/apply/new', [ApplicationController::class, 'create'])->name('application_new.get');
     Route::post('/apply/new', [ApplicationController::class, 'store'])->name('application_new.post');
-    Route::get('/application/renewal', [ApplicationController::class, 'renewalForm'])->name('application_renewal');
-    Route::post('/application/renewal', [ApplicationController::class, 'storeRenewal'])->name('application_renewal.post');
+
+    // The old renewal page was merged into the form above (ApplicationController
+    // has no renewalForm / storeRenewal methods), so this address just redirects.
+    Route::redirect('/application/renewal', '/apply/new')->name('application_renewal');
+
     Route::get('/apply/requirements', [RequirementSubmissionController::class, 'index'])->name('requirements_submission.get');
     Route::post('/apply/requirements', [RequirementSubmissionController::class, 'store'])->name('requirements_submission.post');
 });
 
 // ─────────────────────────────────────────────────────────────
-// Print Routes (no auth required)
+// Admin calendar
 // ─────────────────────────────────────────────────────────────
-Route::get('/endorsement/{id}/print', function ($id) {
-    $record = \App\Models\CounselingAppointments::with(['endorsement.personnel'])->findOrFail($id);
-    return view('print.endorsement', compact('record'));
-})->name('endorsement.print');
-
-Route::get('/referral/{id}/endorsement/print', function ($id) {
-    $record = \App\Models\Referrals::with(['endorsement.personnel'])->findOrFail($id);
-    return view('print.endorsement', compact('record'));
-})->name('referral.endorsement.print');
-
-// ─────────────────────────────────────────────────────────────
-// Dev / Debug Routes
-// ─────────────────────────────────────────────────────────────
-Route::get('/test-auth', function () {
-    return response()->json([
-        'logged_in' => auth()->check(),
-        'user'      => auth()->user()?->email,
-        'guard'     => 'web',
-    ]);
-});
-
-Route::get('/debug-inst', function () {
-    return [
-        'columns' => \Illuminate\Support\Facades\Schema::getColumnListing('institutional_scholars'),
-        'groups' => \App\Models\InstitutionalScholar::selectRaw('term_id, type_of_scholarship, status, count(*) as n')
-            ->groupBy('term_id', 'type_of_scholarship', 'status')
-            ->get(),
-        'types' => \App\Models\TypeOfScholarship::select('id', 'name', 'is_active')->get(),
-    ];
-})->middleware('auth');
-
-Route::get('/test-calendar-direct', function () {
-    return app(\App\Filament\Resources\CalendarResource\Pages\CalendarAppointments::class)->__invoke(request());
-});
-
 Route::get('/admin-calendar', function () {
     return app(\App\Filament\Resources\CalendarResource\Pages\CalendarAppointments::class)->__invoke(request());
 })->middleware(['web', 'auth']);
@@ -318,3 +301,32 @@ Route::get('/admin-calendar/date/{date}', function ($date) {
     request()->merge(['date' => $date]);
     return app(\App\Filament\Resources\CalendarResource\Pages\ManageDatePage::class)->__invoke(request());
 })->middleware(['web', 'auth']);
+
+// ─────────────────────────────────────────────────────────────
+// Dev / Debug Routes — local environment only.
+// On the live site these do not exist (404), so they can't leak
+// database details or open pages without a login.
+// ─────────────────────────────────────────────────────────────
+if (app()->environment('local')) {
+    Route::get('/test-auth', function () {
+        return response()->json([
+            'logged_in' => auth()->check(),
+            'user'      => auth()->user()?->email,
+            'guard'     => 'web',
+        ]);
+    });
+
+    Route::get('/debug-inst', function () {
+        return [
+            'columns' => \Illuminate\Support\Facades\Schema::getColumnListing('institutional_scholars'),
+            'groups' => \App\Models\InstitutionalScholar::selectRaw('term_id, type_of_scholarship, status, count(*) as n')
+                ->groupBy('term_id', 'type_of_scholarship', 'status')
+                ->get(),
+            'types' => \App\Models\TypeOfScholarship::select('id', 'name', 'is_active')->get(),
+        ];
+    })->middleware('auth');
+
+    Route::get('/test-calendar-direct', function () {
+        return app(\App\Filament\Resources\CalendarResource\Pages\CalendarAppointments::class)->__invoke(request());
+    });
+}

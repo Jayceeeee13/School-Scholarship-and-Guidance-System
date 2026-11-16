@@ -251,22 +251,38 @@
 
     // Admission Exam (moved here from the landing page).
     // With an access code the card opens a popup asking for it; without one it goes straight to the exam.
-    if ($exam) {
-        $examAction = $exam->access_code
-            ? [
-                'state' => 'code', 'icon' => 'exam', 'title' => 'Admission Exam',
-                'desc'  => 'Take the scholarship admission exam. You will need the exam code from the Scholarship and Guidance office.',
-                'cta'   => 'Take the Exam',
-            ]
-            : [
-                'state' => 'link', 'icon' => 'exam', 'title' => 'Admission Exam',
-                'desc'  => 'Take the scholarship admission exam.',
-                'cta'   => 'Take the Exam', 'href' => route('exam.admission', $exam->id),
-            ];
+    // Admission Exam. Locked once the student has finished it.
+if ($exam) {
+    $finishedAttempt = \App\Models\ExamAttempt::where('user_id', auth()->id())
+        ->where('exam_id', $exam->id)
+        ->whereNotNull('completed_at')
+        ->latest('completed_at')
+        ->first();
 
-        // The exam always comes first, before the scholarship application.
-        array_unshift($actions, $examAction);
+    if ($finishedAttempt) {
+        $examAction = [
+            'state' => 'locked', 'icon' => 'exam', 'title' => 'Admission Exam',
+            'desc'  => 'You have already taken the admission exam. Your score: '
+                . number_format($finishedAttempt->percentage, 1) . '%.',
+            'cta'   => 'Exam Already Taken',
+        ];
+    } elseif ($exam->access_code) {
+        $examAction = [
+            'state' => 'code', 'icon' => 'exam', 'title' => 'Admission Exam',
+            'desc'  => 'Take the scholarship admission exam. You will need the exam code from the Scholarship and Guidance office.',
+            'cta'   => 'Take the Exam',
+        ];
+    } else {
+        $examAction = [
+            'state' => 'link', 'icon' => 'exam', 'title' => 'Admission Exam',
+            'desc'  => 'Take the scholarship admission exam.',
+            'cta'   => 'Take the Exam', 'href' => route('exam.admission', $exam->id),
+        ];
     }
+
+    // The exam always comes first, before the scholarship application.
+    array_unshift($actions, $examAction);
+}
 
     // Four cards sit in one row on wide screens; fewer cards keep the narrower layout.
     $fourCards = count($actions) === 4;

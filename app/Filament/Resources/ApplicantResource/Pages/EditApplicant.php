@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\ApplicantResource\Pages;
 
 use App\Filament\Resources\ApplicantResource;
-use App\Services\ScholarApplicantSync;
+use App\Services\ScholarSyncService;
 use App\Traits\LogsCustomActivity;
 use Filament\Actions;
 use Filament\Notifications\Notification;
@@ -37,8 +37,11 @@ class EditApplicant extends EditRecord
 
     /**
      * Runs after validation, right before the record is saved.
-     * If nothing changed, skip the save (so no "Saved" notification)
-     * and go back to the list.
+     *
+     * 1. If nothing changed, skip the save (so no "Saved" notification)
+     *    and go back to the list.
+     * 2. If the type of scholarship is being changed on an approved applicant
+     *    and the new type has no slots left, stop and tell the user.
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
@@ -56,28 +59,26 @@ class EditApplicant extends EditRecord
             $this->halt();
         }
 
+        if ($error = ScholarSyncService::ensureSlotForApplicantTypeChange($this->getRecord(), $data)) {
+            Notification::make()
+                ->title('Type of scholarship not changed')
+                ->body($error)
+                ->danger()
+                ->send();
+
+            $this->halt();
+        }
+
         return $data;
     }
 
     /**
-     * Runs after the applicant has been saved: copies the changed fields
-     * (including type of scholarship) to the matching scholar records.
+     * Runs after the applicant has been saved.
      */
     protected function afterSave(): void
     {
         try {
-            $result = ScholarApplicantSync::fromApplicant($this->getRecord(), $this->originalApplicant);
-
-            ScholarApplicantSync::notify($result);
-
-            if ($result && ! empty($result['updated'])) {
-                $this->logCustomActivity(
-                    $this->getRecord(),
-                    'applicants',
-                    'updated',
-                    ScholarApplicantSync::describe($result)
-                );
-            }
+            $this->syncToScholars();
         } catch (\Throwable $e) {
             // The applicant is already saved; never break the page over the sync.
             Log::error('Applicant -> scholar sync failed', [
@@ -89,9 +90,43 @@ class EditApplicant extends EditRecord
 
             Notification::make()
                 ->title('Applicant saved, but the scholar record could not be updated')
-                ->body('See laravel.log for details.')
+                ->body($e->getMessage() . ' (see laravel.log for details)')
                 ->warning()
                 ->send();
         }
+    }
+
+    /**
+     * Copies the fields changed on this applicant to the matching
+     * Institutional Scholar and Scholars records, and moves a slot when the
+     * type of scholarship changed. See ScholarSyncService for the details.
+     */
+    protected function syncToScholars(): void
+    {
+        $result = ScholarSyncService::syncFromApplicant(
+            $this->getRecord(),
+            $this->originalApplicant
+        );
+
+        if (! $result) {
+            return;
+        }
+
+        $institutional = $result['institutional'];
+
+        $this->logCustomActivity(
+            $institutional,
+            'institutional_scholars',
+            'updated',
+            "Updated {$institutional->first_name} {$institutional->last_name} from the applicant record ("
+                . implode(', ', array_keys($result['changes'])) . ')'
+        );
+
+        Notification::make()
+            ->title('Scholar record updated too')
+            ->body('The matching scholar record was updated with the same changes.'
+                . ($result['slots'] ? ' Scholarship slots were adjusted.' : ''))
+            ->success()
+            ->send();
     }
 }

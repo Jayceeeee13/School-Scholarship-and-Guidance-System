@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\ScholarsResource\Pages;
 
 use App\Filament\Resources\ScholarsResource;
-use App\Services\ScholarApplicantSync;
+use App\Services\ScholarSyncService;
 use App\Traits\LogsCustomActivity;
 use Filament\Actions;
 use Filament\Notifications\Notification;
@@ -16,11 +16,7 @@ class EditScholars extends EditRecord
 
     protected static string $resource = ScholarsResource::class;
 
-    /**
-     * Scholar values exactly as they were in the database before this save.
-     * Used to find the matching applicant (by the OLD name/birthdate) and to
-     * work out which fields were actually changed.
-     */
+    /** Scholar values exactly as they were before this save. */
     protected array $originalScholar = [];
 
     protected function getHeaderActions(): array
@@ -36,12 +32,13 @@ class EditScholars extends EditRecord
     }
 
     /**
-     * If nothing changed, skip the save (no "Saved" notification,
-     * no model events) and go back to the list.
+     * 1. If nothing changed, skip the save (no "Saved" notification,
+     *    no model events) and go back to the list.
+     * 2. If the type of scholarship is being changed to one with no slots
+     *    left (and the scholar is linked to an applicant), stop.
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
-        // Remember the pre-save values for the applicant sync.
         $this->originalScholar = $this->getRecord()->getRawOriginal();
 
         $copy = $this->getRecord()->replicate();
@@ -55,29 +52,52 @@ class EditScholars extends EditRecord
             $this->halt();
         }
 
+        if ($error = ScholarSyncService::ensureSlotForScholarTypeChange($this->originalScholar, $data)) {
+            Notification::make()
+                ->title('Type of scholarship not changed')
+                ->body($error)
+                ->danger()
+                ->send();
+
+            $this->halt();
+        }
+
         return $data;
     }
 
     /**
-     * Runs after the scholar has been saved: copies the changed fields
-     * (including type of scholarship) to the matching institutional
-     * scholar and approved applicant.
+     * After the scholar is saved, copy the changes to the Institutional
+     * Scholar record and to the Applicant (and move a slot if the type
+     * of scholarship changed).
      */
     protected function afterSave(): void
     {
         try {
-            $result = ScholarApplicantSync::fromScholarRecord($this->getRecord(), $this->originalScholar);
+            $result = ScholarSyncService::syncFromScholarRecord(
+                $this->getRecord(),
+                $this->originalScholar
+            );
 
-            ScholarApplicantSync::notify($result);
-
-            if ($result && ! empty($result['updated'])) {
-                $this->logCustomActivity(
-                    $this->getRecord(),
-                    'scholars',
-                    'updated',
-                    ScholarApplicantSync::describe($result)
-                );
+            if (! $result || ! $result['applicant']) {
+                return;
             }
+
+            $applicant = $result['applicant'];
+
+            $this->logCustomActivity(
+                $applicant,
+                'applicants',
+                'updated',
+                "Updated {$applicant->first_name} {$applicant->last_name} from the scholar record ("
+                    . implode(', ', array_keys($result['changes'])) . ')'
+            );
+
+            Notification::make()
+                ->title('Applicant record updated too')
+                ->body('The matching applicant was updated with the same changes.'
+                    . ($result['slots'] ? ' Scholarship slots were adjusted.' : ''))
+                ->success()
+                ->send();
         } catch (\Throwable $e) {
             // The scholar is already saved; never break the page over the sync.
             Log::error('Scholar -> applicant sync failed', [
@@ -88,8 +108,8 @@ class EditScholars extends EditRecord
             ]);
 
             Notification::make()
-                ->title('Scholar saved, but the linked records could not be updated')
-                ->body('See laravel.log for details.')
+                ->title('Scholar saved, but the applicant record could not be updated')
+                ->body($e->getMessage() . ' (see laravel.log for details)')
                 ->warning()
                 ->send();
         }

@@ -62,6 +62,11 @@
     $scholarRecord    = $scholarRecord ?? null;
     $exam             = $exam ?? null;
 
+    // Applying requires a PASSED admission exam (renewals are exempt).
+    $examAttempt = $exam ? \App\Models\ExamAttempt::latestAttempt(auth()->id(), $exam->id) : null;
+    $examPassed  = ! $exam || $exam->hasBeenPassedBy(auth()->id());
+    $needsExam   = $exam && ! $isRenewal && ! $examPassed;
+
     // Heroicons (outline, v1) path data
     $icons = [
         'check-circle' => 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
@@ -191,6 +196,14 @@
                 'cta'   => $alreadyApplied
                     ? ($isRenewal ? 'Renewal Submitted' : 'Already Submitted')
                     : 'Already a Scholar',
+            ];
+        } elseif ($needsExam) {
+            $actions[] = [
+                'state' => 'locked', 'icon' => 'lock', 'title' => $applyTitle,
+                'desc'  => $examAttempt
+                    ? 'You need at least ' . ($exam->passing_score ?? 0) . '% on the admission exam to apply. Your score: ' . number_format($examAttempt->percentage, 1) . '%.'
+                    : 'Take and pass the admission exam first to unlock your scholarship application.',
+                'cta'   => $examAttempt ? 'Exam Not Passed' : 'Pass the Exam First',
             ];
         } elseif ($appPeriod->is_open) {
             $actions[] = [
@@ -397,6 +410,16 @@
 {{-- ── MAIN ── --}}
 <main class="flex-1 py-16 md:py-20">
     <div class="mx-auto max-w-7xl px-6">
+
+        {{-- Flash message (e.g. redirected here because the exam isn't passed yet) --}}
+        @if (session('error'))
+            <div class="fade-up mx-auto mb-8 flex max-w-5xl items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700" role="alert">
+                <svg class="mt-0.5 h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons['x-circle'] }}"/>
+                </svg>
+                <p>{{ session('error') }}</p>
+            </div>
+        @endif
 
         {{-- APPLICATION STATUS (only when applied) --}}
         @if ($alreadyApplied && $applicant)

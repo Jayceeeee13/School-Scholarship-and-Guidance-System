@@ -177,10 +177,16 @@ class ExamAttempt extends Model
 
     // ── One-attempt guard ──────────────────────────────────────────────────
 
+    /**
+     * Attempts that count toward the "one attempt per applicant" rule.
+     * Archived attempts are ignored, so an admin can archive a failed
+     * attempt to let the student retake the exam (restoring it blocks again).
+     */
     public function scopeForUserExam($query, $userId, $examId)
     {
         return $query->where('user_id', $userId)
                      ->where('exam_id', $examId)
+                     ->whereNull('archived_at')
                      ->whereIn('status', ['pending', 'completed', 'submitted']);
     }
 

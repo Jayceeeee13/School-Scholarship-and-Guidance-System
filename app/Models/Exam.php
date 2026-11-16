@@ -29,6 +29,27 @@ class Exam extends Model
         return $this->hasMany(ExamAttempt::class);
     }
 
+    /**
+     * True when the user has a finished attempt whose score reaches the
+     * passing score. `passing_score` is compared against the attempt's
+     * percentage (0–100). If no passing score is set, any finished attempt
+     * counts as a pass.
+     */
+    public function hasBeenPassedBy(int $userId): bool
+    {
+        $attempt = ExamAttempt::latestAttempt($userId, $this->id);
+
+        if (! $attempt || is_null($attempt->completed_at)) {
+            return false;
+        }
+
+        if (is_null($this->passing_score)) {
+            return true;
+        }
+
+        return (float) $attempt->percentage >= (float) $this->passing_score;
+    }
+
     /** 6-character code, without look-alike characters (0/O, 1/I). */
     public static function generateAccessCode(): string
     {

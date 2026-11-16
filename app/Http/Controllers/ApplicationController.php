@@ -73,22 +73,48 @@ class ApplicationController extends Controller
      * 2) fallback: students.student_id = users.student_id, if that column exists
      */
     private function findStudent(): ?Students
-    {
-        $table   = (new Students)->getTable();
-        $student = null;
+{
+    $user    = Auth::user();
+    $table   = (new Students)->getTable();
+    $student = null;
 
-        if (Schema::hasColumn($table, 'user_id')) {
-            $student = Students::where('user_id', Auth::id())->first();
-        }
-
-        $studentId = Auth::user()->student_id ?? null;
-
-        if (! $student && ! empty($studentId) && Schema::hasColumn($table, 'student_id')) {
-            $student = Students::where('student_id', $studentId)->first();
-        }
-
-        return $student;
+    // 1) Formally linked: students.user_id = logged-in user
+    if (Schema::hasColumn($table, 'user_id')) {
+        $student = Students::where('user_id', $user->id)->first();
     }
+
+    // 2) users.student_id = students.student_id
+    $studentId = $user->student_id ?? null;
+    if (! $student && ! empty($studentId) && Schema::hasColumn($table, 'student_id')) {
+        $student = Students::where('student_id', $studentId)->first();
+    }
+
+    // 3) Same email (case-insensitive), only if not linked to someone else
+    if (! $student && ! empty($user->email)) {
+        $student = Students::whereRaw('LOWER(TRIM(email)) = ?', [strtolower(trim($user->email))])
+            ->where(fn ($q) => $q->whereNull('user_id')->orWhere('user_id', $user->id))
+            ->first();
+    }
+
+    // 4) Same last name + birth date, only if not linked to someone else
+    if (! $student && ! empty($user->last_name) && ! empty($user->birthdate)) {
+        $student = Students::whereRaw('LOWER(TRIM(last_name)) = ?', [strtolower(trim($user->last_name))])
+            ->whereDate('birth_date', $user->birthdate)
+            ->where(fn ($q) => $q->whereNull('user_id')->orWhere('user_id', $user->id))
+            ->first();
+    }
+
+    // Link it so the next lookup (and the rest of the system) finds it directly.
+    if ($student && empty($student->user_id)) {
+        try {
+            $student->update(['user_id' => $user->id]);
+        } catch (\Throwable $e) {
+            Log::warning('Could not link student to user: ' . $e->getMessage());
+        }
+    }
+
+    return $student;
+}
 
     /**
      * First non-empty value among several possible column names.

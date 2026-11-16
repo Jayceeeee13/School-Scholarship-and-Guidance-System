@@ -563,14 +563,15 @@
 
                             @php
                                 // Renewal students start on the scholarship they had before
-                                // (if it is still available); exam takers start on Academic.
-                                // Both can be changed by the student.
+                                // (if it is still available) and can change it.
+                                // New applicants start with nothing selected and can freely
+                                // choose any scholarship type that still has slots.
                                 $previousType   = $scholarshipTypes->firstWhere('id', $previousScholarshipTypeId);
                                 $renewalDefault = (!empty($renewalTypeId) && $previousType && $previousType->slots > 0)
                                     ? $previousType->id
                                     : null;
 
-                                $selectedScholarship = old('type_of_scholarship_id', $renewalDefault ?? ($academicId ?? ''));
+                                $selectedScholarship = old('type_of_scholarship_id', $renewalDefault ?? '');
                             @endphp
 
                             <select name="type_of_scholarship_id"
@@ -596,14 +597,6 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/>
                                     </svg>
                                     Your previous scholarship is selected. If you choose a different type, your application type will change to New Applicant.
-                                </p>
-                            @elseif(!empty($academicId))
-                                <p class="lock-note">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0;margin-top:1px;">
-                                        <circle cx="12" cy="12" r="10"/>
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/>
-                                    </svg>
-                                    Academic is selected because you have taken the scholarship exam. You may choose another type if you prefer.
                                 </p>
                             @endif
 

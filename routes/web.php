@@ -20,7 +20,9 @@ use App\Http\Controllers\ExamResultSlipController;
 use App\Http\Controllers\ExamAttemptListPrintController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AccomplishmentReportController;
+use App\Http\Middleware\BlockFormerStudents;
 use App\Http\Middleware\EnsureExamCodeVerified;
+use App\Services\StudentEnrollment;
 
 // ─────────────────────────────────────────────────────────────
 // Public Routes
@@ -98,6 +100,19 @@ Route::middleware('guest')->group(function () {
                 ])->onlyInput('email');
             }
 
+            // Students who are no longer on the enrolled list (the Students
+            // import) of the active term cannot log in. Visitors, who have no
+            // student record at all, can still log in to take the admission exam.
+            if ($role === 'student' && StudentEnrollment::status($user) === StudentEnrollment::FORMER) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return back()->withErrors([
+                    'email' => BlockFormerStudents::MESSAGE,
+                ])->onlyInput('email');
+            }
+
             $request->session()->regenerate();
 
             if ($role === 'guest') {
@@ -129,8 +144,10 @@ Route::get('/referral', [ReferralController::class, 'create'])->name('referral')
 
 // ─────────────────────────────────────────────────────────────
 // Protected Routes — students & guests only (portal)
+// BlockFormerStudents also logs out a student who was removed from the
+// enrolled list while they were already logged in.
 // ─────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'portal'])->group(function () {
+Route::middleware(['auth', BlockFormerStudents::class, 'portal'])->group(function () {
 
     // Guidance portal
     Route::get('/guidance', function () {
@@ -275,7 +292,7 @@ Route::middleware(['auth'])->group(function () {
 // ─────────────────────────────────────────────────────────────
 // Scholarship Routes — enrolled students only
 // ─────────────────────────────────────────────────────────────
-Route::middleware(['auth', 'enrolled', 'portal'])->group(function () {
+Route::middleware(['auth', BlockFormerStudents::class, 'enrolled', 'portal'])->group(function () {
     // One form for both new applications and renewals: the applicant type is
     // worked out by ApplicationController (Renewal, or New Applicant when a
     // returning scholar picks a different scholarship type).

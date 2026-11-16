@@ -236,7 +236,9 @@
         array_unshift($actions, $examAction);
     }
 
-    $gridCols = count($actions) === 4 ? 'lg:grid-cols-2' : 'lg:grid-cols-3';
+    // Four cards sit in one row on wide screens; fewer cards keep the narrower layout.
+    $fourCards = count($actions) === 4;
+    $gridCols  = $fourCards ? 'lg:grid-cols-2 xl:grid-cols-4' : 'lg:grid-cols-3';
 
     $btnNav = 'inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-medium text-white transition hover:bg-white/20 sm:text-sm';
 @endphp
@@ -375,11 +377,11 @@
 
 {{-- ── MAIN ── --}}
 <main class="flex-1 py-16 md:py-20">
-    <div class="mx-auto max-w-5xl px-6">
+    <div class="mx-auto max-w-7xl px-6">
 
         {{-- APPLICATION STATUS (only when applied) --}}
         @if ($alreadyApplied && $applicant)
-            <section class="fade-up mb-10 overflow-hidden rounded-3xl border border-green-200/60 bg-white shadow-sm" aria-label="Application status">
+            <section class="fade-up mx-auto mb-10 max-w-5xl overflow-hidden rounded-3xl border border-green-200/60 bg-white shadow-sm" aria-label="Application status">
 
                 {{-- Header --}}
                 <div class="flex flex-wrap items-center justify-between gap-4 border-b px-6 py-5 {{ $cfg['head'] }}">
@@ -440,7 +442,7 @@
         @endif
 
         {{-- ACTION CARDS --}}
-        <div class="grid gap-6 sm:grid-cols-2 {{ $gridCols }}">
+        <div class="mx-auto grid gap-6 sm:grid-cols-2 {{ $gridCols }} {{ $fourCards ? 'max-w-7xl' : 'max-w-5xl' }}">
             @foreach ($actions as $i => $a)
                 @php
                     $tag    = $a['state'] === 'link' ? 'a' : (in_array($a['state'], ['done', 'code']) ? 'button' : 'div');
@@ -451,7 +453,7 @@
                     @if ($a['state'] === 'link') href="{{ $a['href'] }}" @endif
                     @if ($a['state'] === 'done') type="button" onclick="openModal()" @endif
                     @if ($a['state'] === 'code') type="button" onclick="openExamModal()" @endif
-                    class="group fade-up delay-{{ min($i + 1, 3) }} flex flex-col items-center rounded-3xl border p-8 text-center shadow-sm transition duration-300
+                    class="group fade-up delay-{{ min($i + 1, 3) }} flex flex-col items-center rounded-3xl border {{ $fourCards ? 'p-6' : 'p-8' }} text-center shadow-sm transition duration-300
                         {{ $locked
                             ? 'cursor-not-allowed border-slate-200 bg-white/70 opacity-70'
                             : 'cursor-pointer border-green-200/60 bg-white hover:-translate-y-1.5 hover:border-emerald-300 hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700' }}">

@@ -69,9 +69,10 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->navigationGroups([
                 'Generals',
+                'Exam Management',
                 'Scholarship Management',
                 'Guidance Management',
-                'Exam Management',
+                
             ])
             // No widgets: everything is rendered in the custom blade
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')

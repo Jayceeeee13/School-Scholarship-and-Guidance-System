@@ -22,6 +22,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AccomplishmentReportController;
 use App\Http\Middleware\BlockFormerStudents;
 use App\Http\Middleware\BlockExamRetake;
+use App\Http\Middleware\EnsureApplicationSubmitted;
 use App\Http\Middleware\EnsureExamCodeVerified;
 use App\Services\StudentEnrollment;
 
@@ -200,15 +201,15 @@ Route::middleware(['auth', BlockFormerStudents::class, 'portal'])->group(functio
     // Students enter the exam access code (if the exam has one) from the
     // Scholarship page. This route checks the code and stores it in the session.
     Route::post('/exam/{exam}/verify-code', [ExamCodeController::class, 'verify'])
-    ->middleware(BlockExamRetake::class)
-    ->name('exam.verify-code');
+        ->middleware(BlockExamRetake::class)
+        ->name('exam.verify-code');
 
-Route::middleware([EnsureExamCodeVerified::class, BlockExamRetake::class])->group(function () {
-    Route::get('/exam/{exam}/admission',  [ExamController::class, 'admissionForm'])->name('exam.admission');
-    Route::post('/exam/{exam}/admission', [ExamController::class, 'admissionStore'])->name('exam.admission.store');
-    Route::get('/exam/{exam}/scope',      [ExamController::class, 'scope'])->name('exam.scope');
-    Route::get('/exam/{exam}',            [ExamController::class, 'show'])->name('exam.show');
-});
+    Route::middleware([EnsureExamCodeVerified::class, BlockExamRetake::class])->group(function () {
+        Route::get('/exam/{exam}/admission',  [ExamController::class, 'admissionForm'])->name('exam.admission');
+        Route::post('/exam/{exam}/admission', [ExamController::class, 'admissionStore'])->name('exam.admission.store');
+        Route::get('/exam/{exam}/scope',      [ExamController::class, 'scope'])->name('exam.scope');
+        Route::get('/exam/{exam}',            [ExamController::class, 'show'])->name('exam.show');
+    });
 
     // Left outside the code check on purpose: a student who is mid-exam must
     // still be able to submit even if the code is regenerated.
@@ -303,8 +304,12 @@ Route::middleware(['auth', BlockFormerStudents::class, 'enrolled', 'portal'])->g
     // has no renewalForm / storeRenewal methods), so this address just redirects.
     Route::redirect('/application/renewal', '/apply/new')->name('application_renewal');
 
-    Route::get('/apply/requirements', [RequirementSubmissionController::class, 'index'])->name('requirements_submission.get');
-    Route::post('/apply/requirements', [RequirementSubmissionController::class, 'store'])->name('requirements_submission.post');
+    // Step-by-step flow: requirements can only be submitted AFTER the
+    // student has submitted a scholarship application for the active term.
+    Route::middleware(EnsureApplicationSubmitted::class)->group(function () {
+        Route::get('/apply/requirements', [RequirementSubmissionController::class, 'index'])->name('requirements_submission.get');
+        Route::post('/apply/requirements', [RequirementSubmissionController::class, 'store'])->name('requirements_submission.post');
+    });
 });
 
 // ─────────────────────────────────────────────────────────────

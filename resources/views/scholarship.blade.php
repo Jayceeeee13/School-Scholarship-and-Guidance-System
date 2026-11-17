@@ -252,8 +252,21 @@
             ];
         }
 
-        // Requirements
-        if ($reqPeriod->is_open) {
+        // Requirements — step by step: the exam must be passed (renewals are
+        // exempt) and the application must be submitted before requirements open.
+        if ($needsExam) {
+            $actions[] = [
+                'state' => 'locked', 'icon' => 'lock', 'title' => 'Submit Requirements',
+                'desc'  => 'Complete the steps in order. Pass the admission exam and submit your application before you can submit requirements.',
+                'cta'   => 'Pass the Exam First',
+            ];
+        } elseif (! $hasApplication) {
+            $actions[] = [
+                'state' => 'locked', 'icon' => 'lock', 'title' => 'Submit Requirements',
+                'desc'  => 'Complete the steps in order. Submit your scholarship application first to unlock the requirements.',
+                'cta'   => 'Apply First',
+            ];
+        } elseif ($reqPeriod->is_open) {
             $actions[] = [
                 'state' => 'link', 'icon' => 'document', 'title' => 'Submit Requirements',
                 'desc'  => 'Upload and submit your scholarship requirements and letter of intent for processing.',
@@ -268,8 +281,8 @@
             ];
         }
 
-        // Accomplishment reports (enrolled students only)
-        if ($isStudent) {
+        // Accomplishment reports: only shown once the application is APPROVED.
+        if ($isStudent && $status === 'approved') {
             $actions[] = [
                 'state' => 'link', 'icon' => 'report', 'title' => 'Accomplishment Reports',
                 'desc'  => 'For Talents, SSG, and Sports scholars. Submit proof of accomplishments to maintain your scholarship.',

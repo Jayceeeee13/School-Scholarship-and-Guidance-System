@@ -20,12 +20,78 @@ class ExamResource extends Resource
 
     protected static ?string $navigationGroup = 'Exam Management';
 
+    // Only one exam is managed, so the sidebar item is singular.
+    protected static ?string $navigationLabel = 'Exam';
+
     protected static ?int $navigationSort = 1;
+
+    /**
+     * The sidebar item opens the exam itself instead of a table with one row.
+     * (If no exam exists yet, it falls back to the normal list / create page.)
+     */
+    public static function getNavigationUrl(): string
+    {
+        $exam = Exam::query()->first();
+
+        return $exam
+            ? static::getUrl('edit', ['record' => $exam])
+            : static::getUrl('index');
+    }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
+                // ── Overview (only when the exam already exists) ──
+                Forms\Components\Section::make('Overview')
+                    ->icon('heroicon-o-chart-bar')
+                    ->visible(fn (?Exam $record) => filled($record))
+                    ->schema([
+                        Forms\Components\Grid::make(3)
+                            ->schema([
+                                Forms\Components\Placeholder::make('questions_summary')
+                                    ->label('Questions')
+                                    ->content(function (?Exam $record): string {
+                                        if (! $record) {
+                                            return '—';
+                                        }
+
+                                        $count = $record->questions()->count();
+
+                                        return $count . ' question' . ($count === 1 ? '' : 's');
+                                    }),
+
+                                Forms\Components\Placeholder::make('points_summary')
+                                    ->label('Total points')
+                                    ->content(fn (?Exam $record): string => $record
+                                        ? (string) $record->questions()->sum('points')
+                                        : '—'),
+
+                                Forms\Components\Placeholder::make('examinees_summary')
+                                    ->label('Examinees')
+                                    ->content(fn (?Exam $record): string => $record
+                                        ? (string) $record->attempts()->whereNull('archived_at')->count()
+                                        : '—'),
+                            ]),
+
+                        Forms\Components\Actions::make([
+                            Forms\Components\Actions\Action::make('manageQuestions')
+                                ->label('Manage Questions')
+                                ->icon('heroicon-o-document-text')
+                                ->color('info')
+                                ->url(fn (?Exam $record) => $record
+                                    ? url("/admin/exams/{$record->id}/questions")
+                                    : null),
+
+                            Forms\Components\Actions\Action::make('viewExaminees')
+                                ->label('View Examinees')
+                                ->icon('heroicon-o-identification')
+                                ->color('gray')
+                                ->url(fn () => static::getUrl('index')),
+                        ]),
+                    ]),
+
+                // ── Exam details ──
                 Forms\Components\Section::make('Exam Information')
                     ->schema([
                         Forms\Components\TextInput::make('title')
@@ -63,7 +129,7 @@ class ExamResource extends Resource
 
                         Forms\Components\TextInput::make('access_code')
                             ->label('Exam Access Code')
-                            ->helperText('Students must enter this code before they can open the exam. Leave empty for no code.')
+                            ->helperText('Students must enter this code before they can open the exam. Leave empty for no code. Click the arrows to generate a new one, then save.')
                             ->maxLength(12)
                             ->unique(ignoreRecord: true)
                             ->extraInputAttributes(['style' => 'text-transform: uppercase; letter-spacing: .15em;'])
@@ -186,6 +252,27 @@ class ExamResource extends Resource
     public static function canViewAny(): bool
     {
         return auth()->user()->hasAnyRole(['admin', 'scholarship']);
+    }
+
+    /**
+     * Only one exam is ever managed, so "New Exam" disappears once it exists.
+     */
+    public static function canCreate(): bool
+    {
+        return ! Exam::query()->exists();
+    }
+
+    /**
+     * The one exam can't be deleted from the panel.
+     */
+    public static function canDelete($record): bool
+    {
+        return false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return false;
     }
 
     public static function shouldRegisterNavigation(): bool

@@ -35,6 +35,14 @@
             <span class="text-sm text-gray-600 dark:text-gray-400">Approved</span>
         </div>
         <div class="flex items-center gap-2">
+            <div class="w-4 h-4 rounded" style="background-color: #3b82f6;"></div>
+            <span class="text-sm text-gray-600 dark:text-gray-400">Follow-up</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <div class="w-4 h-4 rounded" style="background-color: #6b7280;"></div>
+            <span class="text-sm text-gray-600 dark:text-gray-400">Completed</span>
+        </div>
+        <div class="flex items-center gap-2">
             <div class="w-4 h-4 rounded" style="background-color: #ef4444;"></div>
             <span class="text-sm text-gray-600 dark:text-gray-400">Rejected</span>
         </div>

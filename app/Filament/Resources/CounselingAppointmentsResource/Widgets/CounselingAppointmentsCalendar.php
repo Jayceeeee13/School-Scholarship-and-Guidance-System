@@ -14,20 +14,26 @@ class CounselingAppointmentsCalendar extends FullCalendarWidget
     {
         $events = [];
 
-        $userRole = auth()->user()?->role?->name;
-
-        if (in_array(strtolower($userRole ?? ''), ['guidance', 'admin'])) {
+        // hasAnyRole() checks both the roles pivot and the legacy role_id.
+        if (auth()->user()?->hasAnyRole(['guidance', 'admin'])) {
             $events = CounselingAppointments::query()
                 ->with(['timeSlot', 'modeOfCounseling'])
+                ->whereNull('archived_at')
+                ->where('status', '!=', 'cancelled')
                 ->whereBetween('counseling_date', [$fetchInfo['start'], $fetchInfo['end']])
                 ->get()
                 ->map(function (CounselingAppointments $appointment) {
-                    $color = match ($appointment->status) {
-                        'pending'  => '#f59e0b',
-                        'approved' => '#10b981',
-                        'rejected' => '#ef4444',
-                        default    => '#6b7280',
-                    };
+                    $isFollowUp = $appointment->isFollowUp();
+
+                    $color = $isFollowUp
+                        ? '#3b82f6'
+                        : match ($appointment->status) {
+                            'pending'   => '#f59e0b',
+                            'approved'  => '#10b981',
+                            'rejected'  => '#ef4444',
+                            'completed' => '#6b7280',
+                            default     => '#9ca3af',
+                        };
 
                     $name     = "{$appointment->first_name} {$appointment->last_name}";
                     $timeSlot = $appointment->timeSlot?->name ?? 'No Time';
@@ -35,7 +41,7 @@ class CounselingAppointmentsCalendar extends FullCalendarWidget
 
                     return [
                         'id'              => $appointment->id,
-                        'title'           => "{$name} - {$timeSlot}",
+                        'title'           => ($isFollowUp ? '↻ Follow-up: ' : '') . "{$name} - {$timeSlot}",
                         'start'           => $dateTime->toIso8601String(),
                         'end'             => $dateTime->copy()->addHour()->toIso8601String(),
                         'backgroundColor' => $color,
@@ -86,7 +92,7 @@ class CounselingAppointmentsCalendar extends FullCalendarWidget
         );
     }
 
-    public function config(): array     
+    public function config(): array
     {
         return [
             'headerToolbar' => [

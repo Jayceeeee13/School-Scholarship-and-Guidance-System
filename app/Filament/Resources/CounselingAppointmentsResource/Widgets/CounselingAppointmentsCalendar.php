@@ -36,18 +36,23 @@ class CounselingAppointmentsCalendar extends FullCalendarWidget
                     ->with(['timeSlot', 'modeOfCounseling'])
                     ->whereNull('archived_at')
                     ->where('status', '!=', 'cancelled')
-                    // A follow-up is either linked to a parent appointment, or was
-                    // scheduled from a referral (referral_id is set).
+                    // A follow-up is linked to a parent appointment, or was scheduled
+                    // from a referral (referral_id) or from a logform (source_logform_id).
                     ->when($this->filter === 'followups', fn ($q) => $q->where(
-                        fn ($w) => $w->whereNotNull('parent_appointment_id')->orWhereNotNull('referral_id')
+                        fn ($w) => $w->whereNotNull('parent_appointment_id')
+                            ->orWhereNotNull('referral_id')
+                            ->orWhereNotNull('source_logform_id')
                     ))
                     ->when($this->filter === 'appointments', fn ($q) => $q
                         ->whereNull('parent_appointment_id')
-                        ->whereNull('referral_id'))
+                        ->whereNull('referral_id')
+                        ->whereNull('source_logform_id'))
                     ->whereBetween('counseling_date', [$fetchInfo['start'], $fetchInfo['end']])
                     ->get()
                     ->map(function (CounselingAppointments $appointment) {
-                        $isFollowUp = $appointment->isFollowUp() || filled($appointment->referral_id);
+                        $isFollowUp = $appointment->isFollowUp()
+                            || filled($appointment->referral_id)
+                            || filled($appointment->source_logform_id);
 
                         $color = $isFollowUp
                             ? '#3b82f6'

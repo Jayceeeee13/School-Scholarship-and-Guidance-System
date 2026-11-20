@@ -133,8 +133,9 @@
             'Submitted On'     => $applicant->created_at ? $applicant->created_at->format('M d, Y') : '—',
             'Last Updated'     => $applicant->updated_at ? $applicant->updated_at->format('M d, Y') : '—',
         ];
-        if ($applicant->benefit) {
-            $details['Benefit'] = $applicant->benefit;
+        // Show the benefit as its label (e.g. "75% Tuition Fee Discount"), not the raw code.
+        if (! is_null($applicant->benefit)) {
+            $details['Benefit'] = \App\Models\ExamAttempt::resolveDiscount((int) $applicant->benefit)['label'];
         }
     } else {
         // No application yet: neutral card that tells the student what to do next.
@@ -194,6 +195,7 @@
     | Action cards
     | state: link (clickable) | code (opens the exam-code popup)
     |        | done (opens the "already applied" popup) | locked (not available)
+    |        | complete (finished, nothing left to do: not clickable)
     |--------------------------------------------------------------------------
     */
     $actions = [];
@@ -254,6 +256,8 @@
 
         // Requirements — step by step: the exam must be passed (renewals are
         // exempt) and the application must be submitted before requirements open.
+        // Once every requirement is submitted there is nothing left to do, so the
+        // card closes instead of staying open.
         if ($needsExam) {
             $actions[] = [
                 'state' => 'locked', 'icon' => 'lock', 'title' => 'Submit Requirements',
@@ -265,6 +269,12 @@
                 'state' => 'locked', 'icon' => 'lock', 'title' => 'Submit Requirements',
                 'desc'  => 'Complete the steps in order. Submit your scholarship application first to unlock the requirements.',
                 'cta'   => 'Apply First',
+            ];
+        } elseif ($requirementsDone) {
+            $actions[] = [
+                'state' => 'complete', 'icon' => 'check-circle', 'title' => 'Submit Requirements',
+                'desc'  => 'All of your requirements have been submitted. There is nothing more to submit.',
+                'cta'   => 'Requirements Complete',
             ];
         } elseif ($reqPeriod->is_open) {
             $actions[] = [
@@ -577,7 +587,9 @@
                     class="group fade-up delay-{{ min($i + 1, 3) }} flex flex-col items-center rounded-3xl border {{ $fourCards ? 'p-6' : 'p-8' }} text-center shadow-sm transition duration-300
                         {{ $locked
                             ? 'cursor-not-allowed border-slate-200 bg-white/70 opacity-70'
-                            : 'cursor-pointer border-green-200/60 bg-white hover:-translate-y-1.5 hover:border-emerald-300 hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700' }}">
+                            : ($a['state'] === 'complete'
+                                ? 'cursor-default border-emerald-200 bg-white'
+                                : 'cursor-pointer border-green-200/60 bg-white hover:-translate-y-1.5 hover:border-emerald-300 hover:shadow-card-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700') }}">
 
                     <div class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl transition-colors duration-300
                         {{ $locked ? 'bg-slate-100 text-slate-400' : 'bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200' }}">
@@ -596,7 +608,7 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons['chevron-r'] }}"/>
                             </svg>
                         </span>
-                    @elseif ($a['state'] === 'done')
+                    @elseif (in_array($a['state'], ['done', 'complete']))
                         <span class="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-100 px-5 py-2.5 text-sm font-semibold text-emerald-700">
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="{{ $icons['check'] }}"/>

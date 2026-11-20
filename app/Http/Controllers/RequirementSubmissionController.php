@@ -34,6 +34,23 @@ class RequirementSubmissionController extends Controller
             ->get();
     }
 
+    /**
+     * True when every requirement that applies to the applicant already has a
+     * submitted file. Once that is the case, requirement submission is closed.
+     */
+    private function requirementsComplete(Applicant $applicant, $requirements): bool
+    {
+        $done = DB::table('applicant_requirement')
+            ->where('applicant_id', $applicant->id)
+            ->where('is_submitted', 1)
+            ->whereNotNull('file_path')
+            ->whereIn('requirement_id', $requirements->pluck('id'))
+            ->distinct()
+            ->count('requirement_id');
+
+        return $done >= $requirements->count();
+    }
+
     // ─────────────────────────────────────────────────────────────
     // GET /apply/requirements
     // ─────────────────────────────────────────────────────────────
@@ -52,6 +69,14 @@ class RequirementSubmissionController extends Controller
 
         if ($applicant) {
             $requirements = $this->requirementsFor($applicant);
+
+            // Everything is already submitted, so this page is closed.
+            if ($this->requirementsComplete($applicant, $requirements)) {
+                return redirect()->route('scholarship')->with(
+                    'success',
+                    session('success', 'All of your requirements have already been submitted, so submission is closed.')
+                );
+            }
 
             // Only counts rows where a file was actually submitted, and only
             // for requirements that currently apply to this applicant.
@@ -79,6 +104,12 @@ class RequirementSubmissionController extends Controller
         // Same filtering as index(): "All" requirements + the ones for this
         // applicant's scholarship type.
         $requirements = $this->requirementsFor($applicant);
+
+        // Guard: nothing more can be submitted once every requirement is in.
+        if ($this->requirementsComplete($applicant, $requirements)) {
+            return redirect()->route('scholarship')
+                ->with('success', 'All of your requirements have already been submitted, so submission is closed.');
+        }
 
         // ── Build validation rules ─────────────────────────────
         // All file fields are nullable — partial submission is allowed.
@@ -148,12 +179,15 @@ class RequirementSubmissionController extends Controller
             ->whereIn('requirement_id', $requirements->pluck('id'))
             ->count();
 
+        // That was the last one: submission is now closed, so go back to the
+        // scholarship page instead of showing the form again.
         if ($nowDone >= $total) {
-            $message = "All {$total} requirements have been submitted successfully!";
-        } else {
-            $remaining = $total - $nowDone;
-            $message   = "{$saved} file(s) saved successfully. You still have {$remaining} document(s) pending — you can submit them anytime.";
+            return redirect()->route('scholarship')
+                ->with('success', "All {$total} requirements have been submitted successfully!");
         }
+
+        $remaining = $total - $nowDone;
+        $message   = "{$saved} file(s) saved successfully. You still have {$remaining} document(s) pending — you can submit them anytime.";
 
         return back()->with('success', $message);
     }

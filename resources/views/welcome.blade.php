@@ -228,6 +228,62 @@
                 @endif
             </div>
 
+            {{-- ── Scholarship decision notice (approved / not approved) ──
+                 Shows the student's latest decision. Dismissible; it stays hidden
+                 until a new decision comes in. --}}
+            @php
+                $decision = \App\Models\Applicant::where('user_id', auth()->id())
+                    ->whereIn('status', ['approved', 'rejected'])
+                    ->whereNull('archived_at')
+                    ->latest('updated_at')
+                    ->first();
+            @endphp
+
+            @if ($decision)
+                @php
+                    $isApproved  = $decision->status === 'approved';
+                    $decisionKey = 'gvc-decision-' . $decision->id . '-' . $decision->status;
+                @endphp
+
+                <div x-data="{ show: !localStorage.getItem('{{ $decisionKey }}') }" x-show="show" x-cloak
+                     class="mx-auto mt-6 max-w-xl rounded-2xl border px-5 py-4 text-left backdrop-blur-sm
+                            {{ $isApproved ? 'border-emerald-300/40 bg-emerald-500/20 text-emerald-50' : 'border-red-300/40 bg-red-500/25 text-red-50' }}"
+                     role="status">
+                    <div class="flex items-start gap-3">
+                        <svg class="mt-0.5 h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            @if ($isApproved)
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            @else
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            @endif
+                        </svg>
+
+                        <div class="min-w-0 flex-1 text-sm">
+                            <p class="font-display text-base font-bold">
+                                {{ $isApproved ? 'Your scholarship application was approved!' : 'Your scholarship application was not approved' }}
+                            </p>
+                            <p class="mt-1 opacity-90">
+                                @if ($isApproved)
+                                    Congratulations! Open the Scholarship page to see the details of your scholarship.
+                                @else
+                                    @if ($decision->rejection_reason)
+                                        Reason: {{ $decision->rejection_reason }}.
+                                    @endif
+                                    Please contact the scholarship office if you have questions.
+                                @endif
+                            </p>
+                            <a href="{{ url('/scholarship') }}" class="mt-2 inline-block font-semibold underline underline-offset-2 hover:opacity-80">View application status</a>
+                        </div>
+
+                        <button type="button" aria-label="Dismiss"
+                                @click="localStorage.setItem('{{ $decisionKey }}', '1'); show = false"
+                                class="shrink-0 rounded-full p-1 opacity-70 transition hover:bg-white/10 hover:opacity-100">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </div>
+            @endif
+
             @unless (auth()->user()->isEnrolled())
                 <div class="mt-6 inline-flex items-center gap-2 rounded-2xl border border-amber-300/40 bg-amber-500/20 px-4 py-2.5 text-xs text-amber-100 backdrop-blur-sm sm:text-sm">
                     <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>

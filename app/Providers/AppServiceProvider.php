@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Models\ReferralInvitation;
 use App\Observers\ReferralInvitationObserver;
 use App\Models\ExamAttempt;
+use App\Models\Applicant;
+use App\Observers\ApplicantObserver;
 use App\Observers\ExamAttemptObserver;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
@@ -31,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
     {
         ReferralInvitation::observe(ReferralInvitationObserver::class);
         ExamAttempt::observe(ExamAttemptObserver::class);
+        Applicant::observe(ApplicantObserver::class);
         // Event::listen(Login::class, [LogAuthenticationActivity::class, 'handleLogin']);
         // Event::listen(Logout::class, [LogAuthenticationActivity::class, 'handleLogout']);
         // Event::listen(Failed::class, [LogAuthenticationActivity::class, 'handleFailedLogin']);

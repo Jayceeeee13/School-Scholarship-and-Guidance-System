@@ -31,10 +31,10 @@
     @foreach (['all' => 'All', 'appointments' => 'Appointments', 'followups' => 'Follow-ups'] as $key => $label)
         <button type="button"
                 x-on:click="mode = '{{ $key }}'; $dispatch('calendar-filter', { mode: '{{ $key }}' })"
-                x-bind:style="mode === '{{ $key }}'
-                    ? 'background:#059669;color:#ffffff;border:1px solid #059669;'
-                    : 'background:#ffffff;color:#374151;border:1px solid #d1d5db;'"
-                style="border-radius:8px;padding:6px 14px;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;">
+                x-bind:style="'display:inline-block;padding:8px 16px !important;border-radius:8px !important;font-size:14px;font-weight:500;line-height:1.2;cursor:pointer;transition:all .15s;'
+                    + (mode === '{{ $key }}'
+                        ? 'background:#059669 !important;color:#ffffff !important;border:1px solid #059669 !important;'
+                        : 'background:#ffffff !important;color:#374151 !important;border:1px solid #d1d5db !important;')">
             {{ $label }}
         </button>
     @endforeach

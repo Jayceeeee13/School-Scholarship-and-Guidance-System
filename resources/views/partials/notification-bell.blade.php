@@ -21,8 +21,11 @@
                 .then(d => { this.unreadCount = d.unread_count; this.notifications = d.notifications; })
                 .catch(e => console.error('Notification fetch error:', e));
         },
+        isGood(t) {
+            return ['approved','accepted'].includes(t) || String(t || '').includes('approved');
+        },
         iconClass(t) {
-            if (['approved','accepted'].includes(t)) return 'bg-green-100 text-green-600';
+            if (this.isGood(t)) return 'bg-green-100 text-green-600';
             if (t === 'referral_invitation') return 'bg-blue-100 text-blue-600';
             if (t === 'rescheduled') return 'bg-amber-100 text-amber-600';
             return 'bg-red-100 text-red-500';
@@ -63,7 +66,7 @@
                     <button class="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
                             :class="n.is_unread ? 'bg-green-50/70' : 'bg-white'">
                         <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full" :class="iconClass(n.type)">
-                            <template x-if="['approved','accepted'].includes(n.type)">
+                            <template x-if="isGood(n.type)">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                             </template>
                             <template x-if="n.type === 'referral_invitation'">
@@ -72,7 +75,7 @@
                             <template x-if="n.type === 'rescheduled'">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 3v4M8 3v4M4 11h16M4 7a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V7zm4.5 8.5l2 2 3.5-4"/></svg>
                             </template>
-                            <template x-if="!['approved','accepted','referral_invitation','rescheduled'].includes(n.type)">
+                            <template x-if="!isGood(n.type) && !['referral_invitation','rescheduled'].includes(n.type)">
                                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                             </template>
                         </span>

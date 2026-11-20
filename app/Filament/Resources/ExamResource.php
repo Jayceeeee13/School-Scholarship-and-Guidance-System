@@ -244,7 +244,8 @@ class ExamResource extends Resource
         return [
             'index'     => Pages\ListExams::route('/'),
             'create'    => Pages\CreateExam::route('/create'),
-            'edit'      => Pages\EditExam::route('/{record}/edit'),
+            // "Exam Settings" page: EditExam with a different title and breadcrumb.
+            'edit'      => Pages\ExamSettings::route('/{record}/edit'),
             'questions' => Pages\ManageExamQuestions::route('/{record}/questions'),
         ];
     }

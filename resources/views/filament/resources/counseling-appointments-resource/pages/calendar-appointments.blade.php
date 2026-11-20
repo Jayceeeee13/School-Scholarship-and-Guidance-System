@@ -25,20 +25,20 @@
     </style>
 
     {{-- Filter --}}
-    <div x-data="{ mode: 'all' }" class="mb-4 flex flex-wrap items-center gap-2">
-        <span class="text-sm font-medium text-gray-600 dark:text-gray-400">Show:</span>
+<div x-data="{ mode: 'all' }" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;">
+    <span style="font-size:14px;font-weight:500;color:#6b7280;">Show:</span>
 
-        @foreach (['all' => 'All', 'appointments' => 'Appointments', 'followups' => 'Follow-ups'] as $key => $label)
-            <button type="button"
-                    x-on:click="mode = '{{ $key }}'; $dispatch('calendar-filter', { mode: '{{ $key }}' })"
-                    :class="mode === '{{ $key }}'
-                        ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600'"
-                    class="rounded-lg border px-3 py-1.5 text-sm font-medium transition">
-                {{ $label }}
-            </button>
-        @endforeach
-    </div>
+    @foreach (['all' => 'All', 'appointments' => 'Appointments', 'followups' => 'Follow-ups'] as $key => $label)
+        <button type="button"
+                x-on:click="mode = '{{ $key }}'; $dispatch('calendar-filter', { mode: '{{ $key }}' })"
+                x-bind:style="mode === '{{ $key }}'
+                    ? 'background:#059669;color:#ffffff;border:1px solid #059669;'
+                    : 'background:#ffffff;color:#374151;border:1px solid #d1d5db;'"
+                style="border-radius:8px;padding:6px 14px;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;">
+            {{ $label }}
+        </button>
+    @endforeach
+</div>
 
     {{-- Legend --}}
     <div class="mb-4 flex gap-4 flex-wrap items-center">

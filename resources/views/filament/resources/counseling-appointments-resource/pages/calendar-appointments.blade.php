@@ -25,20 +25,20 @@
     </style>
 
     {{-- Filter --}}
-<div x-data="{ mode: 'all' }" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;">
-    <span style="font-size:14px;font-weight:500;color:#6b7280;">Show:</span>
+    <div x-data="{ mode: 'all' }" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;">
+        <span style="font-size:14px;font-weight:500;color:#6b7280;">Show:</span>
 
-    @foreach (['all' => 'All', 'appointments' => 'Appointments', 'followups' => 'Follow-ups'] as $key => $label)
-        <button type="button"
-                x-on:click="mode = '{{ $key }}'; $dispatch('calendar-filter', { mode: '{{ $key }}' })"
-                x-bind:style="'display:inline-block;padding:8px 16px !important;border-radius:8px !important;font-size:14px;font-weight:500;line-height:1.2;cursor:pointer;transition:all .15s;'
-                    + (mode === '{{ $key }}'
-                        ? 'background:#059669 !important;color:#ffffff !important;border:1px solid #059669 !important;'
-                        : 'background:#ffffff !important;color:#374151 !important;border:1px solid #d1d5db !important;')">
-            {{ $label }}
-        </button>
-    @endforeach
-</div>
+        @foreach (['all' => 'All', 'appointments' => 'Appointments', 'followups' => 'Follow-ups', 'invitations' => 'Invitations'] as $key => $label)
+            <button type="button"
+                    x-on:click="mode = '{{ $key }}'; $dispatch('calendar-filter', { mode: '{{ $key }}' })"
+                    x-bind:style="'display:inline-block;padding:8px 16px !important;border-radius:8px !important;font-size:14px;font-weight:500;line-height:1.2;cursor:pointer;transition:all .15s;'
+                        + (mode === '{{ $key }}'
+                            ? 'background:#059669 !important;color:#ffffff !important;border:1px solid #059669 !important;'
+                            : 'background:#ffffff !important;color:#374151 !important;border:1px solid #d1d5db !important;')">
+                {{ $label }}
+            </button>
+        @endforeach
+    </div>
 
     {{-- Legend --}}
     <div class="mb-4 flex gap-4 flex-wrap items-center">
@@ -53,6 +53,10 @@
         <div class="flex items-center gap-2">
             <div class="w-4 h-4 rounded" style="background-color: #3b82f6;"></div>
             <span class="text-sm text-gray-600 dark:text-gray-400">Follow-up</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <div class="w-4 h-4 rounded" style="background-color: #8b5cf6;"></div>
+            <span class="text-sm text-gray-600 dark:text-gray-400">Invitation</span>
         </div>
         <div class="flex items-center gap-2">
             <div class="w-4 h-4 rounded" style="background-color: #6b7280;"></div>

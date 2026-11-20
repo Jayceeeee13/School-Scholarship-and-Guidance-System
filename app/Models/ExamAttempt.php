@@ -48,6 +48,7 @@ class ExamAttempt extends Model
     ];
 
     // ── Auto-set scholarship type to Academic once an exam is finished ────
+    // ── and copy the exam discount into the scholar's benefit ─────────────
 
     protected static function booted(): void
     {
@@ -55,6 +56,25 @@ class ExamAttempt extends Model
             // An exam counts as finished once completed_at is filled in.
             if (is_null($attempt->completed_at)) {
                 return;
+            }
+
+            // Copy the discount label into institutional_scholars.benefit
+            // (only when the benefit is blank, so typed values are kept).
+            // Wrapped in try/catch so it can never break exam submission.
+            $code = (int) $attempt->discount;
+            if ($code > 0) {
+                try {
+                    \Illuminate\Support\Facades\DB::table('institutional_scholars')
+                        ->where('user_id', $attempt->user_id)
+                        ->where(function ($q) {
+                            $q->whereNull('benefit')->orWhere('benefit', '');
+                        })
+                        ->update([
+                            'benefit' => static::resolveDiscount($code)['label'],
+                        ]);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('benefit sync failed: ' . $e->getMessage());
+                }
             }
 
             $academicId = static::academicScholarshipId();
@@ -213,7 +233,7 @@ class ExamAttempt extends Model
     // ──────────────────────────────────────────────────────────────────────
 
     /**
-     * Raw percentage -> integer discount code stored in `discount`.
+     * Raw percentage -> integer discount code stored in discount.
      */
     public static function calculateDiscount(float $percentage): int
     {

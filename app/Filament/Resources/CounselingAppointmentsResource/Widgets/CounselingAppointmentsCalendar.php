@@ -7,9 +7,19 @@ use App\Filament\Resources\CounselingAppointmentsResource;
 use App\Models\CounselingAppointments;
 use App\Models\InactiveDate;
 use Carbon\Carbon;
+use Livewire\Attributes\On;
 
 class CounselingAppointmentsCalendar extends FullCalendarWidget
 {
+    public string $filter = 'all'; // all | appointments | followups
+
+    #[On('calendar-filter')]
+    public function setFilter(string $mode): void
+    {
+        $this->filter = in_array($mode, ['all', 'appointments', 'followups'], true) ? $mode : 'all';
+        $this->refreshRecords();
+    }
+
     public function fetchEvents(array $fetchInfo): array
     {
         $events = [];
@@ -20,6 +30,8 @@ class CounselingAppointmentsCalendar extends FullCalendarWidget
                 ->with(['timeSlot', 'modeOfCounseling'])
                 ->whereNull('archived_at')
                 ->where('status', '!=', 'cancelled')
+                ->when($this->filter === 'followups', fn ($q) => $q->whereNotNull('parent_appointment_id'))
+                ->when($this->filter === 'appointments', fn ($q) => $q->whereNull('parent_appointment_id'))
                 ->whereBetween('counseling_date', [$fetchInfo['start'], $fetchInfo['end']])
                 ->get()
                 ->map(function (CounselingAppointments $appointment) {
@@ -37,13 +49,14 @@ class CounselingAppointmentsCalendar extends FullCalendarWidget
 
                     $name     = "{$appointment->first_name} {$appointment->last_name}";
                     $timeSlot = $appointment->timeSlot?->name ?? 'No Time';
-                    $dateTime = Carbon::parse($appointment->counseling_date);
+                    $dateTime = Carbon::parse($appointment->counseling_date)
+                        ->setTimezone(config('app.timezone'));
 
                     return [
                         'id'              => $appointment->id,
                         'title'           => ($isFollowUp ? '↻ Follow-up: ' : '') . "{$name} - {$timeSlot}",
-                        'start'           => $dateTime->toIso8601String(),
-                        'end'             => $dateTime->copy()->addHour()->toIso8601String(),
+                        'start'           => $dateTime->format('Y-m-d\TH:i:s'),
+                        'end'             => $dateTime->copy()->addHour()->format('Y-m-d\TH:i:s'),
                         'backgroundColor' => $color,
                         'borderColor'     => $color,
                         'textColor'       => '#ffffff',
